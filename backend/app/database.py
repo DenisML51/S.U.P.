@@ -1,4 +1,3 @@
-# backend/app/database.py
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -10,4 +9,5 @@ engine = create_engine(
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+# Определяем единственный объект Base, который будет использоваться всеми моделями
 Base = declarative_base()
