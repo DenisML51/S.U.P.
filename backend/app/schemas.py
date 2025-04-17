@@ -1,7 +1,9 @@
 # backend/app/schemas.py
 
+# Импорты из вашего файла + model_validator
 from pydantic import BaseModel, Field, root_validator, field_validator, model_validator
 from typing import List, Optional, Dict, Any, Union
+# Импортируем только XP_THRESHOLDS, чтобы избежать циклической зависимости с models
 from .models import XP_THRESHOLDS
 
 # --- Константа с ключами веток ---
@@ -40,61 +42,15 @@ class PartyJoin(BaseModel):
     lobby_key: str = Field(..., min_length=6, max_length=6)
 
 # --- Схемы Справочников ---
-class ItemBase(BaseModel):
-    id: int
-    name: str
-    description: Optional[str] = None
-    item_type: str
-    category: str
-    rarity: str
-    weight: int
-    # Добавляем поля, которые могут быть у дочерних классов, но опциональны здесь
-    strength_requirement: Optional[int] = None
-    stealth_disadvantage: Optional[bool] = None
-    class Config:
-        from_attributes = True
 
-class WeaponOut(ItemBase):
-    damage: str
-    damage_type: str
-    properties: Optional[str] = None
-    range_normal: Optional[int] = None
-    range_max: Optional[int] = None
-    reload_info: Optional[str] = None
-    is_two_handed: bool
-    # Переопределяем как не-опциональные, если они обязательны для Weapon
-    strength_requirement: int = 0
-    stealth_disadvantage: bool = False
-
-class ArmorOut(ItemBase):
-    armor_type: str
-    ac_bonus: int
-    max_dex_bonus: Optional[int] = None
-    strength_requirement: int # Обязательно для брони
-    stealth_disadvantage: bool # Обязательно для брони
-    properties: Optional[str] = None
-
-class ShieldOut(ItemBase):
-    ac_bonus: int
-    strength_requirement: int # Обязательно для щитов
-    properties: Optional[str] = None
-    # stealth_disadvantage тут не нужен
-
-class GeneralItemOut(ItemBase):
-    effect: Optional[str] = None
-    uses: Optional[int] = None
-
-class AmmoOut(ItemBase):
-    ammo_type: str
-    effect: Optional[str] = None
-
+# Определяем AbilityOut ДО того, как он используется в WeaponOut
 class AbilityOut(BaseModel):
     id: int
     name: str
     description: str
     branch: str
     level_required: int
-    skill_requirements: Optional[str] = None # Храним как строку (JSON)
+    skill_requirements: Optional[str] = None
     action_type: str
     cooldown: Optional[str] = None
     range: Optional[str] = None
@@ -108,6 +64,53 @@ class AbilityOut(BaseModel):
     class Config:
         from_attributes = True
 
+class ItemBase(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    item_type: str
+    category: str
+    rarity: str
+    weight: int
+    strength_requirement: Optional[int] = None # Опционально в базовом классе
+    stealth_disadvantage: Optional[bool] = None # Опционально в базовом классе
+    class Config:
+        from_attributes = True
+
+class WeaponOut(ItemBase):
+    damage: str
+    damage_type: str
+    properties: Optional[str] = None
+    range_normal: Optional[int] = None
+    range_max: Optional[int] = None
+    reload_info: Optional[str] = None
+    is_two_handed: bool
+    strength_requirement: int = 0 # Обязательно для оружия (но может быть 0)
+    stealth_disadvantage: bool = False # Обязательно для оружия
+    granted_abilities: List[AbilityOut] = [] # Добавлено поле
+
+class ArmorOut(ItemBase):
+    armor_type: str
+    ac_bonus: int
+    max_dex_bonus: Optional[int] = None
+    strength_requirement: int # Обязательно для брони
+    stealth_disadvantage: bool # Обязательно для брони
+    properties: Optional[str] = None
+
+class ShieldOut(ItemBase):
+    ac_bonus: int
+    strength_requirement: int # Обязательно для щитов
+    properties: Optional[str] = None
+    # stealth_disadvantage тут не нужен, используется из ItemBase (False)
+
+class GeneralItemOut(ItemBase):
+    effect: Optional[str] = None
+    uses: Optional[int] = None
+
+class AmmoOut(ItemBase):
+    ammo_type: str
+    effect: Optional[str] = None
+
 class StatusEffectOut(BaseModel):
     id: int
     name: str
@@ -116,11 +119,12 @@ class StatusEffectOut(BaseModel):
         from_attributes = True
 
 # --- Схемы для Инвентаря Персонажа ---
+# Union теперь включает обновленный WeaponOut
 AnyItemOut = Union[WeaponOut, ArmorOut, ShieldOut, GeneralItemOut, AmmoOut, ItemBase]
 
 class CharacterInventoryItemOut(BaseModel):
     id: int
-    item: AnyItemOut
+    item: AnyItemOut # Теперь может содержать WeaponOut с granted_abilities
     quantity: int
     class Config:
         from_attributes = True
@@ -234,15 +238,13 @@ class CharacterNotes(BaseModel):
     background_notes: Optional[str] = None
 
 
-# --- ИСПРАВЛЕННАЯ СХЕМА CharacterDetailedOut ---
-# Убрано наследование от InitialSkillDistribution, поля навыков добавлены явно
+# Схема вывода детальной информации (навыки перечислены явно)
 class CharacterDetailedOut(CharacterBase, CharacterDerivedStats, CharacterClassBranchLevels, CharacterNotes):
     id: int
     level: int
     experience_points: int
     owner_id: int
-
-    # Явно перечисляем поля навыков (без валидатора суммы от InitialSkillDistribution)
+    # Поля навыков перечислены явно (чтобы не наследовался валидатор InitialSkillDistribution)
     skill_strength: int
     skill_dexterity: int
     skill_endurance: int
@@ -261,20 +263,16 @@ class CharacterDetailedOut(CharacterBase, CharacterDerivedStats, CharacterClassB
     skill_self_control: int
     skill_religion: int
     skill_flow: int
-
-    skill_modifiers: CharacterSkillModifiers # Модификаторы остаются
+    skill_modifiers: CharacterSkillModifiers
     inventory: List[CharacterInventoryItemOut] = []
     equipped_armor: Optional[CharacterInventoryItemOut] = None
     equipped_shield: Optional[CharacterInventoryItemOut] = None
-    equipped_weapon1: Optional[CharacterInventoryItemOut] = None
-    equipped_weapon2: Optional[CharacterInventoryItemOut] = None
-    available_abilities: List[AbilityOut] = []
+    equipped_weapon1: Optional[CharacterInventoryItemOut] = None # Может содержать WeaponOut с granted_abilities
+    equipped_weapon2: Optional[CharacterInventoryItemOut] = None # Может содержать WeaponOut с granted_abilities
+    available_abilities: List[AbilityOut] = [] # Только изученные способности веток
     active_status_effects: List[StatusEffectOut] = []
-
     class Config:
         from_attributes = True
-# ---------------------------------------------
-
 
 # --- Схемы для Обновления Персонажа ---
 class CharacterUpdateSkills(BaseModel):
@@ -332,3 +330,13 @@ class UpdateCharacterStats(BaseModel):
 
 class StatusEffectUpdate(BaseModel):
     status_effect_id: int
+
+
+class UpdateCharacterStats(BaseModel):
+    current_hp: Optional[int] = None
+    current_pu: Optional[int] = None
+    stamina_points: Optional[int] = Field(None, ge=0)
+    exhaustion_level: Optional[int] = Field(None, ge=0, le=6)
+    experience_points: Optional[int] = Field(None, ge=0)
+    # --- ДОБАВЛЕНО ПОЛЕ ДЛЯ РЕЗУЛЬТАТА ПРОВЕРКИ ---
+    check_result: Optional[str] = None # Ожидаем 'success' или 'failure'

@@ -47,9 +47,15 @@ export const levelUpCharacter = (characterId, levelUpData) => {
     return axios.post(`${API_URL}/characters/${characterId}/levelup`, levelUpData, { headers: getAuthHeaders() });
 };
 
-export const updateCharacterStats = (characterId, statsUpdate) => {
-    // statsUpdate должен соответствовать схеме UpdateCharacterStats
-    return axios.put(`${API_URL}/characters/${characterId}/stats`, statsUpdate, { headers: getAuthHeaders() });
+export const updateCharacterStats = (characterId, statsUpdate, checkResult = null) => {
+    // statsUpdate должен быть объектом типа { current_pu: number } или другие статы
+    // Добавляем check_result в тело запроса
+    const payload = { ...statsUpdate };
+    if (checkResult) {
+        payload.check_result = checkResult;
+    }
+    console.log(`Sending updateCharacterStats for ${characterId}:`, payload); // Отладка
+    return axios.put(`${API_URL}/characters/${characterId}/stats`, payload, { headers: getAuthHeaders() });
 };
 
 export const updateCharacterNotes = (characterId, notesUpdate) => {
