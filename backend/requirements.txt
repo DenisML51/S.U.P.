@@ -7,3 +7,6 @@ python-jose[cryptography]
 passlib[bcrypt]
 bcrypt
 python-multipart
+uvicorn[standard]
+websockets
+wsproto

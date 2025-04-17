@@ -1,0 +1,550 @@
+# backend/app/crud/character.py
+from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import func, inspect as sqlainspect
+from sqlalchemy.orm.properties import ColumnProperty # Импорт ColumnProperty
+from fastapi import HTTPException, status
+from typing import List, Optional, Tuple, Any # Добавлен Any
+
+import random
+
+from ..models.character import Character, CharacterInventoryItem
+from ..models.item import Item, Weapon, Armor, Shield, GeneralItem, Ammo # Нужны для isinstance
+from ..models.ability import Ability
+from ..models.status_effect import StatusEffect
+from ..schemas.character import (
+    CharacterCreate, CharacterBriefOut, CharacterDetailedOut, CharacterUpdateSkills,
+    LevelUpInfo, UpdateCharacterStats, CharacterNotes, CharacterSkillModifiers
+)
+from ..schemas.item import CharacterInventoryItemOut, WeaponOut, ArmorOut, ShieldOut, GeneralItemOut, AmmoOut, ItemBase
+from ..schemas.ability import AbilityOut
+from ..schemas.status_effect import StatusEffectOut
+# Импортируем утилиты
+from .utils import (
+    _get_skill_modifier,
+    _calculate_initial_hp,
+    _calculate_base_pu,
+    _get_xp_for_level,
+    _update_character_available_abilities,
+    _calculate_total_ac,
+    NEGATIVE_EMOTIONS, # Импортируем списки эмоций
+    POSITIVE_EMOTIONS
+)
+# Импортируем item CRUD для проверки экипировки при удалении
+from . import item as item_crud
+# Импортируем статус эффект CRUD для добавления эмоций
+from . import reference as reference_crud
+
+
+# --- Character Read Operations ---
+
+def get_characters_by_user(db: Session, user_id: int) -> List[CharacterBriefOut]:
+    """Получает список краткой информации о персонажах пользователя."""
+    db_chars = db.query(Character).filter(Character.owner_id == user_id).all()
+    # Используем Pydantic схему для формирования ответа
+    return [
+        CharacterBriefOut(
+            id=c.id,
+            name=c.name,
+            level=c.level,
+            current_hp=c.current_hp,
+            max_hp=c.max_hp
+        ) for c in db_chars
+    ]
+
+def get_character_details(db: Session, character_id: int, user_id: int) -> Optional[Character]:
+    """
+    Загружает персонажа со всеми необходимыми связями для детального отображения,
+    включая инвентарь, экипировку и способности оружия.
+    Проверяет принадлежность персонажа пользователю.
+    """
+    return db.query(Character).options(
+        selectinload(Character.owner),
+        # Инвентарь и предметы в нем
+        selectinload(Character.inventory).selectinload(CharacterInventoryItem.item),
+        # Экипировка (сразу грузим предметы, включая полиморфные способности оружия)
+        selectinload(Character.equipped_armor).selectinload(CharacterInventoryItem.item),
+        selectinload(Character.equipped_shield).selectinload(CharacterInventoryItem.item),
+        selectinload(Character.equipped_weapon1)
+            .selectinload(CharacterInventoryItem.item.of_type(Weapon)) # Явное указание типа для полиморфизма
+            .selectinload(Weapon.granted_abilities), # Загрузка способностей оружия
+        selectinload(Character.equipped_weapon2)
+            .selectinload(CharacterInventoryItem.item.of_type(Weapon))
+            .selectinload(Weapon.granted_abilities),
+        # Изученные способности и активные состояния
+        selectinload(Character.available_abilities),
+        selectinload(Character.active_status_effects)
+    ).filter(
+        Character.id == character_id,
+        Character.owner_id == user_id # Проверка владельца
+    ).first()
+
+
+def get_character_details_for_output(db: Session, character_id: int, user_id: int) -> Optional[CharacterDetailedOut]:
+    """Получает данные персонажа и формирует Pydantic схему CharacterDetailedOut для вывода."""
+    db_char = get_character_details(db, character_id, user_id)
+    if not db_char:
+        return None
+
+    total_ac = _calculate_total_ac(db_char)
+    passive_attention = 10 + db_char.attention_mod # Используем гибридное свойство
+    next_level = db_char.level + 1
+    xp_needed = _get_xp_for_level(next_level)
+
+    # --- Формирование словаря для Pydantic модели ---
+    character_data = {}
+    char_mapper = sqlainspect(Character)
+    # Копируем основные поля из модели Character
+    for prop in char_mapper.iterate_properties:
+        if isinstance(prop, ColumnProperty) and prop.key in CharacterDetailedOut.model_fields:
+            character_data[prop.key] = getattr(db_char, prop.key)
+
+    # Добавляем расчетные и связанные данные
+    character_data.update({
+        "skill_modifiers": {
+            f: getattr(db_char, f) for f in CharacterSkillModifiers.model_fields.keys() if hasattr(db_char, f)
+        },
+        "total_ac": total_ac,
+        "passive_attention": passive_attention,
+        "xp_needed_for_next_level": xp_needed,
+        # Добавляем явно те поля, что есть в CharacterDetailedOut, но не являются прямыми ColumnProperty
+        # или для которых важны текущие значения из объекта db_char
+        "max_hp": db_char.max_hp,
+        "current_hp": db_char.current_hp,
+        "base_pu": db_char.base_pu,
+        "current_pu": db_char.current_pu,
+        "stamina_points": db_char.stamina_points,
+        "exhaustion_level": db_char.exhaustion_level,
+        "speed": db_char.speed,
+        "initiative_bonus": db_char.initiative_bonus, # гибридное свойство
+        "base_ac": db_char.base_ac, # гибридное свойство
+        # Уровни веток уже скопированы циклом выше, т.к. они ColumnProperty
+        # Заметки тоже скопированы циклом выше
+    })
+
+    # --- Вспомогательная функция для преобразования инвентаря ---
+    def get_inventory_item_schema(inv_item: Optional[CharacterInventoryItem]) -> Optional[CharacterInventoryItemOut]:
+        if not inv_item or not inv_item.item:
+            return None
+        item_data = inv_item.item
+        item_schema: Any = None # Используем Any для Union
+
+        # Преобразуем Item в соответствующую Pydantic схему Out, используя from_orm
+        # from_orm важен для автоматического подтягивания связанных данных (как granted_abilities у Weapon)
+        if isinstance(item_data, Weapon):
+            item_schema = WeaponOut.from_orm(item_data)
+        elif isinstance(item_data, Armor):
+            item_schema = ArmorOut.from_orm(item_data)
+        elif isinstance(item_data, Shield):
+            item_schema = ShieldOut.from_orm(item_data)
+        elif isinstance(item_data, GeneralItem):
+            item_schema = GeneralItemOut.from_orm(item_data)
+        elif isinstance(item_data, Ammo):
+            item_schema = AmmoOut.from_orm(item_data)
+        else:
+             # Fallback на базовую схему, если тип не определен или неизвестен
+            item_schema = ItemBase.from_orm(item_data)
+
+        if item_schema is None: return None # Если не удалось создать схему
+
+        return CharacterInventoryItemOut(
+            id=inv_item.id,
+            item=item_schema,
+            quantity=inv_item.quantity
+        )
+
+    # --- Преобразуем связанные данные ---
+    inventory_list = [get_inventory_item_schema(inv_item) for inv_item in db_char.inventory if inv_item]
+    inventory_list = [item for item in inventory_list if item is not None] # Убираем возможные None
+
+    character_data.update({
+        "inventory": inventory_list,
+        "equipped_armor": get_inventory_item_schema(db_char.equipped_armor),
+        "equipped_shield": get_inventory_item_schema(db_char.equipped_shield),
+        "equipped_weapon1": get_inventory_item_schema(db_char.equipped_weapon1),
+        "equipped_weapon2": get_inventory_item_schema(db_char.equipped_weapon2),
+        "available_abilities": [AbilityOut.from_orm(ab) for ab in db_char.available_abilities],
+        "active_status_effects": [StatusEffectOut.from_orm(se) for se in db_char.active_status_effects],
+    })
+
+    # Создаем Pydantic модель из словаря
+    try:
+        # Проверка на наличие всех полей (опционально, Pydantic v2 должен handle extra='ignore')
+        required_fields = set(CharacterDetailedOut.model_fields.keys())
+        present_fields = set(character_data.keys())
+        if not required_fields.issubset(present_fields):
+            missing = required_fields - present_fields
+            print(f"Предупреждение: Отсутствуют поля для CharacterDetailedOut: {missing}")
+            # Можно добавить логику для установки значений по умолчанию или генерации ошибки
+
+        result_schema = CharacterDetailedOut(**character_data)
+        return result_schema
+    except Exception as e:
+        print(f"Ошибка валидации Pydantic CharacterDetailedOut: {e}")
+        print(f"Данные перед валидацией (ключи): {list(character_data.keys())}")
+        # Можно вернуть None или пробросить ошибку дальше, чтобы API вернул 500
+        # raise HTTPException(status_code=500, detail=f"Ошибка формирования данных персонажа: {e}")
+        return None
+
+
+# --- Character Create / Update Operations ---
+
+def create_character(db: Session, user_id: int, character_in: CharacterCreate) -> Character:
+    """Создает нового персонажа."""
+    skills_data = character_in.initial_skills.model_dump()
+
+    # Рассчитываем начальные модификаторы и производные статы
+    endurance_mod = _get_skill_modifier(skills_data.get('skill_endurance', 1))
+    self_control_mod = _get_skill_modifier(skills_data.get('skill_self_control', 1))
+    initial_max_hp = _calculate_initial_hp(endurance_mod)
+    initial_base_pu = _calculate_base_pu(self_control_mod)
+
+    # Создаем объект модели Character
+    db_char = Character(
+        name=character_in.name,
+        owner_id=user_id,
+        max_hp=initial_max_hp,
+        current_hp=initial_max_hp,
+        base_pu=initial_base_pu,
+        current_pu=initial_base_pu,
+        stamina_points=1, # Начальное значение ОС/Stamina
+        level=1,
+        experience_points=0,
+        speed=10, # Базовая скорость
+        # Распаковываем навыки и заметки
+        **skills_data,
+        appearance_notes=character_in.appearance_notes,
+        character_notes=character_in.character_notes,
+        motivation_notes=character_in.motivation_notes,
+        background_notes=character_in.background_notes
+    )
+
+    db.add(db_char)
+    db.flush() # Используем flush, чтобы получить ID персонажа для _update_character_available_abilities
+    db.refresh(db_char) # Обновляем объект из БД (с полученным ID)
+
+    # Обновляем доступные способности веток (после получения ID)
+    _update_character_available_abilities(db, db_char)
+
+    db.commit() # Коммитим все изменения
+    db.refresh(db_char) # Обновляем объект еще раз, чтобы подтянуть добавленные способности
+    return db_char
+
+
+def update_character_skills(db: Session, character_id: int, user_id: int, skill_updates: CharacterUpdateSkills) -> Optional[Character]:
+    """Обновляет базовые значения навыков персонажа (1-10)."""
+    db_char = db.query(Character).filter(
+        Character.id == character_id,
+        Character.owner_id == user_id
+    ).first()
+
+    if not db_char:
+        return None
+
+    updated = False
+    for skill_name, new_value in skill_updates.model_dump(exclude_unset=True).items():
+        if new_value is not None and hasattr(db_char, skill_name):
+            # Валидация диапазона (хотя Pydantic схема тоже должна валидировать)
+            if not (1 <= new_value <= 10):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Навык {skill_name} должен быть между 1 и 10"
+                )
+            setattr(db_char, skill_name, new_value)
+            updated = True
+
+    if updated:
+        # Пересчитываем базовую ПУ, если Самообладание изменилось
+        db_char.base_pu = _calculate_base_pu(db_char.self_control_mod)
+        # Пересчитать AC не нужно здесь, т.к. он зависит от Ловкости, брони и щита,
+        # а не меняется напрямую при изменении других навыков через этот метод.
+        db.commit()
+        db.refresh(db_char)
+
+    return db_char
+
+
+def level_up_character(db: Session, character_id: int, user_id: int, level_up_data: LevelUpInfo) -> Optional[Character]:
+    """Повышает уровень персонажа, обновляет статы, навыки и способности."""
+    db_char = db.query(Character).filter(
+        Character.id == character_id,
+        Character.owner_id == user_id
+    ).first()
+
+    if not db_char:
+        return None
+
+    # Проверка на возможность повышения уровня по опыту
+    xp_needed = _get_xp_for_level(db_char.level + 1)
+    if xp_needed is None or db_char.experience_points < xp_needed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Недостаточно опыта для повышения уровня"
+        )
+
+    # Повышаем уровень
+    db_char.level += 1
+
+    # Обновляем Макс. ПЗ
+    # Убедимся, что используем актуальный модификатор Выносливости
+    current_endurance_mod = _get_skill_modifier(db_char.skill_endurance)
+    db_char.max_hp += level_up_data.hp_roll + current_endurance_mod
+
+    # Повышаем уровень ветки
+    branch_attr = f"{level_up_data.branch_point_spent}_branch_level"
+    if hasattr(db_char, branch_attr):
+        current_branch_level = getattr(db_char, branch_attr)
+        if current_branch_level < 10: # Проверяем максимальный уровень ветки
+            setattr(db_char, branch_attr, current_branch_level + 1)
+        else:
+             raise HTTPException(
+                 status_code=status.HTTP_400_BAD_REQUEST,
+                 detail=f"Ветка {level_up_data.branch_point_spent} уже достигла максимального уровня (10)"
+             )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Неверное имя ветки класса: {level_up_data.branch_point_spent}"
+        )
+
+    # Распределяем очки навыков
+    total_points_to_spend = 3
+    spent_points = 0
+    for skill_name, points_to_add in level_up_data.skill_points_spent.items():
+        if points_to_add <= 0: continue # Пропускаем, если очков не добавляется
+
+        if hasattr(db_char, skill_name):
+            current_skill_level = getattr(db_char, skill_name)
+            new_level = current_skill_level + points_to_add
+            # Проверяем максимальный уровень навыка
+            if new_level > 10:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Нельзя повысить навык {skill_name} выше 10"
+                )
+            setattr(db_char, skill_name, new_level)
+            spent_points += points_to_add
+        else:
+            # Эта ошибка маловероятна, если фронтенд отправляет правильные ключи
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Неверное имя навыка: {skill_name}"
+            )
+
+    # Проверяем, что потрачено ровно нужное количество очков
+    if spent_points != total_points_to_spend:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Должно быть распределено ровно {total_points_to_spend} очка навыка (потрачено: {spent_points})"
+        )
+
+    # Увеличиваем Очки Стойкости
+    db_char.stamina_points += 1
+
+    # Пересчитываем базовую ПУ (если Самообладание изменилось)
+    new_self_control_mod = _get_skill_modifier(db_char.skill_self_control)
+    db_char.base_pu = _calculate_base_pu(new_self_control_mod)
+
+    # Обновляем доступные способности веток (после изменения уровня ветки)
+    # Делаем это перед commit, чтобы изменения были атомарны
+    _update_character_available_abilities(db, db_char)
+
+    # Сохраняем все изменения
+    db.commit()
+    db.refresh(db_char) # Обновляем объект из БД
+    return db_char
+
+def update_character_stats(
+    db: Session,
+    character_id: int,
+    user_id: int,
+    stats_update: UpdateCharacterStats
+) -> Tuple[Optional[Character], Optional[str]]:
+    """Обновляет статы, проверяет триггеры ПУ и возвращает персонажа и имя сработавшей эмоции."""
+    character = db.query(Character).options(
+        selectinload(Character.active_status_effects) # Загружаем для добавления/проверки эмоций
+    ).filter(
+        Character.id == character_id,
+        Character.owner_id == user_id
+    ).first()
+
+    if not character:
+        return None, None
+
+    updated = False
+    triggered_emotion_name: Optional[str] = None
+
+    # --- Обновление других статов ---
+    if stats_update.current_hp is not None:
+        # Ограничиваем HP между 0 и максимумом
+        character.current_hp = max(0, min(stats_update.current_hp, character.max_hp))
+        updated = True
+    if stats_update.stamina_points is not None:
+        character.stamina_points = max(0, stats_update.stamina_points) # ОС не могут быть < 0
+        updated = True
+    if stats_update.exhaustion_level is not None:
+        character.exhaustion_level = max(0, min(stats_update.exhaustion_level, 6)) # Истощение 0-6
+        updated = True
+    if stats_update.experience_points is not None:
+        character.experience_points = max(0, stats_update.experience_points) # Опыт не может быть < 0
+        updated = True
+
+    # --- Обработка ПУ ---
+    if stats_update.current_pu is not None:
+        new_pu = stats_update.current_pu
+        # Получаем результат проверки из схемы (может быть 'success', 'failure' или None)
+        check_result = stats_update.check_result
+        print(f"Updating PU for Char ID {character.id}: Current={character.current_pu}, Target={new_pu}, Base={character.base_pu}, Result='{check_result}'") # Отладка
+
+        # 1. Ограничиваем новое значение ПУ (0-10, предполагаемый максимум)
+        new_pu_clamped = max(0, min(new_pu, 10))
+
+        # 2. Проверяем триггеры ДО изменения character.current_pu
+        emotion_type_to_trigger: Optional[str] = None
+        if new_pu_clamped <= 0 and check_result == 'failure':
+            print(f"!!! Negative Emotion Triggered for Char ID {character.id}")
+            emotion_type_to_trigger = 'negative'
+        elif new_pu_clamped >= 10 and check_result == 'success':
+            print(f"!!! Positive Emotion Triggered for Char ID {character.id}")
+            emotion_type_to_trigger = 'positive'
+
+        # 3. Применяем новое значение ПУ или сбрасываем, если триггер сработал
+        if emotion_type_to_trigger:
+            character.current_pu = character.base_pu # Сброс до базового
+            print(f"    PU reset to base: {character.current_pu}")
+
+            # 4. Определяем и пытаемся применить эмоцию
+            roll = random.randint(1, 6)
+            print(f"    d6 Roll for emotion: {roll}")
+            emotion_name: Optional[str] = None
+            if emotion_type_to_trigger == 'negative' and 1 <= roll <= len(NEGATIVE_EMOTIONS):
+                emotion_name = NEGATIVE_EMOTIONS[roll - 1]
+            elif emotion_type_to_trigger == 'positive' and 1 <= roll <= len(POSITIVE_EMOTIONS):
+                emotion_name = POSITIVE_EMOTIONS[roll - 1]
+
+            if emotion_name:
+                print(f"    Selected Emotion: {emotion_name}")
+                # Ищем эффект в БД по имени
+                effect_to_apply = db.query(StatusEffect).filter(StatusEffect.name == emotion_name).first()
+                if effect_to_apply:
+                    # Используем функцию apply_status_effect этого же модуля
+                    added_effect_name = apply_status_effect(db, character, effect_to_apply.id)
+                    if added_effect_name:
+                        triggered_emotion_name = added_effect_name # Сохраняем имя для возврата
+                else:
+                    print(f"    Warning: StatusEffect '{emotion_name}' not found in DB!")
+            else:
+                print(f"    Warning: Could not determine emotion for roll {roll} and type '{emotion_type_to_trigger}'")
+        else:
+            # Если триггер не сработал, просто обновляем ПУ до new_pu_clamped
+            if character.current_pu != new_pu_clamped:
+                character.current_pu = new_pu_clamped
+                print(f"    PU updated to: {character.current_pu}")
+
+        updated = True # Помечаем, что были изменения (даже если ПУ не изменилось, но был триггер)
+
+    # --- Применяем изменения в БД, если они были ---
+    if updated:
+        try:
+            db.commit()
+            db.refresh(character) # Обновляем объект из БД
+            # Дополнительно обновляем связи, которые могли измениться (статусы)
+            # Это важно, если get_character_details_for_output вызывается *до* refresh
+            # db.refresh(character, attribute_names=['active_status_effects']) # Попробуем без этого, т.к. get_character_details_for_output все равно запросит заново
+            print(f"Character ID {character_id} stats updated. Triggered emotion: {triggered_emotion_name}")
+        except Exception as e:
+            db.rollback()
+            print(f"Error during commit/refresh for char ID {character_id}: {e}")
+            raise HTTPException(status_code=500, detail="Ошибка сохранения изменений персонажа")
+
+    return character, triggered_emotion_name # Возвращаем кортеж
+
+
+def update_character_notes(db: Session, character_id: int, user_id: int, notes_update: CharacterNotes) -> Optional[Character]:
+    """Обновляет описательные заметки персонажа."""
+    db_char = db.query(Character).filter(
+        Character.id == character_id,
+        Character.owner_id == user_id
+    ).first()
+
+    if not db_char:
+        return None
+
+    updated = False
+    # Используем exclude_unset=True, чтобы обновлять только переданные поля
+    for key, value in notes_update.model_dump(exclude_unset=True).items():
+         if value is not None and hasattr(db_char, key):
+              setattr(db_char, key, value)
+              updated = True
+
+    if updated:
+        db.commit()
+        db.refresh(db_char)
+
+    return db_char
+
+
+# --- Status Effects Operations (within character context) ---
+
+def apply_status_effect(db: Session, character: Character, status_effect_id: int) -> Optional[str]:
+    """
+    Применяет статус-эффект к объекту персонажа (не коммитит).
+    Возвращает имя эффекта, если он был добавлен, иначе None.
+    """
+    status_effect = db.query(StatusEffect).filter(StatusEffect.id == status_effect_id).first()
+    if not status_effect:
+        print(f"Предупреждение: Статус-эффект с ID {status_effect_id} не найден.")
+        # Можно поднять HTTPException, если это критично
+        # raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Статус-эффект не найден")
+        return None # Просто возвращаем None
+
+    # Проверяем, нет ли уже такого эффекта у персонажа (используя загруженные данные)
+    has_effect = any(eff.id == status_effect_id for eff in character.active_status_effects)
+
+    if not has_effect:
+        # Добавляем объект StatusEffect к списку связей персонажа
+        character.active_status_effects.append(status_effect)
+        # НЕ ДЕЛАЕМ COMMIT/FLUSH ЗДЕСЬ! Это задача вызывающей функции.
+        print(f"Эффект '{status_effect.name}' добавлен к персонажу ID {character.id} (ожидает commit)")
+        return status_effect.name # Возвращаем имя добавленного эффекта
+    else:
+        print(f"Эффект '{status_effect.name}' уже есть у персонажа ID {character.id}")
+        return None # Эффект уже был, ничего не добавлено
+
+
+def remove_status_effect(db: Session, character_id: int, user_id: int, status_effect_id: int) -> Optional[Character]:
+    """Снимает статус-эффект с персонажа и коммитит изменения."""
+    # Загружаем персонажа вместе с его активными эффектами
+    character = db.query(Character).options(
+        selectinload(Character.active_status_effects)
+    ).filter(
+        Character.id == character_id,
+        Character.owner_id == user_id
+    ).first()
+
+    if not character:
+        return None # Персонаж не найден или не принадлежит пользователю
+
+    # Находим сам объект StatusEffect по ID (для удаления из списка связей)
+    status_effect_to_remove = None
+    for effect in character.active_status_effects:
+        if effect.id == status_effect_id:
+            status_effect_to_remove = effect
+            break
+
+    if status_effect_to_remove:
+        character.active_status_effects.remove(status_effect_to_remove)
+        try:
+            db.commit()
+            db.refresh(character) # Обновляем объект после коммита
+            print(f"Статус-эффект ID {status_effect_id} удален у персонажа ID {character_id}")
+            return character
+        except Exception as e:
+            db.rollback()
+            print(f"Ошибка commit при удалении статуса ID {status_effect_id} у персонажа ID {character_id}: {e}")
+            # Можно пробросить ошибку или вернуть None
+            return None
+    else:
+        # Эффект не был найден у персонажа
+        print(f"Статус-эффект ID {status_effect_id} не найден у персонажа ID {character_id}")
+        # Возвращаем None или можно вернуть character без изменений, если нужно
+        return None
