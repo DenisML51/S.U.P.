@@ -1,11 +1,12 @@
 from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from datetime import timedelta
 from jose import jwt, JWTError
 import uvicorn
 from typing import List, Optional
+
 
 from . import models, schemas, crud, auth
 from .database import engine, SessionLocal, Base
@@ -265,15 +266,63 @@ async def unequip_item_for_character(
 @app.post("/characters/{character_id}/status_effects", response_model=schemas.CharacterDetailedOut, tags=["Status Effects"], summary="Применить статус-эффект")
 async def apply_status_effect_to_character(
     character_id: int,
-    status_update: schemas.StatusEffectUpdate,
+    status_update: schemas.StatusEffectUpdate, # Pydantic модель, содержащая status_effect_id
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Применяет статус-эффект (по ID из справочника) к персонажу."""
-    updated_char_model = crud.apply_status_effect(db, character_id, current_user.id, status_update)
-    if updated_char_model is None:
+
+    # 1. Получить объект персонажа (загружаем связь со статусами, т.к. crud.apply_status_effect ее проверяет)
+    # Используем selectinload для эффективности загрузки списка эффектов
+    db_char = db.query(models.Character).options(
+        selectinload(models.Character.active_status_effects)
+    ).filter(
+        models.Character.id == character_id,
+        models.Character.owner_id == current_user.id
+    ).first()
+
+    # Проверка, найден ли персонаж и принадлежит ли он пользователю
+    if not db_char:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Персонаж не найден или не принадлежит вам")
-    return crud.get_character_details_for_output(db, character_id, current_user.id)
+
+    # 2. Извлечь ID эффекта из Pydantic модели
+    status_effect_id_to_apply = status_update.status_effect_id
+
+    # 3. Вызвать CRUD-функцию с правильными аргументами
+    # Эта функция вернет имя эффекта, если он был успешно добавлен, иначе None
+    added_effect_name = crud.apply_status_effect(
+        db=db,
+        character=db_char, # Передаем объект персонажа
+        status_effect_id=status_effect_id_to_apply # Передаем ID эффекта
+    )
+
+    # 4. Сохранить изменения, если эффект был добавлен
+    if added_effect_name is not None:
+        try:
+            db.commit()
+            print(f"Статус-эффект '{added_effect_name}' успешно применен и сохранен для персонажа ID {character_id}")
+             # Не обязательно делать refresh здесь, т.к. get_character_details_for_output ниже все равно запросит свежие данные
+        except Exception as e:
+            db.rollback()
+            print(f"Ошибка при сохранении статус-эффекта для персонажа ID {character_id}: {e}")
+            raise HTTPException(status_code=500, detail=f"Ошибка базы данных при применении эффекта: {e}")
+    else:
+         # Если эффект не был добавлен (уже есть или не найден), коммит не нужен.
+         # Можно добавить логирование или специфический ответ, если нужно.
+         print(f"Статус-эффект ID {status_effect_id_to_apply} не был добавлен для персонажа ID {character_id} (возможно, уже есть или не найден).")
+
+
+    # 5. Вернуть обновленные полные данные персонажа
+    # Эта функция заново запросит данные из БД, включая только что добавленный статус (если был commit)
+    updated_character_details = crud.get_character_details_for_output(db, character_id, current_user.id)
+
+    # Дополнительная проверка на случай, если get_character_details_for_output вернет None
+    # (хотя это маловероятно, если персонаж был найден на шаге 1)
+    if updated_character_details is None:
+         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Не удалось получить обновленные данные персонажа после применения эффекта")
+
+    return updated_character_details
+
 
 @app.delete("/characters/{character_id}/status_effects/{status_effect_id}", response_model=schemas.CharacterDetailedOut, tags=["Status Effects"], summary="Снять статус-эффект")
 async def remove_status_effect_from_character(
@@ -283,10 +332,20 @@ async def remove_status_effect_from_character(
     db: Session = Depends(get_db)
 ):
     """Снимает статус-эффект (по ID) с персонажа."""
+    # В crud.remove_status_effect уже есть логика поиска персонажа и эффекта,
+    # а также commit при успешном удалении.
     updated_char_model = crud.remove_status_effect(db, character_id, current_user.id, status_effect_id)
+
+    # crud.remove_status_effect возвращает обновленный Character или None
     if updated_char_model is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Персонаж не найден или не принадлежит вам")
+        # Либо персонаж не найден, либо эффект не был найден/применен к нему
+         # Можно добавить более точную обработку ошибок, если crud.remove_status_effect будет их различать,
+         # но пока достаточно базовой 404.
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Персонаж или статус-эффект не найден, или эффект не применен к этому персонажу")
+
+    # Возвращаем обновленные полные данные, используя ту же функцию, что и везде
     return crud.get_character_details_for_output(db, character_id, current_user.id)
+
 
 # --- Эндпоинты Справочников (Reference Data) ---
 # Оборачиваем функции crud в эндпоинты
