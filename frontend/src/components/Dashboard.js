@@ -5,7 +5,7 @@ import CreatePartyForm from './CreatePartyForm';
 import JoinPartyForm from './JoinPartyForm';
 import CreateCharacterModal from './CreateCharacterModal';
 import { useNavigate } from 'react-router-dom';
-import { theme } from '../theme';
+import { theme } from '../styles/theme';
 const API_URL = "http://localhost:8000";
 const Dashboard = () => {
   const [data, setData] = useState({ message: "", characters: [] });
