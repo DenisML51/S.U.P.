@@ -1,10 +1,20 @@
+# backend/app/models.py
+
+# ... (импорты и другие классы остаются без изменений) ...
+from typing import Optional, List # Убедитесь, что импорты есть
 from sqlalchemy import Column, Integer, String, ForeignKey, Table, Text, Boolean
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.ext.hybrid import hybrid_property
-from .database import Base  # Импорт единственного Base из database.py
+from .database import Base
+import math
+
+# --- Таблица опыта ---
+XP_THRESHOLDS = {
+    1: 0, 2: 300, 3: 900, 4: 2700, 5: 6500,
+    6: 14000, 7: 23000, 8: 34000, 9: 48000, 10: 64000,
+}
 
 # --- Вспомогательные таблицы ---
-
 character_abilities = Table(
     'character_abilities', Base.metadata,
     Column('character_id', Integer, ForeignKey('characters.id'), primary_key=True),
@@ -17,305 +27,264 @@ character_status_effects = Table(
     Column('status_effect_id', Integer, ForeignKey('status_effects.id'), primary_key=True)
 )
 
-
 # --- Модель Предмета Инвентаря ---
-
 class CharacterInventoryItem(Base):
     __tablename__ = 'character_inventory_items'
-    id = Column(Integer, primary_key=True, index=True)
-    character_id = Column(Integer, ForeignKey('characters.id'), nullable=False)
-    item_id = Column(Integer, ForeignKey('items.id'), nullable=False)
-    quantity = Column(Integer, default=1, nullable=False)
 
-    # Явно указываем внешние ключи для связи
-    character = relationship("Character", back_populates="inventory", foreign_keys=[character_id])
-    item = relationship("Item")  # Полиморфная связь для загрузки нужного подкласса
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    character_id: Mapped[int] = mapped_column(ForeignKey('characters.id')) # Ключ к персонажу
+    item_id: Mapped[int] = mapped_column(ForeignKey('items.id'))
+    quantity: Mapped[int] = mapped_column(default=1)
 
+    # Связи
+    # Связь "многие-к-одному" с Character:
+    # ЯВНО указываем SQLAlchemy использовать ТОЛЬКО character_id для этой связи
+    character: Mapped["Character"] = relationship(
+        back_populates="inventory",
+        foreign_keys=[character_id] # <--- ВОТ ИСПРАВЛЕНИЕ
+    )
+    # Связь "многие-к-одному" с Item (полиморфная)
+    item: Mapped["Item"] = relationship(lazy="joined") # Загружаем сразу данные предмета
 
 # --- Основные модели ---
-
 class User(Base):
+    # ... (без изменений) ...
     __tablename__ = "users"
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
-    characters = relationship("Character", back_populates="owner", cascade="all, delete-orphan")
-    parties = relationship("Party", back_populates="creator", cascade="all, delete-orphan")
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    username: Mapped[str] = mapped_column(String, unique=True, index=True)
+    hashed_password: Mapped[str] = mapped_column(String)
+
+    characters: Mapped[List["Character"]] = relationship(back_populates="owner", cascade="all, delete-orphan")
+    parties: Mapped[List["Party"]] = relationship(back_populates="creator", cascade="all, delete-orphan")
 
 
 class Character(Base):
+    # ... (остальная часть класса Character без изменений) ...
     __tablename__ = "characters"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True, nullable=False)
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    owner = relationship("User", back_populates="characters")
 
-    level = Column(Integer, default=1, nullable=False)
-    experience_points = Column(Integer, default=0, nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String, index=True)
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    owner: Mapped["User"] = relationship(back_populates="characters")
 
-    # --- Навыки (Физиология) ---
-    skill_strength = Column(Integer, default=1, nullable=False)
-    skill_dexterity = Column(Integer, default=1, nullable=False)
-    skill_endurance = Column(Integer, default=1, nullable=False)
-    skill_reaction = Column(Integer, default=1, nullable=False)
-    skill_technique = Column(Integer, default=1, nullable=False)
-    skill_adaptation = Column(Integer, default=1, nullable=False)
+    level: Mapped[int] = mapped_column(default=1)
+    experience_points: Mapped[int] = mapped_column(default=0)
 
-    # --- Навыки (Интеллект) ---
-    skill_logic = Column(Integer, default=1, nullable=False)
-    skill_attention = Column(Integer, default=1, nullable=False)
-    skill_erudition = Column(Integer, default=1, nullable=False)
-    skill_culture = Column(Integer, default=1, nullable=False)
-    skill_science = Column(Integer, default=1, nullable=False)
-    skill_medicine = Column(Integer, default=1, nullable=False)
+    # --- Навыки ---
+    skill_strength: Mapped[int] = mapped_column(default=1)
+    skill_dexterity: Mapped[int] = mapped_column(default=1)
+    skill_endurance: Mapped[int] = mapped_column(default=1)
+    skill_reaction: Mapped[int] = mapped_column(default=1)
+    skill_technique: Mapped[int] = mapped_column(default=1)
+    skill_adaptation: Mapped[int] = mapped_column(default=1)
+    skill_logic: Mapped[int] = mapped_column(default=1)
+    skill_attention: Mapped[int] = mapped_column(default=1)
+    skill_erudition: Mapped[int] = mapped_column(default=1)
+    skill_culture: Mapped[int] = mapped_column(default=1)
+    skill_science: Mapped[int] = mapped_column(default=1)
+    skill_medicine: Mapped[int] = mapped_column(default=1)
+    skill_suggestion: Mapped[int] = mapped_column(default=1)
+    skill_insight: Mapped[int] = mapped_column(default=1)
+    skill_authority: Mapped[int] = mapped_column(default=1)
+    skill_self_control: Mapped[int] = mapped_column(default=1)
+    skill_religion: Mapped[int] = mapped_column(default=1)
+    skill_flow: Mapped[int] = mapped_column(default=1)
 
-    # --- Навыки (Ментальность) ---
-    skill_suggestion = Column(Integer, default=1, nullable=False)
-    skill_insight = Column(Integer, default=1, nullable=False)
-    skill_authority = Column(Integer, default=1, nullable=False)
-    skill_self_control = Column(Integer, default=1, nullable=False)
-    skill_religion = Column(Integer, default=1, nullable=False)
-    skill_flow = Column(Integer, default=1, nullable=False)
-
-    # --- Расчетные Модификаторы (гетерогенные свойства) ---
+    # --- Модификаторы ---
+    def _get_modifier(self, skill_value: int) -> int:
+        if skill_value <= 1: return 0
+        if skill_value <= 3: return 1
+        if skill_value <= 5: return 2
+        if skill_value <= 7: return 3
+        if skill_value <= 9: return 4
+        return 5
     @hybrid_property
-    def strength_mod(self):
-        return self.skill_strength // 2
-
+    def strength_mod(self): return self._get_modifier(self.skill_strength)
     @hybrid_property
-    def dexterity_mod(self):
-        return self.skill_dexterity // 2
-
+    def dexterity_mod(self): return self._get_modifier(self.skill_dexterity)
     @hybrid_property
-    def endurance_mod(self):
-        return self.skill_endurance // 2
-
+    def endurance_mod(self): return self._get_modifier(self.skill_endurance)
     @hybrid_property
-    def reaction_mod(self):
-        return self.skill_reaction // 2
-
+    def reaction_mod(self): return self._get_modifier(self.skill_reaction)
     @hybrid_property
-    def technique_mod(self):
-        return self.skill_technique // 2
-
+    def technique_mod(self): return self._get_modifier(self.skill_technique)
     @hybrid_property
-    def adaptation_mod(self):
-        return self.skill_adaptation // 2
-
+    def adaptation_mod(self): return self._get_modifier(self.skill_adaptation)
     @hybrid_property
-    def logic_mod(self):
-        return self.skill_logic // 2
-
+    def logic_mod(self): return self._get_modifier(self.skill_logic)
     @hybrid_property
-    def attention_mod(self):
-        return self.skill_attention // 2
-
+    def attention_mod(self): return self._get_modifier(self.skill_attention)
     @hybrid_property
-    def erudition_mod(self):
-        return self.skill_erudition // 2
-
+    def erudition_mod(self): return self._get_modifier(self.skill_erudition)
     @hybrid_property
-    def culture_mod(self):
-        return self.skill_culture // 2
-
+    def culture_mod(self): return self._get_modifier(self.skill_culture)
     @hybrid_property
-    def science_mod(self):
-        return self.skill_science // 2
-
+    def science_mod(self): return self._get_modifier(self.skill_science)
     @hybrid_property
-    def medicine_mod(self):
-        return self.skill_medicine // 2
-
+    def medicine_mod(self): return self._get_modifier(self.skill_medicine)
     @hybrid_property
-    def suggestion_mod(self):
-        return self.skill_suggestion // 2
-
+    def suggestion_mod(self): return self._get_modifier(self.skill_suggestion)
     @hybrid_property
-    def insight_mod(self):
-        return self.skill_insight // 2
-
+    def insight_mod(self): return self._get_modifier(self.skill_insight)
     @hybrid_property
-    def authority_mod(self):
-        return self.skill_authority // 2
-
+    def authority_mod(self): return self._get_modifier(self.skill_authority)
     @hybrid_property
-    def self_control_mod(self):
-        return self.skill_self_control // 2
-
+    def self_control_mod(self): return self._get_modifier(self.skill_self_control)
     @hybrid_property
-    def religion_mod(self):
-        return self.skill_religion // 2
-
+    def religion_mod(self): return self._get_modifier(self.skill_religion)
     @hybrid_property
-    def flow_mod(self):
-        return self.skill_flow // 2
+    def flow_mod(self): return self._get_modifier(self.skill_flow)
 
-    # --- Производные Характеристики ---
-    max_hp = Column(Integer, default=10, nullable=False)
-    current_hp = Column(Integer, default=10, nullable=False)
-    base_pu = Column(Integer, default=1, nullable=False)
-    current_pu = Column(Integer, default=1, nullable=False)
-    stamina_points = Column(Integer, default=1, nullable=False)
-    exhaustion_level = Column(Integer, default=0, nullable=False)
-    speed = Column(Integer, default=10, nullable=False)
+    # --- Производные характеристики ---
+    max_hp: Mapped[int] = mapped_column(default=10)
+    current_hp: Mapped[int] = mapped_column(default=10)
+    base_pu: Mapped[int] = mapped_column(default=1)
+    current_pu: Mapped[int] = mapped_column(default=1)
+    stamina_points: Mapped[int] = mapped_column(default=1)
+    exhaustion_level: Mapped[int] = mapped_column(default=0)
+    speed: Mapped[int] = mapped_column(default=10)
+    @hybrid_property
+    def initiative_bonus(self): return self.reaction_mod
+    @hybrid_property
+    def base_ac(self): return 10 + self.dexterity_mod
 
-    # --- Уровни Веток Классов ---
-    medic_branch_level = Column(Integer, default=0, nullable=False)
-    mutant_branch_level = Column(Integer, default=0, nullable=False)
-    sharpshooter_branch_level = Column(Integer, default=0, nullable=False)
-    scout_branch_level = Column(Integer, default=0, nullable=False)
-    technician_branch_level = Column(Integer, default=0, nullable=False)
-    fighter_branch_level = Column(Integer, default=0, nullable=False)
-    juggernaut_branch_level = Column(Integer, default=0, nullable=False)
+    # --- Уровни веток ---
+    medic_branch_level: Mapped[int] = mapped_column(default=0)
+    mutant_branch_level: Mapped[int] = mapped_column(default=0)
+    sharpshooter_branch_level: Mapped[int] = mapped_column(default=0)
+    scout_branch_level: Mapped[int] = mapped_column(default=0)
+    technician_branch_level: Mapped[int] = mapped_column(default=0)
+    fighter_branch_level: Mapped[int] = mapped_column(default=0)
+    juggernaut_branch_level: Mapped[int] = mapped_column(default=0)
 
     # --- Снаряжение и инвентарь ---
-    equipped_armor_id = Column(Integer, ForeignKey('character_inventory_items.id'), nullable=True)
-    equipped_shield_id = Column(Integer, ForeignKey('character_inventory_items.id'), nullable=True)
-    equipped_weapon1_id = Column(Integer, ForeignKey('character_inventory_items.id'), nullable=True)
-    equipped_weapon2_id = Column(Integer, ForeignKey('character_inventory_items.id'), nullable=True)
+    armor_inv_item_id: Mapped[Optional[int]] = mapped_column(ForeignKey('character_inventory_items.id'), nullable=True)
+    shield_inv_item_id: Mapped[Optional[int]] = mapped_column(ForeignKey('character_inventory_items.id'), nullable=True)
+    weapon1_inv_item_id: Mapped[Optional[int]] = mapped_column(ForeignKey('character_inventory_items.id'), nullable=True)
+    weapon2_inv_item_id: Mapped[Optional[int]] = mapped_column(ForeignKey('character_inventory_items.id'), nullable=True)
 
-    inventory = relationship(
-        "CharacterInventoryItem",
-        primaryjoin="Character.id == CharacterInventoryItem.character_id",
+    inventory: Mapped[List["CharacterInventoryItem"]] = relationship(
         back_populates="character",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        # Указываем primaryjoin чтобы избежать путаницы с FK экипировки
+        primaryjoin="Character.id == CharacterInventoryItem.character_id",
+        order_by=CharacterInventoryItem.id
     )
-    equipped_armor = relationship("CharacterInventoryItem", foreign_keys=[equipped_armor_id], post_update=True,
-                                  lazy="joined")
-    equipped_shield = relationship("CharacterInventoryItem", foreign_keys=[equipped_shield_id], post_update=True,
-                                   lazy="joined")
-    equipped_weapon1 = relationship("CharacterInventoryItem", foreign_keys=[equipped_weapon1_id], post_update=True,
-                                    lazy="joined")
-    equipped_weapon2 = relationship("CharacterInventoryItem", foreign_keys=[equipped_weapon2_id], post_update=True,
-                                    lazy="joined")
+
+    equipped_armor: Mapped[Optional["CharacterInventoryItem"]] = relationship(foreign_keys=[armor_inv_item_id], lazy="joined", post_update=True)
+    equipped_shield: Mapped[Optional["CharacterInventoryItem"]] = relationship(foreign_keys=[shield_inv_item_id], lazy="joined", post_update=True)
+    equipped_weapon1: Mapped[Optional["CharacterInventoryItem"]] = relationship(foreign_keys=[weapon1_inv_item_id], lazy="joined", post_update=True)
+    equipped_weapon2: Mapped[Optional["CharacterInventoryItem"]] = relationship(foreign_keys=[weapon2_inv_item_id], lazy="joined", post_update=True)
 
     # --- Способности и эффекты ---
-    available_abilities = relationship("Ability", secondary=character_abilities, back_populates="characters")
-    active_status_effects = relationship("StatusEffect", secondary=character_status_effects,
-                                         back_populates="characters")
+    available_abilities: Mapped[List["Ability"]] = relationship(secondary=character_abilities, back_populates="characters")
+    active_status_effects: Mapped[List["StatusEffect"]] = relationship(secondary=character_status_effects, back_populates="characters")
 
-    # --- Дополнительные поля для описания персонажа ---
-    appearance_notes = Column(Text, nullable=True)
-    character_notes = Column(Text, nullable=True)
-    motivation_notes = Column(Text, nullable=True)
-    background_notes = Column(Text, nullable=True)
-
-    @hybrid_property
-    def initiative_bonus(self):
-        return self.reaction_mod
-
-    @hybrid_property
-    def base_ac(self):
-        return 10 + self.dexterity_mod
+    # --- Заметки ---
+    appearance_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    character_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    motivation_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    background_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 class Party(Base):
+    # ... (без изменений) ...
     __tablename__ = "parties"
-    id = Column(Integer, primary_key=True, index=True)
-    lobby_key = Column(String, unique=True, index=True, nullable=False)
-    max_players = Column(Integer, nullable=False)
-    creator_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    creator = relationship("User", back_populates="parties")
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    lobby_key: Mapped[str] = mapped_column(String, unique=True, index=True)
+    max_players: Mapped[int] = mapped_column(Integer)
+    creator_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    creator: Mapped["User"] = relationship(back_populates="parties")
 
-
-# --- Модели справочников (предметов) ---
-
+# --- Модели справочников (Item и подклассы) ---
 class Item(Base):
+    # ... (без изменений) ...
     __tablename__ = "items"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, nullable=False)
-    description = Column(Text, nullable=True)
-    item_type = Column(String(50))  # 'weapon', 'armor', 'shield', 'general', 'ammo'
-    category = Column(String(50), default='Простое')
-    rarity = Column(String(50), default='Обычная')
-    weight = Column(Integer, default=1)
-    __mapper_args__ = {
-        'polymorphic_identity': 'item',
-        'polymorphic_on': item_type
-    }
-
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String, unique=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    item_type: Mapped[str] = mapped_column(String(50))
+    category: Mapped[str] = mapped_column(String(50), default='Простое')
+    rarity: Mapped[str] = mapped_column(String(50), default='Обычная')
+    weight: Mapped[int] = mapped_column(default=1)
+    __mapper_args__ = {'polymorphic_identity': 'item', 'polymorphic_on': "item_type"}
 
 class Weapon(Item):
+    # ... (без изменений) ...
     __tablename__ = "weapons"
-    id = Column(Integer, ForeignKey('items.id'), primary_key=True)
-    damage = Column(String, nullable=False)
-    damage_type = Column(String, nullable=False)
-    properties = Column(Text, nullable=True)
-    range_normal = Column(Integer, nullable=True)
-    range_max = Column(Integer, nullable=True)
-    reload_info = Column(String, nullable=True)
-    __mapper_args__ = {
-        'polymorphic_identity': 'weapon',
-    }
-
+    id: Mapped[int] = mapped_column(ForeignKey('items.id'), primary_key=True)
+    damage: Mapped[str] = mapped_column(String)
+    damage_type: Mapped[str] = mapped_column(String)
+    properties: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    range_normal: Mapped[Optional[int]] = mapped_column(nullable=True)
+    range_max: Mapped[Optional[int]] = mapped_column(nullable=True)
+    reload_info: Mapped[Optional[str]] = mapped_column(nullable=True)
+    is_two_handed: Mapped[bool] = mapped_column(default=False)
+    __mapper_args__ = {'polymorphic_identity': 'weapon'}
 
 class Armor(Item):
+    # ... (без изменений) ...
     __tablename__ = "armors"
-    id = Column(Integer, ForeignKey('items.id'), primary_key=True)
-    armor_type = Column(String, nullable=False)
-    ac_bonus = Column(Integer, default=0)
-    max_dex_bonus = Column(Integer, nullable=True)
-    strength_requirement = Column(Integer, default=0)
-    stealth_disadvantage = Column(Boolean, default=False)
-    properties = Column(Text, nullable=True)
-    __mapper_args__ = {
-        'polymorphic_identity': 'armor',
-    }
-
+    id: Mapped[int] = mapped_column(ForeignKey('items.id'), primary_key=True)
+    armor_type: Mapped[str] = mapped_column(String)
+    ac_bonus: Mapped[int] = mapped_column(default=0)
+    max_dex_bonus: Mapped[Optional[int]] = mapped_column(nullable=True)
+    strength_requirement: Mapped[int] = mapped_column(default=0)
+    stealth_disadvantage: Mapped[bool] = mapped_column(default=False)
+    properties: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    __mapper_args__ = {'polymorphic_identity': 'armor'}
 
 class Shield(Item):
+    # ... (без изменений) ...
     __tablename__ = "shields"
-    id = Column(Integer, ForeignKey('items.id'), primary_key=True)
-    ac_bonus = Column(Integer, default=1)
-    strength_requirement = Column(Integer, default=0)
-    properties = Column(Text, nullable=True)
-    __mapper_args__ = {
-        'polymorphic_identity': 'shield',
-    }
-
+    id: Mapped[int] = mapped_column(ForeignKey('items.id'), primary_key=True)
+    ac_bonus: Mapped[int] = mapped_column(default=1)
+    strength_requirement: Mapped[int] = mapped_column(default=0)
+    properties: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    __mapper_args__ = {'polymorphic_identity': 'shield'}
 
 class GeneralItem(Item):
+    # ... (без изменений) ...
     __tablename__ = "general_items"
-    id = Column(Integer, ForeignKey('items.id'), primary_key=True)
-    effect = Column(Text, nullable=True)
-    uses = Column(Integer, nullable=True)
-    __mapper_args__ = {
-        'polymorphic_identity': 'general',
-    }
-
+    id: Mapped[int] = mapped_column(ForeignKey('items.id'), primary_key=True)
+    effect: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    uses: Mapped[Optional[int]] = mapped_column(nullable=True)
+    __mapper_args__ = {'polymorphic_identity': 'general'}
 
 class Ammo(Item):
+    # ... (без изменений) ...
     __tablename__ = "ammos"
-    id = Column(Integer, ForeignKey('items.id'), primary_key=True)
-    ammo_type = Column(String, nullable=False)
-    effect = Column(Text, nullable=True)
-    __mapper_args__ = {
-        'polymorphic_identity': 'ammo',
-    }
-
+    id: Mapped[int] = mapped_column(ForeignKey('items.id'), primary_key=True)
+    ammo_type: Mapped[str] = mapped_column(String)
+    effect: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    __mapper_args__ = {'polymorphic_identity': 'ammo'}
 
 class Ability(Base):
+    # ... (без изменений) ...
     __tablename__ = "abilities"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, nullable=False)
-    description = Column(Text, nullable=False)
-    branch = Column(String, nullable=False)
-    level_required = Column(Integer, default=1, nullable=False)
-    skill_requirements = Column(Text, nullable=True)
-    action_type = Column(String, default="Действие")
-    cooldown = Column(String, nullable=True)
-    range = Column(String, nullable=True)
-    target = Column(String, nullable=True)
-    duration = Column(String, nullable=True)
-    concentration = Column(Boolean, default=False)
-    saving_throw_attribute = Column(String, nullable=True)
-    saving_throw_dc_formula = Column(String, nullable=True)
-    characters = relationship("Character", secondary=character_abilities, back_populates="available_abilities")
-
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String, unique=True)
+    description: Mapped[str] = mapped_column(Text)
+    branch: Mapped[str] = mapped_column(String)
+    level_required: Mapped[int] = mapped_column(default=1)
+    skill_requirements: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    action_type: Mapped[str] = mapped_column(String, default="Действие")
+    cooldown: Mapped[Optional[str]] = mapped_column(nullable=True)
+    range: Mapped[Optional[str]] = mapped_column(nullable=True)
+    target: Mapped[Optional[str]] = mapped_column(nullable=True)
+    duration: Mapped[Optional[str]] = mapped_column(nullable=True)
+    concentration: Mapped[bool] = mapped_column(default=False)
+    saving_throw_attribute: Mapped[Optional[str]] = mapped_column(nullable=True)
+    saving_throw_dc_formula: Mapped[Optional[str]] = mapped_column(nullable=True)
+    effect_on_save_fail: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    effect_on_save_success: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    characters: Mapped[List["Character"]] = relationship(secondary=character_abilities, back_populates="available_abilities")
 
 class StatusEffect(Base):
+    # ... (без изменений) ...
     __tablename__ = "status_effects"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, nullable=False)
-    description = Column(Text, nullable=False)
-    characters = relationship("Character", secondary=character_status_effects, back_populates="active_status_effects")
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String, unique=True)
+    description: Mapped[str] = mapped_column(Text)
+    characters: Mapped[List["Character"]] = relationship(secondary=character_status_effects, back_populates="active_status_effects")

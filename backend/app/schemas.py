@@ -1,17 +1,21 @@
-from pydantic import BaseModel, Field, root_validator
+# backend/app/schemas.py
+
+from pydantic import BaseModel, Field, root_validator, field_validator, model_validator
 from typing import List, Optional, Dict, Any, Union
+from .models import XP_THRESHOLDS
+
+# --- Константа с ключами веток ---
+VALID_BRANCH_KEYS = {'medic', 'mutant', 'sharpshooter', 'scout', 'technician', 'fighter', 'juggernaut'}
 
 # --- Базовые схемы и схемы аутентификации ---
-
 class UserBase(BaseModel):
     username: str
 
 class UserCreate(UserBase):
-    password: str
+    password: str = Field(..., min_length=4)
 
 class UserOut(UserBase):
     id: int
-
     class Config:
         from_attributes = True
 
@@ -29,15 +33,13 @@ class PartyOut(PartyBase):
     id: int
     lobby_key: str
     creator_username: str
-
     class Config:
         from_attributes = True
 
 class PartyJoin(BaseModel):
-    lobby_key: str
+    lobby_key: str = Field(..., min_length=6, max_length=6)
 
 # --- Схемы Справочников ---
-
 class ItemBase(BaseModel):
     id: int
     name: str
@@ -46,7 +48,9 @@ class ItemBase(BaseModel):
     category: str
     rarity: str
     weight: int
-
+    # Добавляем поля, которые могут быть у дочерних классов, но опциональны здесь
+    strength_requirement: Optional[int] = None
+    stealth_disadvantage: Optional[bool] = None
     class Config:
         from_attributes = True
 
@@ -57,19 +61,24 @@ class WeaponOut(ItemBase):
     range_normal: Optional[int] = None
     range_max: Optional[int] = None
     reload_info: Optional[str] = None
+    is_two_handed: bool
+    # Переопределяем как не-опциональные, если они обязательны для Weapon
+    strength_requirement: int = 0
+    stealth_disadvantage: bool = False
 
 class ArmorOut(ItemBase):
     armor_type: str
     ac_bonus: int
     max_dex_bonus: Optional[int] = None
-    strength_requirement: int
-    stealth_disadvantage: bool
+    strength_requirement: int # Обязательно для брони
+    stealth_disadvantage: bool # Обязательно для брони
     properties: Optional[str] = None
 
 class ShieldOut(ItemBase):
     ac_bonus: int
-    strength_requirement: int
+    strength_requirement: int # Обязательно для щитов
     properties: Optional[str] = None
+    # stealth_disadvantage тут не нужен
 
 class GeneralItemOut(ItemBase):
     effect: Optional[str] = None
@@ -85,7 +94,7 @@ class AbilityOut(BaseModel):
     description: str
     branch: str
     level_required: int
-    skill_requirements: Optional[str] = None # Consider parsing JSON here if needed
+    skill_requirements: Optional[str] = None # Храним как строку (JSON)
     action_type: str
     cooldown: Optional[str] = None
     range: Optional[str] = None
@@ -93,10 +102,9 @@ class AbilityOut(BaseModel):
     duration: Optional[str] = None
     concentration: bool
     saving_throw_attribute: Optional[str] = None
-    saving_throw_dc_formula: Optional[str] = None # Could be calculated on frontend/backend service layer
+    saving_throw_dc_formula: Optional[str] = None
     effect_on_save_fail: Optional[str] = None
     effect_on_save_success: Optional[str] = None
-
     class Config:
         from_attributes = True
 
@@ -104,18 +112,16 @@ class StatusEffectOut(BaseModel):
     id: int
     name: str
     description: str
-
     class Config:
         from_attributes = True
 
-
 # --- Схемы для Инвентаря Персонажа ---
+AnyItemOut = Union[WeaponOut, ArmorOut, ShieldOut, GeneralItemOut, AmmoOut, ItemBase]
 
 class CharacterInventoryItemOut(BaseModel):
     id: int
-    item: Union[WeaponOut, ArmorOut, ShieldOut, GeneralItemOut, AmmoOut, ItemBase] # Polymorphic item
+    item: AnyItemOut
     quantity: int
-
     class Config:
         from_attributes = True
 
@@ -123,19 +129,15 @@ class AddItemToInventory(BaseModel):
     item_id: int
     quantity: int = Field(1, gt=0)
 
-class UpdateInventoryItemQuantity(BaseModel):
-    quantity: int = Field(..., gt=0)
-
 class EquipItem(BaseModel):
     inventory_item_id: int
-    slot: str = Field(..., pattern="^(armor|shield|weapon1|weapon2)$") # Validate slot name
-
+    slot: str = Field(..., pattern="^(armor|shield|weapon1|weapon2)$")
 
 # --- Схемы для Персонажа ---
-
 class CharacterBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
 
+# Эта схема используется ТОЛЬКО при создании персонажа
 class InitialSkillDistribution(BaseModel):
     skill_strength: int = Field(1, ge=1, le=8)
     skill_dexterity: int = Field(1, ge=1, le=8)
@@ -156,20 +158,17 @@ class InitialSkillDistribution(BaseModel):
     skill_religion: int = Field(1, ge=1, le=8)
     skill_flow: int = Field(1, ge=1, le=8)
 
-    @root_validator(pre=True)
-    def check_total_points(cls, values):
-        # Суммируем только числовые значения, чтобы избежать ошибок при наличии вложенных словарей
-        total_points_spent = sum(
-            (value - 1) for key, value in values.items() if key.startswith("skill_") and isinstance(value, int)
-        )
-        required_points = 36  # Для 18 навыков: (54 - 18) = 36
-        if total_points_spent != required_points:
-            raise ValueError(f"Неверное количество очков навыков. Потрачено: {total_points_spent}, требуется: {required_points}")
-        return values
+    # Валидатор суммы очков ПРИ СОЗДАНИИ
+    @model_validator(mode='after')
+    def check_total_points_on_create(self):
+        values = self.__dict__
+        total_points_spent = sum( (value - 1) for key, value in values.items() if key.startswith("skill_") and isinstance(value, int) )
+        required_points = 36
+        if total_points_spent != required_points: raise ValueError(f"При создании должно быть потрачено ровно 36 очков навыков (свыше 1). Потрачено: {total_points_spent}")
+        return self
 
 class CharacterCreate(CharacterBase):
-    initial_skills: InitialSkillDistribution
-    # Add fields for initial notes if desired
+    initial_skills: InitialSkillDistribution # Используем схему с валидатором здесь
     appearance_notes: Optional[str] = None
     character_notes: Optional[str] = None
     motivation_notes: Optional[str] = None
@@ -180,10 +179,8 @@ class CharacterBriefOut(CharacterBase):
     level: int
     current_hp: int
     max_hp: int
-
     class Config:
         from_attributes = True
-
 
 class CharacterSkillModifiers(BaseModel):
     strength_mod: int
@@ -205,8 +202,6 @@ class CharacterSkillModifiers(BaseModel):
     religion_mod: int
     flow_mod: int
 
-
-
 class CharacterDerivedStats(BaseModel):
     max_hp: int
     current_hp: int
@@ -217,8 +212,9 @@ class CharacterDerivedStats(BaseModel):
     speed: int
     initiative_bonus: int
     base_ac: int
-    total_ac: int # Calculated with armor/shield
+    total_ac: int
     passive_attention: int
+    xp_needed_for_next_level: Optional[int] = None
 
 class CharacterClassBranchLevels(BaseModel):
     medic_branch_level: int
@@ -228,6 +224,8 @@ class CharacterClassBranchLevels(BaseModel):
     technician_branch_level: int
     fighter_branch_level: int
     juggernaut_branch_level: int
+    class Config:
+        from_attributes = True
 
 class CharacterNotes(BaseModel):
     appearance_notes: Optional[str] = None
@@ -236,12 +234,35 @@ class CharacterNotes(BaseModel):
     background_notes: Optional[str] = None
 
 
-class CharacterDetailedOut(CharacterBase, InitialSkillDistribution, CharacterDerivedStats, CharacterClassBranchLevels, CharacterNotes):
+# --- ИСПРАВЛЕННАЯ СХЕМА CharacterDetailedOut ---
+# Убрано наследование от InitialSkillDistribution, поля навыков добавлены явно
+class CharacterDetailedOut(CharacterBase, CharacterDerivedStats, CharacterClassBranchLevels, CharacterNotes):
     id: int
     level: int
     experience_points: int
     owner_id: int
-    skill_modifiers: CharacterSkillModifiers
+
+    # Явно перечисляем поля навыков (без валидатора суммы от InitialSkillDistribution)
+    skill_strength: int
+    skill_dexterity: int
+    skill_endurance: int
+    skill_reaction: int
+    skill_technique: int
+    skill_adaptation: int
+    skill_logic: int
+    skill_attention: int
+    skill_erudition: int
+    skill_culture: int
+    skill_science: int
+    skill_medicine: int
+    skill_suggestion: int
+    skill_insight: int
+    skill_authority: int
+    skill_self_control: int
+    skill_religion: int
+    skill_flow: int
+
+    skill_modifiers: CharacterSkillModifiers # Модификаторы остаются
     inventory: List[CharacterInventoryItemOut] = []
     equipped_armor: Optional[CharacterInventoryItemOut] = None
     equipped_shield: Optional[CharacterInventoryItemOut] = None
@@ -252,12 +273,11 @@ class CharacterDetailedOut(CharacterBase, InitialSkillDistribution, CharacterDer
 
     class Config:
         from_attributes = True
+# ---------------------------------------------
 
 
 # --- Схемы для Обновления Персонажа ---
-
 class CharacterUpdateSkills(BaseModel):
-    # Позволяет обновлять только указанные навыки
     skill_strength: Optional[int] = Field(None, ge=1, le=10)
     skill_dexterity: Optional[int] = Field(None, ge=1, le=10)
     skill_endurance: Optional[int] = Field(None, ge=1, le=10)
@@ -277,24 +297,38 @@ class CharacterUpdateSkills(BaseModel):
     skill_religion: Optional[int] = Field(None, ge=1, le=10)
     skill_flow: Optional[int] = Field(None, ge=1, le=10)
 
-
+# Валидаторы в LevelUpInfo проверяют только свои поля
 class LevelUpInfo(BaseModel):
     hp_roll: int = Field(..., ge=1, le=10)
-    branch_point_spent: str  # Например, "medic", "mutant"
-    skill_points_spent: Dict[str, int]
+    branch_point_spent: str # Ожидаем ключ: 'medic', 'mutant', и т.д.
+    skill_points_spent: Dict[str, int] # Ожидаем словарь {"skill_name": points_added}
 
-    @root_validator(skip_on_failure=True)
-    def check_skill_points_total(cls, values):
-        if sum(values.get("skill_points_spent", {}).values()) != 3:
-            raise ValueError("Должно быть распределено ровно 3 очка навыка")
-        return values
+    @field_validator('branch_point_spent')
+    @classmethod
+    def check_branch_name(cls, v: str):
+        # Сравниваем с допустимыми КЛЮЧАМИ веток
+        if v not in VALID_BRANCH_KEYS:
+             raise ValueError(f"Неверное имя ветки класса: {v}")
+        return v
+
+    @model_validator(mode='after')
+    def check_skill_points_total(self):
+        values = self.__dict__
+        points_spent_dict = values.get("skill_points_spent", {})
+        if not isinstance(points_spent_dict, dict): raise ValueError("skill_points_spent должен быть словарем")
+        if sum(points_spent_dict.values()) != 3: raise ValueError("Должно быть распределено ровно 3 очка навыка")
+        valid_skill_keys = InitialSkillDistribution.model_fields.keys() # Используем ключи отсюда для проверки имен
+        for skill_key, points in points_spent_dict.items():
+            if skill_key not in valid_skill_keys: raise ValueError(f"Неверное имя навыка: {skill_key}")
+            if points <= 0: raise ValueError(f"Количество очков для навыка {skill_key} должно быть положительным")
+        return self
 
 class UpdateCharacterStats(BaseModel):
     current_hp: Optional[int] = None
     current_pu: Optional[int] = None
-    stamina_points: Optional[int] = None
+    stamina_points: Optional[int] = Field(None, ge=0)
     exhaustion_level: Optional[int] = Field(None, ge=0, le=6)
-    experience_points: Optional[int] = None
+    experience_points: Optional[int] = Field(None, ge=0)
 
 class StatusEffectUpdate(BaseModel):
     status_effect_id: int
