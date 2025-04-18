@@ -70,6 +70,12 @@ export const updateCharacterNotes = (characterId, notesUpdate) => {
     return axios.put(`${API_URL}/characters/${characterId}/notes`, notesUpdate, { headers: getAuthHeaders() });
 };
 
+export const healCharacter = (characterId, healData) => {
+    // healData должен быть объектом типа { source: 'medkit' } или { source: 'short_rest_die', dice_count: 1 }
+    console.log(`API Call: healCharacter for ID: ${characterId}`, healData);
+    return axios.post(`${API_URL}/characters/${characterId}/heal`, healData, { headers: getAuthHeaders() });
+};
+
 
 // --- Inventory & Equipment ---
 export const addItemToInventory = (characterId, itemId, quantity = 1) => {

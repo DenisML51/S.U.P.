@@ -225,3 +225,38 @@ async def remove_status_effect_from_character(
     if updated_char_model is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Персонаж или статус-эффект не найден, или эффект не применен к этому персонажу")
     return character_crud.get_character_details_for_output(db, character_id, current_user.id)
+
+
+@router.post("/{character_id}/heal", response_model=schemas.CharacterDetailedOut, summary="Выполнить лечение персонажа")
+async def heal_character_endpoint(
+    character_id: int,
+    heal_request: schemas.HealRequest, # Используем новую схему запроса
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Применяет лечение к персонажу от указанного источника (medkit, short_rest_die).
+    Броски кубиков выполняются на бэкенде.
+    """
+    # Вызываем новую CRUD функцию
+    updated_char_model = character_crud.heal_character(
+        db=db,
+        character_id=character_id,
+        user_id=current_user.id,
+        heal_request=heal_request
+    )
+
+    # heal_character выбрасывает исключения при ошибках,
+    # но на всякий случай проверим, если он вернет None (хотя не должен)
+    if updated_char_model is None:
+        # Эта ветка не должна достигаться при текущей логике heal_character
+        raise HTTPException(status_code=500, detail="Неожиданная ошибка при обработке лечения")
+
+    # Возвращаем обновленные полные данные персонажа
+    # Используем существующую функцию для форматирования ответа
+    character_details = character_crud.get_character_details_for_output(db, character_id, current_user.id)
+    if character_details is None:
+         # Это тоже маловероятно, если персонаж только что был обновлен
+         raise HTTPException(status_code=404, detail="Не удалось получить обновленные данные персонажа после лечения")
+
+    return character_details

@@ -10,6 +10,7 @@ import random
 from ..models.character import Character, CharacterInventoryItem
 from ..models.item import Item, Weapon, Armor, Shield, GeneralItem, Ammo # Нужны для isinstance
 from ..models.ability import Ability
+from ..schemas.character import HealRequest
 from ..models.status_effect import StatusEffect
 from ..schemas.character import (
     CharacterCreate, CharacterBriefOut, CharacterDetailedOut, CharacterUpdateSkills,
@@ -18,6 +19,7 @@ from ..schemas.character import (
 from ..schemas.item import CharacterInventoryItemOut, WeaponOut, ArmorOut, ShieldOut, GeneralItemOut, AmmoOut, ItemBase
 from ..schemas.ability import AbilityOut
 from ..schemas.status_effect import StatusEffectOut
+from .item import get_inventory_item, remove_item_from_inventory
 # Импортируем утилиты
 from .utils import (
     _get_skill_modifier,
@@ -548,3 +550,120 @@ def remove_status_effect(db: Session, character_id: int, user_id: int, status_ef
         print(f"Статус-эффект ID {status_effect_id} не найден у персонажа ID {character_id}")
         # Возвращаем None или можно вернуть character без изменений, если нужно
         return None
+    
+
+def heal_character(db: Session, character_id: int, user_id: int, heal_request: HealRequest) -> Optional[Character]:
+    """
+    Обрабатывает запрос на лечение, включая потребление зарядов/количества аптечки.
+    """
+    print(f"\n--- CRUD: heal_character (v3 - with uses) ---")
+    print(f"Character ID: {character_id}, User ID: {user_id}, Request: {heal_request}")
+
+    character = db.query(Character).filter(
+        Character.id == character_id,
+        Character.owner_id == user_id
+    ).first()
+
+    if not character:
+        print(f"  ERROR: Character {character_id} not found or doesn't belong to user {user_id}")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Персонаж не найден или не принадлежит вам")
+
+    if character.current_hp >= character.max_hp:
+        print(f"  INFO: Character {character_id} already at max HP.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Персонаж уже имеет максимальное здоровье")
+
+    healing_amount = 0
+    source = heal_request.source
+    resource_consumed = False # Флаг, что ресурс был потрачен (ОС или заряд аптечки)
+
+    if source == 'medkit':
+        inventory_item_id = heal_request.inventory_item_id
+        if not inventory_item_id:
+             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Не указан ID предмета инвентаря для лечения аптечкой")
+
+        print(f"  Healing source: Medkit (Inventory Item ID: {inventory_item_id})")
+
+        # 1. Получаем ЗАПИСЬ инвентаря
+        inv_item = get_inventory_item(db, inventory_item_id, character_id, user_id)
+        if not inv_item:
+            print(f"  ERROR: Inventory item {inventory_item_id} not found for character {character_id}")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Указанный предмет не найден в инвентаре")
+
+        # 2. Проверяем, что это аптечка и есть заряды
+        # Используем категорию 'Медицина'
+        if not isinstance(inv_item.item, GeneralItem) or inv_item.item.category != 'Медицина':
+             print(f"  ERROR: Item '{inv_item.item.name}' is not a valid medkit.")
+             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Предмет '{inv_item.item.name}' не является аптечкой.")
+
+        if inv_item.quantity <= 0:
+            print(f"  ERROR: Medkit '{inv_item.item.name}' (Inv ID: {inv_item.id}) has no uses left (quantity: {inv_item.quantity}).")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"У предмета '{inv_item.item.name}' закончились использования.")
+
+        # 3. Рассчитываем лечение
+        medicine_mod = character.medicine_mod
+        roll = random.randint(1, 8)
+        healing_amount = roll + medicine_mod
+        print(f"  Medkit Roll (1d8): {roll}, Med Mod: {medicine_mod}, Potential Heal: {healing_amount}")
+
+        # 4. Уменьшаем количество ИЛИ удаляем предмет
+        if inv_item.quantity > 1:
+            inv_item.quantity -= 1
+            print(f"  Decremented quantity for Inv ID {inv_item.id}. New quantity: {inv_item.quantity}")
+            resource_consumed = True
+        else:
+            # Если это последнее использование, удаляем запись инвентаря
+            print(f"  Last use for Inv ID {inv_item.id}. Deleting item.")
+            # Проверяем, не экипирован ли он (на всякий случай, хотя аптечки не экипируются)
+            if character.armor_inv_item_id == inv_item.id: character.armor_inv_item_id = None
+            if character.shield_inv_item_id == inv_item.id: character.shield_inv_item_id = None
+            if character.weapon1_inv_item_id == inv_item.id: character.weapon1_inv_item_id = None
+            if character.weapon2_inv_item_id == inv_item.id: character.weapon2_inv_item_id = None
+            db.delete(inv_item)
+            resource_consumed = True
+            print(f"  Deleted Inv ID {inv_item.id}.")
+            # Важно: После db.delete() объект inv_item становится "transient",
+            # не пытайтесь получить к нему доступ после этого без нового запроса.
+
+    elif source == 'short_rest_die':
+        # Логика для траты ОС (без изменений)
+        dice_count = heal_request.dice_count or 1
+        print(f"  Healing source: Short Rest Dice. Count: {dice_count}")
+        if character.stamina_points < dice_count:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Недостаточно Очков Стойкости (ОС)")
+        endurance_mod = character.endurance_mod
+        total_roll = 0
+        for _ in range(dice_count):
+            roll = random.randint(1, 10)
+            total_roll += roll
+            healing_amount += roll + endurance_mod
+        print(f"  Spent {dice_count} Stamina Dice. Roll: {total_roll}, End Mod: {endurance_mod}, Heal: {healing_amount}")
+        character.stamina_points -= dice_count
+        print(f"  Stamina points remaining: {character.stamina_points}")
+        resource_consumed = True
+
+    else:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Неизвестный источник лечения: {source}")
+
+    # --- Применяем лечение ---
+    if healing_amount < 0: healing_amount = 0
+    new_hp = min(character.max_hp, character.current_hp + healing_amount)
+    healed_for = new_hp - character.current_hp
+
+    print(f"  Calculated Healing: {healing_amount}. Actual HP change: {character.current_hp} -> {new_hp} (+{healed_for})")
+
+    # Сохраняем, если было лечение ИЛИ потрачен ресурс
+    if healed_for > 0 or resource_consumed:
+        character.current_hp = new_hp
+        try:
+            db.commit() # Сохраняем изменения HP, ОС и/или удаление/изменение quantity аптечки
+            db.refresh(character) # Обновляем объект персонажа
+            print(f"  Successfully applied healing/cost and committed.")
+            return character
+        except Exception as e:
+            db.rollback()
+            print(f"  ERROR: Commit failed after applying healing/cost: {e}")
+            raise HTTPException(status_code=500, detail=f"Ошибка базы данных при сохранении лечения: {e}")
+    else:
+        print(f"  No actual healing occurred and no resources consumed.")
+        # Возвращаем персонажа без изменений, т.к. коммита не было
+        return character

@@ -1,6 +1,6 @@
 # backend/app/schemas/character.py
 from pydantic import BaseModel, Field, root_validator, field_validator, model_validator, ConfigDict
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Literal
 
 # Импортируем зависимые схемы из других файлов
 from .item import CharacterInventoryItemOut, AnyItemOut # AnyItemOut для типа экипировки
@@ -253,3 +253,31 @@ class UpdateCharacterStats(BaseModel):
     experience_points: Optional[int] = Field(None, ge=0) # Опыт не < 0
     # Поле для передачи результата проверки ПУ (для триггера эмоций)
     check_result: Optional[str] = Field(None, pattern="^(success|failure)$") # 'success' или 'failure'
+
+
+class HealRequest(BaseModel):
+    # Источник лечения
+    source: Literal['medkit', 'short_rest_die']
+    # Количество кубиков ОС для траты (для short_rest_die)
+    dice_count: Optional[int] = Field(None, ge=1)
+    # ID записи в инвентаре (character_inventory_items.id) для использования предмета
+    inventory_item_id: Optional[int] = Field(None, ge=1) # <<<=== ДОБАВЛЕНО ПОЛЕ
+
+    @model_validator(mode='after')
+    def check_heal_source_requirements(self) -> 'HealRequest':
+        values = self.__dict__
+        source = values.get('source')
+        dice_count = values.get('dice_count')
+        inventory_item_id = values.get('inventory_item_id')
+
+        if source == 'short_rest_die' and (dice_count is None or dice_count <= 0):
+            raise ValueError("Для 'short_rest_die' необходимо указать положительное 'dice_count'")
+        if source == 'medkit' and inventory_item_id is None:
+            raise ValueError("Для 'medkit' необходимо указать 'inventory_item_id'")
+        # Не позволяем передавать оба параметра одновременно (хотя схема и так разделит)
+        if source == 'short_rest_die' and inventory_item_id is not None:
+            raise ValueError("Нельзя указывать 'inventory_item_id' для 'short_rest_die'")
+        if source == 'medkit' and dice_count is not None:
+             raise ValueError("Нельзя указывать 'dice_count' для 'medkit'")
+
+        return self
