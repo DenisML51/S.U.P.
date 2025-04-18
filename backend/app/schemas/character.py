@@ -281,3 +281,7 @@ class HealRequest(BaseModel):
              raise ValueError("Нельзя указывать 'dice_count' для 'medkit'")
 
         return self
+    
+
+class ShortRestRequest(BaseModel):
+    dice_to_spend: int = Field(..., ge=1, description="Количество Очков Стойкости (ОС), которое тратится на лечение.")

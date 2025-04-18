@@ -27,59 +27,87 @@ def get_inventory_item(db: Session, inventory_item_id: int, character_id: int, u
 
 
 def add_item_to_inventory(db: Session, character_id: int, user_id: int, item_add: AddItemToInventory) -> Optional[CharacterInventoryItem]:
-    """Добавляет предмет в инвентарь персонажа, обрабатывает стаки."""
-    # Проверяем, существует ли персонаж и принадлежит ли он пользователю
+    """
+    Добавляет предмет в инвентарь персонажа.
+    Если предмет стакается и имеет поле 'uses' > 0 в определении,
+    устанавливает начальное количество равным 'uses'.
+    В остальных случаях обрабатывает стаки или добавляет 1 шт.
+    """
+    print(f"\n--- CRUD: add_item_to_inventory (v2 - with initial uses) ---")
+    print(f"Character ID: {character_id}, User ID: {user_id}, Item Add Data: {item_add}")
+
     character = db.query(Character.id).filter(
         Character.id == character_id,
         Character.owner_id == user_id
     ).first()
     if not character:
-        # Не выбрасываем исключение, а возвращаем None, чтобы API мог вернуть 404
+        print(f"  ERROR: Character {character_id} not found or doesn't belong to user {user_id}")
         return None
 
-    # Проверяем, существует ли сам предмет в справочнике
     item = db.query(Item).filter(Item.id == item_add.item_id).first()
     if not item:
+        print(f"  ERROR: Item with ID {item_add.item_id} not found in reference.")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Предмет не найден в справочнике")
 
-    # Определяем, стакается ли предмет (Патроны и Общие)
+    print(f"  Found Item: ID={item.id}, Name='{item.name}', Type='{item.item_type}'")
+
     is_stackable = isinstance(item, (Ammo, GeneralItem))
+    print(f"  Is Stackable? {is_stackable}")
 
     db_inv_item: Optional[CharacterInventoryItem] = None
+    existing_inv_item = None
 
     if is_stackable:
-        # Ищем существующий стак этого предмета в инвентаре персонажа
         existing_inv_item = db.query(CharacterInventoryItem).filter(
             CharacterInventoryItem.character_id == character_id,
             CharacterInventoryItem.item_id == item_add.item_id
         ).first()
 
         if existing_inv_item:
+            print(f"  Found existing stack (ID: {existing_inv_item.id}), increasing quantity by {item_add.quantity}.")
             existing_inv_item.quantity += item_add.quantity
-            db_inv_item = existing_inv_item # Работаем с существующей записью
-            print(f"Увеличено количество предмета '{item.name}' для персонажа ID {character_id}")
+            db_inv_item = existing_inv_item
+        # --- НЕ СОЗДАЕМ ЗДЕСЬ, СОЗДАДИМ НИЖЕ, ЕСЛИ existing_inv_item is None ---
 
-    # Если предмет не стакается ИЛИ стак не найден, создаем новую запись
-    if db_inv_item is None:
+    # --- Логика создания НОВОЙ записи инвентаря ---
+    if db_inv_item is None: # Т.е. предмет не стакается ИЛИ стак не найден
+        # Определяем начальное количество
+        initial_quantity = 1 # По умолчанию 1 для не-стакающихся
+        if is_stackable:
+            # Проверяем, есть ли у предмета поле 'uses' и оно > 0
+            # Это специфично для GeneralItem в нашей текущей модели
+            item_default_uses = getattr(item, 'uses', None) # Безопасно получаем атрибут uses
+            if item_default_uses is not None and item_default_uses > 0:
+                 initial_quantity = item_default_uses
+                 print(f"  Item has default uses ({item_default_uses}). Setting initial quantity to uses.")
+            else:
+                 # Если это стакающийся предмет без uses (например, патроны), используем quantity из запроса
+                 initial_quantity = item_add.quantity
+                 print(f"  Stackable item without default uses. Setting initial quantity from request: {initial_quantity}")
+        else:
+             print(f"  Non-stackable item. Setting initial quantity to 1.")
+
+
+        print(f"  Creating new inventory item entry with calculated quantity: {initial_quantity}")
         db_inv_item = CharacterInventoryItem(
             character_id=character_id,
             item_id=item_add.item_id,
-            quantity=item_add.quantity if is_stackable else 1 # Нестакающиеся всегда добавляются по 1 шт.
+            quantity=initial_quantity # Используем вычисленное начальное количество
         )
         db.add(db_inv_item)
-        print(f"Добавлен новый предмет '{item.name}' для персонажа ID {character_id}")
 
-
+    # --- Коммит и возврат ---
     try:
         db.commit()
         db.refresh(db_inv_item)
-        # Явно обновляем связь с item, чтобы она была доступна в возвращаемом объекте
         db.refresh(db_inv_item, attribute_names=['item'])
+        print(f"  Successfully committed. Returning Inventory Item ID: {db_inv_item.id}, Quantity: {db_inv_item.quantity}, Item Type: {db_inv_item.item.item_type}")
         return db_inv_item
     except Exception as e:
         db.rollback()
-        print(f"Ошибка commit при добавлении предмета ID {item_add.item_id} персонажу ID {character_id}: {e}")
-        raise HTTPException(status_code=500, detail="Ошибка базы данных при добавлении предмета")
+        print(f"  ERROR: Commit failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка базы данных при добавлении предмета: {e}")
+
 
 
 def remove_item_from_inventory(db: Session, inventory_item_id: int, character_id: int, user_id: int, quantity: int = 1) -> bool:

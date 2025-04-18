@@ -14,7 +14,7 @@ from ..schemas.character import HealRequest
 from ..models.status_effect import StatusEffect
 from ..schemas.character import (
     CharacterCreate, CharacterBriefOut, CharacterDetailedOut, CharacterUpdateSkills,
-    LevelUpInfo, UpdateCharacterStats, CharacterNotes, CharacterSkillModifiers
+    LevelUpInfo, UpdateCharacterStats, CharacterNotes, CharacterSkillModifiers, ShortRestRequest
 )
 from ..schemas.item import CharacterInventoryItemOut, WeaponOut, ArmorOut, ShieldOut, GeneralItemOut, AmmoOut, ItemBase
 from ..schemas.ability import AbilityOut
@@ -667,3 +667,105 @@ def heal_character(db: Session, character_id: int, user_id: int, heal_request: H
         print(f"  No actual healing occurred and no resources consumed.")
         # Возвращаем персонажа без изменений, т.к. коммита не было
         return character
+    
+
+def perform_short_rest(db: Session, character_id: int, user_id: int, request: ShortRestRequest) -> Optional[Character]:
+    """Выполняет короткий отдых: тратит ОС на лечение ПЗ и восстанавливает ПУ."""
+    print(f"\n--- CRUD: perform_short_rest ---")
+    print(f"Character ID: {character_id}, User ID: {user_id}, Request: {request}")
+
+    character = db.query(Character).filter(
+        Character.id == character_id,
+        Character.owner_id == user_id
+    ).first()
+
+    if not character:
+        print(f"  ERROR: Character {character_id} not found or doesn't belong to user {user_id}")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Персонаж не найден")
+
+    dice_to_spend = request.dice_to_spend
+    if character.stamina_points < dice_to_spend:
+        print(f"  ERROR: Not enough Stamina Points. Has {character.stamina_points}, needs {dice_to_spend}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Недостаточно Очков Стойкости (ОС). Доступно: {character.stamina_points}")
+
+    # 1. Тратим ОС
+    character.stamina_points -= dice_to_spend
+    print(f"  Spent {dice_to_spend} Stamina Dice. Remaining: {character.stamina_points}")
+
+    # 2. Лечим ПЗ
+    endurance_mod = character.endurance_mod
+    hp_healed = 0
+    for _ in range(dice_to_spend):
+        roll = random.randint(1, 10)
+        hp_healed += max(0, roll + endurance_mod) # Лечение не может быть отрицательным
+    new_hp = min(character.max_hp, character.current_hp + hp_healed)
+    actual_hp_gain = new_hp - character.current_hp
+    character.current_hp = new_hp
+    print(f"  HP Healed: {actual_hp_gain} (Rolled {dice_to_spend}d10 + {dice_to_spend}*Mod[{endurance_mod}] = {hp_healed}). New HP: {character.current_hp}/{character.max_hp}")
+
+    # 3. Восстанавливаем ПУ
+    pu_roll = random.randint(1, 4)
+    # Восстанавливаем до базового значения, но не выше
+    new_pu = min(character.base_pu, character.current_pu + pu_roll)
+    actual_pu_gain = new_pu - character.current_pu
+    character.current_pu = new_pu
+    print(f"  PU Recovered: {actual_pu_gain} (Rolled 1d4: {pu_roll}). New PU: {character.current_pu}/{character.base_pu}")
+
+    # 4. Сохраняем
+    try:
+        db.commit()
+        db.refresh(character)
+        print(f"  Short rest completed and committed.")
+        return character
+    except Exception as e:
+        db.rollback()
+        print(f"  ERROR: Commit failed during short rest: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка базы данных при коротком отдыхе: {e}")
+
+
+def perform_long_rest(db: Session, character_id: int, user_id: int) -> Optional[Character]:
+    """Выполняет длительный отдых: восстанавливает ПЗ, ОС, ПУ, снижает Истощение."""
+    print(f"\n--- CRUD: perform_long_rest ---")
+    print(f"Character ID: {character_id}, User ID: {user_id}")
+
+    character = db.query(Character).filter(
+        Character.id == character_id,
+        Character.owner_id == user_id
+    ).first()
+
+    if not character:
+        print(f"  ERROR: Character {character_id} not found or doesn't belong to user {user_id}")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Персонаж не найден")
+
+    # 1. Восстанавливаем ПЗ
+    character.current_hp = character.max_hp
+    print(f"  HP restored to max: {character.max_hp}")
+
+    # 2. Восстанавливаем ОС
+    # Считаем максимум ОС = Уровень + Мод.Выносливости (минимум 1)
+    endurance_mod = character.endurance_mod
+    max_stamina_points = max(1, character.level)
+    character.stamina_points = max_stamina_points
+    print(f"  Stamina Points restored to max: {max_stamina_points} (Level {character.level} + EndMod {endurance_mod})")
+
+    # 3. Снижаем Истощение
+    if character.exhaustion_level > 0:
+        character.exhaustion_level -= 1
+        print(f"  Exhaustion level reduced by 1. New level: {character.exhaustion_level}")
+
+    # 4. Сбрасываем ПУ до базового
+    character.current_pu = character.base_pu
+    print(f"  PU reset to base: {character.base_pu}")
+
+    # TODO: Сброс использований способностей (если будет реализовано отслеживание)
+
+    # 5. Сохраняем
+    try:
+        db.commit()
+        db.refresh(character)
+        print(f"  Long rest completed and committed.")
+        return character
+    except Exception as e:
+        db.rollback()
+        print(f"  ERROR: Commit failed during long rest: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка базы данных при длительном отдыхе: {e}")

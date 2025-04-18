@@ -11,6 +11,6 @@ from .item import (
 from .character import (
     CharacterBase, InitialSkillDistribution, CharacterCreate, CharacterBriefOut,
     CharacterSkillModifiers, CharacterDerivedStats, CharacterClassBranchLevels,
-    CharacterNotes, CharacterDetailedOut, CharacterUpdateSkills, LevelUpInfo, HealRequest,
+    CharacterNotes, CharacterDetailedOut, CharacterUpdateSkills, LevelUpInfo, HealRequest, ShortRestRequest, StatusEffectOut,
     UpdateCharacterStats, VALID_BRANCH_KEYS # Экспортируем константу
 )

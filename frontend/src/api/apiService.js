@@ -76,6 +76,16 @@ export const healCharacter = (characterId, healData) => {
     return axios.post(`${API_URL}/characters/${characterId}/heal`, healData, { headers: getAuthHeaders() });
 };
 
+export const performShortRest = (characterId, diceCount) => {
+    console.log(`API Call: performShortRest for ID: ${characterId}, Dice: ${diceCount}`);
+    return axios.post(`${API_URL}/characters/${characterId}/short_rest`, { dice_to_spend: diceCount }, { headers: getAuthHeaders() });
+};
+
+export const performLongRest = (characterId) => {
+    console.log(`API Call: performLongRest for ID: ${characterId}`);
+    // Для POST запроса без тела можно передать пустой объект {} или null
+    return axios.post(`${API_URL}/characters/${characterId}/long_rest`, {}, { headers: getAuthHeaders() });
+};
 
 // --- Inventory & Equipment ---
 export const addItemToInventory = (characterId, itemId, quantity = 1) => {

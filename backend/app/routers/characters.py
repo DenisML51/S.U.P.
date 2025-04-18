@@ -260,3 +260,51 @@ async def heal_character_endpoint(
          raise HTTPException(status_code=404, detail="Не удалось получить обновленные данные персонажа после лечения")
 
     return character_details
+
+
+@router.post("/{character_id}/short_rest", response_model=schemas.CharacterDetailedOut, tags=["Rest"], summary="Выполнить короткий отдых")
+async def take_short_rest(
+    character_id: int,
+    rest_request: schemas.ShortRestRequest, # Используем новую схему
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Персонаж тратит указанное количество Очков Стойкости (ОС) для восстановления
+    ПЗ (d10 + Мод.Вын за каждое ОС) и ПУ (1d4).
+    """
+    updated_char = character_crud.perform_short_rest(
+        db=db,
+        character_id=character_id,
+        user_id=current_user.id,
+        request=rest_request
+    )
+    # CRUD функция выбрасывает исключения при ошибках
+    # Возвращаем полные обновленные данные
+    character_details = character_crud.get_character_details_for_output(db, character_id, current_user.id)
+    if character_details is None:
+         raise HTTPException(status_code=404, detail="Не удалось получить обновленные данные персонажа после короткого отдыха")
+    return character_details
+
+
+@router.post("/{character_id}/long_rest", response_model=schemas.CharacterDetailedOut, tags=["Rest"], summary="Выполнить длительный отдых")
+async def take_long_rest(
+    character_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Персонаж выполняет длительный отдых: восстанавливает все ПЗ и ОС,
+    сбрасывает ПУ до базового, снижает Истощение на 1.
+    """
+    updated_char = character_crud.perform_long_rest(
+        db=db,
+        character_id=character_id,
+        user_id=current_user.id
+    )
+    # CRUD функция выбрасывает исключения при ошибках
+    # Возвращаем полные обновленные данные
+    character_details = character_crud.get_character_details_for_output(db, character_id, current_user.id)
+    if character_details is None:
+         raise HTTPException(status_code=404, detail="Не удалось получить обновленные данные персонажа после длительного отдыха")
+    return character_details
