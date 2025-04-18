@@ -1,149 +1,118 @@
-import React from 'react';
-import { theme } from '../../../styles/theme'; // Импорт твоей темы
-import ItemCard from '../components/ItemCard'; // Импорт твоего ItemCard
+// src/features/CharacterDetail/tabs/CharacterInventoryTab.js
+import React, { useState, useMemo } from 'react';
+import { theme } from '../../../styles/theme';
+import ItemCard from '../components/ItemCard'; // Импортируем ItemCard
 
-// Компонент принимает все необходимые обработчики от родителя
+const ITEM_TYPES = {
+    all: 'Все',
+    weapon: 'Оружие',
+    armor: 'Броня',
+    shield: 'Щиты',
+    general: 'Общее',
+    ammo: 'Патроны'
+};
+
 const CharacterInventoryTab = ({
     character,
-    handleEquip,    // Функция для экипировки предмета (inventory_item_id, slot) => void
-    handleUnequip,  // Функция для снятия предмета (slot) => void
-    handleDropItem, // Функция для выбрасывания предмета (inventory_item_id) => void
-    onAddItemClick, // Функция для открытия модального окна добавления
-    apiActionError, // Строка с ошибкой от API действий (экипировка/снятие и т.д.)
-    handleUseItem   // Функция для использования предмета (inventory_item_id, item_details) => void (если есть)
+    handleEquip,
+    handleUnequip,
+    handleDropItem,
+    onAddItemClick,
+    apiActionError
 }) => {
-    // Если данных персонажа нет, ничего не рендерим
+    const [activeSubTab, setActiveSubTab] = useState('all');
+
+    const filteredInventory = useMemo(() => {
+        const inventory = character?.inventory || [];
+        if (activeSubTab === 'all') {
+            return inventory;
+        }
+        return inventory.filter(invItem => invItem.item?.item_type === activeSubTab);
+    }, [character?.inventory, activeSubTab]);
+
+
     if (!character) return null;
 
-    // Получаем инвентарь или пустой массив
-    const inventory = character.inventory || [];
+    const inventory = character.inventory || []; // Для ItemCard все еще нужен полный инвентарь для проверки экипировки
 
-    // Определяем, релевантна ли ошибка API для этой вкладки
     const relevantError = typeof apiActionError === 'string' && apiActionError &&
-         (apiActionError.toLowerCase().includes('предмет') ||
-          apiActionError.toLowerCase().includes('инвентар') ||
-          apiActionError.toLowerCase().includes('экипир'))
+         (apiActionError.includes('предмет') || apiActionError.includes('инвентар') || apiActionError.includes('экипир'))
          ? apiActionError : null;
 
     return (
-        // Основной контейнер вкладки
         <div style={styles.tabContent}>
-
-            {/* Заголовок вкладки С КНОПКОЙ ДОБАВЛЕНИЯ */}
-            <div style={styles.tabHeader}>
+            {/* Заголовок и кнопка добавления */}
+            <div style={styles.mainHeader}>
                 <h4 style={styles.tabTitle}>Инвентарь</h4>
-                {/* ВОЗВРАЩАЕМ КНОПКУ "+" СЮДА */}
-                <button
-                    onClick={onAddItemClick} // Вызываем переданную функцию
-                    style={styles.addItemButton}
-                    title="Добавить предмет"
-                >
-                    +
-                </button>
+                <button onClick={onAddItemClick} style={styles.addItemButton} title="Добавить предмет">+</button>
             </div>
 
-            {/* Отображение релевантной ошибки API */}
+            {/* Подвкладки для фильтрации */}
+            <div style={styles.subTabContainer}>
+                {Object.entries(ITEM_TYPES).map(([key, name]) => (
+                    <button
+                        key={key}
+                        onClick={() => setActiveSubTab(key)}
+                        style={activeSubTab === key ? styles.subTabButtonActive : styles.subTabButton}
+                    >
+                        {name}
+                    </button>
+                ))}
+            </div>
+
+            {/* Отображение релевантной ошибки */}
             {relevantError && <p style={styles.apiActionErrorStyle}>{relevantError}</p>}
 
-            {/* Контейнер списка инвентаря (с прокруткой) */}
-            {inventory.length > 0 ? (
-                // Используем стили для flex-колонки с прокруткой
-                <div style={styles.inventoryGrid}>
-                    {inventory.map((invItem) => (
-                        // Рендерим карточку для каждого предмета в инвентаре
+            {/* --- ИЗМЕНЕН КОНТЕЙНЕР ДЛЯ КАРТОЧЕК --- */}
+            {filteredInventory.length > 0 ? (
+                // Используем flex-контейнер для вертикального расположения
+                <div style={styles.inventoryList}>
+                    {filteredInventory.map((invItem) => (
                         <ItemCard
-                            key={invItem.id || `inv-${invItem.item_id}`}
-                            character={character}
+                            key={invItem.id}
+                            character={character} // Передаем полные данные персонажа
                             invItem={invItem}
                             onEquip={handleEquip}
                             onUnequip={handleUnequip}
                             onDrop={handleDropItem}
-                            onUse={handleUseItem}
+                            // onUse={...}
                         />
                     ))}
                 </div>
             ) : (
-                // Заглушка, если инвентарь пуст
-                <p style={styles.placeholderText}>Инвентарь пуст.</p>
+                <p style={styles.placeholderText}>
+                    {activeSubTab === 'all' ? 'Инвентарь пуст.' : `Нет предметов типа "${ITEM_TYPES[activeSubTab]}".`}
+                </p>
             )}
-
-            {/* Контейнер для кнопки внизу УБРАН */}
+            {/* --- КОНЕЦ ИЗМЕНЕНИЯ --- */}
         </div>
     );
 };
 
-// Стили компонента (адаптированные, кнопка вернулась в header)
+// Обновленные стили
 const styles = {
-    // Основной контейнер вкладки
-    tabContent: {
-        animation: 'fadeIn 0.5s ease-out',
-        display: 'flex',        // Flexbox все еще полезен для управления высотой списка
-        flexDirection: 'column',
-        height: '100%',         // Важно для flexGrow у списка
-        padding: '10px 15px'
+    tabContent: { animation: 'fadeIn 0.5s ease-out', display: 'flex', flexDirection: 'column', height: '100%' },
+    mainHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', paddingBottom: '10px', borderBottom: `1px solid ${theme.colors.surface}66`, flexShrink: 0, },
+    tabTitle: { margin: 0, color: theme.colors.primary, fontSize: '1.1rem' },
+    addItemButton: { padding: '6px 12px', background: theme.colors.primary, color: theme.colors.background, border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', transition: theme.transitions.default, ':hover': {opacity: 0.9} },
+    subTabContainer: { display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '15px', paddingBottom: '10px', borderBottom: `1px solid ${theme.colors.surface}44`, flexShrink: 0, },
+    subTabButton: { padding: '5px 12px', background: 'transparent', color: theme.colors.textSecondary, border: `1px solid ${theme.colors.surface}88`, borderRadius: '15px', cursor: 'pointer', transition: theme.transitions.default, fontSize: '0.8rem', ':hover': { background: `${theme.colors.primary}22`, color: theme.colors.primary, borderColor: `${theme.colors.primary}55`, } },
+    subTabButtonActive: { padding: '5px 12px', background: theme.colors.primary, color: theme.colors.background, border: `1px solid ${theme.colors.primary}`, borderRadius: '15px', cursor: 'default', transition: theme.transitions.default, fontSize: '0.8rem', fontWeight: 'bold', },
+    // --- ИЗМЕНЕН СТИЛЬ inventoryGrid на inventoryList ---
+    inventoryList: { // Был inventoryGrid
+        display: 'flex', // Используем flex
+        flexDirection: 'column', // Элементы в столбик
+        gap: '10px', // Отступ между карточками
+        flexGrow: 1, // Занимает оставшееся место
+        overflowY: 'auto', // Добавляем прокрутку
+        padding: '5px 10px 5px 5px', // Паддинг (справа больше для скроллбара)
+        marginRight: '-10px', // Компенсация правого паддинга
+        scrollbarWidth: 'thin',
+        scrollbarColor: `${theme.colors.primary} ${theme.colors.surface}`
     },
-    // Заголовок вкладки
-    tabHeader: {
-        display: 'flex',
-        justifyContent: 'space-between', // Размещает title слева, button справа
-        alignItems: 'center',
-        marginBottom: '15px',
-        borderBottom: `1px solid ${theme.colors.surface}66`,
-        paddingBottom: '10px',
-        flexShrink: 0 // Не сжимать заголовок
-    },
-    tabTitle: {
-        margin: 0,
-        color: theme.colors.primary,
-        fontSize: '1.1rem'
-    },
-    // Кнопка добавления "+" в заголовке (стиль из твоего оригинального кода)
-    addItemButton: {
-        padding: '6px 12px',
-        background: theme.colors.primary,
-        color: theme.colors.background,
-        border: 'none',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        fontWeight: 'bold',
-        fontSize: '1rem', // Размер шрифта для "+"
-        lineHeight: '1', // Выравнивание "+" по центру кнопки
-        transition: theme.transitions.default,
-        ':hover': { opacity: 0.9 }
-    },
-    // Контейнер списка предметов
-    inventoryGrid: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px',
-        marginTop: '5px',
-        flexGrow: 1,            // Занимает все доступное пространство по высоте
-        overflowY: 'auto',      // Включает прокрутку
-        paddingRight: '5px',
-        paddingLeft: '2px'
-    },
-    // Текст-заглушка
-    placeholderText: {
-        color: theme.colors.textSecondary,
-        fontStyle: 'italic',
-        textAlign: 'center',
-        marginTop: '30px',
-        flexGrow: 1 // Занимает место, если список пуст
-    },
-    // Стиль для отображения ошибок API
-    apiActionErrorStyle: {
-        background: `${theme.colors.error}22`,
-        color: theme.colors.error,
-        padding: '8px 12px',
-        borderRadius: '6px',
-        border: `1px solid ${theme.colors.error}55`,
-        textAlign: 'center',
-        marginBottom: '15px',
-        fontSize: '0.9rem',
-        flexShrink: 0
-    },
-    // Стиль addButtonContainer больше не нужен
-    // addButtonContainer: { ... }
+    // --- КОНЕЦ ИЗМЕНЕНИЯ ---
+    placeholderText: { color: theme.colors.textSecondary, fontStyle: 'italic', textAlign: 'center', marginTop: '30px', flexGrow: 1 },
+    apiActionErrorStyle: { background: `${theme.colors.error}22`, color: theme.colors.error, padding: '8px 12px', borderRadius: '6px', border: `1px solid ${theme.colors.error}55`, textAlign: 'center', marginBottom: '15px', fontSize: '0.9rem', flexShrink: 0 },
 };
 
 export default CharacterInventoryTab;
