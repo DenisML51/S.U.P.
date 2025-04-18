@@ -76,6 +76,53 @@ class CharacterCreate(CharacterBase):
     motivation_notes: Optional[str] = None
     background_notes: Optional[str] = None
 
+    initial_branch_levels: Optional[Dict[str, int]] = Field(None, description="Начальное распределение 3 очков по веткам. Пример: {'fighter': 2, 'medic': 1}")
+
+    # Валидатор для суммы характеристик
+    @model_validator(mode='before')
+    @classmethod
+    def check_attributes_sum(cls, values):
+        # Проверяем, что values это словарь (для mode='before')
+        if not isinstance(values, dict):
+             return values # Пропускаем, если не словарь (например, при частичном обновлении)
+
+        attributes = ['strength', 'dexterity', 'endurance', 'intelligence', 'perception', 'charisma', 'luck']
+        if not all(attr in values for attr in attributes):
+             missing = [attr for attr in attributes if attr not in values]
+             if missing:
+                  raise ValueError(f"Отсутствуют обязательные характеристики: {', '.join(missing)}")
+             # Если все на месте, но проверка все равно падает - проблема в другом
+             return values
+
+        total_points = sum(values.get(attr, 0) for attr in attributes)
+        if total_points != 35:
+            raise ValueError(f"Сумма начальных очков характеристик должна быть равна 35, получено: {total_points}")
+        return values
+
+    # Валидатор для очков веток
+    @model_validator(mode='after')
+    def check_branch_points(self) -> 'CharacterCreate':
+        branch_levels = self.initial_branch_levels
+        # Требуем, чтобы очки были распределены
+        if branch_levels is None:
+             raise ValueError("Необходимо распределить 3 стартовых очка веток (поле initial_branch_levels)")
+
+        total_points_spent = 0
+        for branch_key, level in branch_levels.items():
+            if branch_key not in VALID_BRANCH_KEYS:
+                raise ValueError(f"Недопустимый ключ ветки: '{branch_key}'. Допустимые ключи: {VALID_BRANCH_KEYS}")
+            if not isinstance(level, int) or level <= 0:
+                 raise ValueError(f"Уровень для ветки '{branch_key}' должен быть положительным целым числом, получено: {level}")
+            # Можно добавить проверку на максимальный стартовый уровень, если нужно (например, 3)
+            if level > 3:
+                 raise ValueError(f"Стартовый уровень ветки '{branch_key}' не может быть больше 3")
+            total_points_spent += level
+
+        # Проверяем, что потрачено ровно 3 очка
+        if total_points_spent != 3:
+            raise ValueError(f"Необходимо распределить ровно 3 стартовых очка веток, распределено: {total_points_spent}")
+
+        return self
 
 # --- Схемы для Вывода Данных ---
 

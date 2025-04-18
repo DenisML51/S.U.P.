@@ -90,7 +90,7 @@ const styles = {
     subTabButtons: { display: 'flex', gap: '8px', order: 1 }, // Кнопки слева
     subTabButton: { padding: '6px 12px', background: 'transparent', color: theme.colors.textSecondary, border: `1px solid ${theme.colors.surface}66`, borderRadius: '6px', cursor: 'pointer', transition: theme.transitions.default, fontSize: '0.85rem', ':hover': { background: `${theme.colors.secondary}33`, color: theme.colors.secondary, borderColor: `${theme.colors.secondary}66` } },
     subTabButtonActive: { padding: '6px 12px', background: theme.colors.secondary, color: theme.colors.background, border: `1px solid ${theme.colors.secondary}`, borderRadius: '6px', cursor: 'pointer', transition: theme.transitions.default, fontSize: '0.85rem', fontWeight: 'bold' },
-    abilitiesGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '15px', marginTop: '10px' },
+    abilitiesGrid: { gap: '15px', marginTop: '10px' },
     placeholderText: { color: theme.colors.textSecondary, fontStyle: 'italic', textAlign: 'center', marginTop: '30px' },
     apiActionErrorStyle: { background: `${theme.colors.error}22`, color: theme.colors.error, padding: '8px 12px', borderRadius: '6px', border: `1px solid ${theme.colors.error}55`, textAlign: 'center', marginBottom: '15px', fontSize: '0.9rem' },
     // Стили для AbilityCardDetailed находятся в его файле

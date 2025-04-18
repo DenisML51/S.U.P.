@@ -2,6 +2,18 @@
 import React, { useCallback, useMemo } from 'react';
 import { theme } from '../../../styles/theme'; // Обновленный путь
 
+// Функция для получения цвета по редкости (можно вынести в utils или theme)
+const getRarityColor = (rarity) => {
+    switch (rarity?.toLowerCase()) {
+        case 'необычная': return theme.colors.success || '#66BB6A'; // Green
+        case 'редкая': return '#2196F3'; // Blue
+        case 'очень редкая': return theme.colors.primary || '#BB86FC'; // Purple
+        case 'экзотика': return theme.colors.warning || '#FFA726'; // Orange
+        case 'обычная':
+        default: return theme.colors.textSecondary || 'grey'; // Grey
+    }
+};
+
 const AbilityCardDetailed = ({ ability, character, onClick }) => { // Добавили onClick
 
     // Функция проверки требований (оптимизирована)
@@ -47,7 +59,7 @@ const AbilityCardDetailed = ({ ability, character, onClick }) => { // Добав
     // Определяем стили в зависимости от статуса изучения и требований
     const isLearned = character?.available_abilities?.some(ab => ab.id === ability.id);
     const cardStyle = {
-        ...styles.abilityCard,
+        ...styles.abilityCard, // Применяем базовый стиль
         ...(isLearned ? styles.learnedAbilityCard : styles.unlearnedAbilityCard),
         ...(!isLearned && !requirementsCheck.met ? styles.unmetReqAbilityCard : {})
     };
@@ -96,17 +108,79 @@ const AbilityCardDetailed = ({ ability, character, onClick }) => { // Добав
 
 // Стили для AbilityCardDetailed
 const styles = {
-    abilityCard: { background: theme.colors.surface, borderRadius: '8px', padding: '15px', boxShadow: theme.effects.shadow, transition: theme.transitions.default, display: 'flex', flexDirection: 'column', height: '100%', borderLeft: '4px solid transparent' },
-    learnedAbilityCard: { borderLeftColor: theme.colors.secondary },
-    unlearnedAbilityCard: { opacity: 0.7, filter: 'grayscale(50%)' },
-    unmetReqAbilityCard: { borderLeftColor: theme.colors.error, filter: 'grayscale(70%)', opacity: 0.6 },
-    cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' },
-    abilityName: { fontWeight: 'bold', color: theme.colors.secondary, display: 'block', fontSize: '1rem', marginRight: '5px' },
-    abilityMeta: { fontSize: '0.75rem', color: theme.colors.textSecondary, whiteSpace: 'nowrap', textAlign: 'right', flexShrink: 0 },
-    abilityBranchLevel: { fontSize: '0.8rem', color: theme.colors.textSecondary, display: 'block', marginBottom: '8px'},
-    abilityReqContainer: { fontSize: '0.75rem', display: 'block', marginBottom: '8px', fontStyle: 'italic', wordBreak: 'break-word' },
-    abilityDescCard: { fontSize: '0.9rem', color: theme.colors.text, margin: '5px 0', flexGrow: 1, lineHeight: 1.4 },
-    reqNotMetIndicator: { position: 'absolute', top: '5px', right: '5px', color: theme.colors.error, fontWeight: 'bold', fontSize: '1.2rem' }, // Позиционировать относительно карточки
+    abilityCard: {
+        background: theme.colors.surface,
+        borderRadius: '8px',
+        padding: '15px',
+        boxShadow: theme.effects.shadow,
+        transition: theme.transitions.default,
+        display: 'flex',
+        flexDirection: 'column',
+        // height: '100%', // <<< УДАЛЕНО СВОЙСТВО HEIGHT
+        borderLeft: '4px solid transparent', // Базовая прозрачная рамка
+        marginBottom: '15px', // Оставляем отступ снизу
+    },
+    learnedAbilityCard: {
+        borderLeftColor: theme.colors.secondary // Цвет для изученной
+    },
+    unlearnedAbilityCard: {
+        opacity: 0.7,
+        filter: 'grayscale(50%)' // Серая для неизученной
+    },
+    unmetReqAbilityCard: {
+        borderLeftColor: theme.colors.error, // Красная рамка, если требования не выполнены
+        filter: 'grayscale(70%)',
+        opacity: 0.6
+    },
+    cardHeader: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start', // Выравнивание по верху для длинных названий
+        marginBottom: '4px'
+    },
+    abilityName: {
+        fontWeight: 'bold',
+        color: theme.colors.secondary,
+        display: 'block', // Чтобы занимало всю ширину до меты
+        fontSize: '1rem',
+        marginRight: '5px', // Отступ от меты
+        wordBreak: 'break-word' // Перенос длинных названий
+    },
+    abilityMeta: {
+        fontSize: '0.75rem',
+        color: theme.colors.textSecondary,
+        whiteSpace: 'nowrap',
+        textAlign: 'right',
+        flexShrink: 0 // Не сжимать мету
+    },
+    abilityBranchLevel: {
+        fontSize: '0.8rem',
+        color: theme.colors.textSecondary,
+        display: 'block',
+        marginBottom: '8px'
+    },
+    abilityReqContainer: {
+        fontSize: '0.75rem',
+        display: 'block',
+        marginBottom: '8px',
+        fontStyle: 'italic',
+        wordBreak: 'break-word' // Перенос длинных требований
+    },
+    abilityDescCard: {
+        fontSize: '0.9rem',
+        color: theme.colors.text,
+        margin: '5px 0',
+        flexGrow: 1, // Описание занимает доступное место
+        lineHeight: 1.4
+    },
+    reqNotMetIndicator: {
+        position: 'absolute',
+        top: '5px',
+        right: '5px',
+        color: theme.colors.error,
+        fontWeight: 'bold',
+        fontSize: '1.2rem'
+    },
      // Стили для эффектов спасброска убраны из карточки, т.к. она стала краткой
 };
 

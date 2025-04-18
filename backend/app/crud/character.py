@@ -191,45 +191,75 @@ def get_character_details_for_output(db: Session, character_id: int, user_id: in
 # --- Character Create / Update Operations ---
 
 def create_character(db: Session, user_id: int, character_in: CharacterCreate) -> Character:
-    """Создает нового персонажа."""
-    skills_data = character_in.initial_skills.model_dump()
+    """Создает нового персонажа с начальными характеристиками, навыками и уровнями веток."""
+    print(f"\n--- CRUD: create_character (v4 - apply initial branches) ---")
+    print(f"User ID: {user_id}, Input Data: {character_in.model_dump()}") # Используем model_dump() для Pydantic v2
 
-    # Рассчитываем начальные модификаторы и производные статы
+    # Получаем данные для создания базового объекта
+    char_data = character_in.model_dump(exclude={'initial_skills', 'initial_branch_levels'})
+    skills_data = character_in.initial_skills.model_dump()
+    char_data.update(skills_data) # Добавляем навыки
+
+    # Рассчитываем начальные ПЗ, ПУ на основе характеристик и навыков
+    # (Используем ваши функции из utils, предполагая, что они корректны)
     endurance_mod = _get_skill_modifier(skills_data.get('skill_endurance', 1))
     self_control_mod = _get_skill_modifier(skills_data.get('skill_self_control', 1))
-    initial_max_hp = _calculate_initial_hp(endurance_mod)
-    initial_base_pu = _calculate_base_pu(self_control_mod)
+    initial_max_hp = _calculate_initial_hp(endurance_mod) # Функция из utils
+    initial_base_pu = _calculate_base_pu(self_control_mod) # Функция из utils
 
-    # Создаем объект модели Character
+    # Создаем объект модели Character с начальными значениями
     db_char = Character(
-        name=character_in.name,
+        **char_data,
         owner_id=user_id,
-        max_hp=initial_max_hp,
-        current_hp=initial_max_hp,
-        base_pu=initial_base_pu,
-        current_pu=initial_base_pu,
-        stamina_points=1, # Начальное значение ОС/Stamina
-        level=1,
+        level=1, # Уровень всегда 1 при создании
         experience_points=0,
-        speed=10, # Базовая скорость
-        # Распаковываем навыки и заметки
-        **skills_data,
-        appearance_notes=character_in.appearance_notes,
-        character_notes=character_in.character_notes,
-        motivation_notes=character_in.motivation_notes,
-        background_notes=character_in.background_notes
+        max_hp=initial_max_hp,
+        current_hp=initial_max_hp, # Начинаем с полным здоровьем
+        base_pu=initial_base_pu,
+        current_pu=initial_base_pu, # Начинаем с базовым ПУ
+        stamina_points=max(1, 1), # Начальные ОС = Уровень 1
+        exhaustion_level=0,
+        # Уровни веток по умолчанию будут 0 из модели
     )
+    print(f"  Initial calculated Max HP: {db_char.max_hp}, Base PU: {db_char.base_pu}, Stamina: {db_char.stamina_points}")
 
-    db.add(db_char)
-    db.flush() # Используем flush, чтобы получить ID персонажа для _update_character_available_abilities
-    db.refresh(db_char) # Обновляем объект из БД (с полученным ID)
+    # --- ПРИМЕНЯЕМ НАЧАЛЬНЫЕ УРОВНИ ВЕТОК ---
+    # Схема CharacterCreate уже проверила, что initial_branch_levels передан и сумма уровней = 3
+    if character_in.initial_branch_levels:
+        print(f"  Applying initial branch levels: {character_in.initial_branch_levels}")
+        for branch_key, level in character_in.initial_branch_levels.items():
+            attribute_name = f"{branch_key}_branch_level"
+            if hasattr(db_char, attribute_name):
+                setattr(db_char, attribute_name, level)
+                print(f"    Set {attribute_name} to {level}")
+            else:
+                # Этого не должно произойти, если VALID_BRANCH_KEYS в схеме верны
+                print(f"    WARNING: Attribute {attribute_name} not found on Character model for key {branch_key}")
+    else:
+         # Этот случай не должен происходить из-за валидации в схеме
+         print("  WARNING: Initial branch levels were not provided (schema validation might have failed or logic error).")
+    # --- КОНЕЦ ПРИМЕНЕНИЯ УРОВНЕЙ ВЕТОК ---
 
-    # Обновляем доступные способности веток (после получения ID)
-    _update_character_available_abilities(db, db_char)
+    # Добавляем в сессию, коммитим и обновляем
+    try:
+        db.add(db_char)
+        db.flush() # Получаем ID для связей
+        db.refresh(db_char) # Обновляем объект из БД
 
-    db.commit() # Коммитим все изменения
-    db.refresh(db_char) # Обновляем объект еще раз, чтобы подтянуть добавленные способности
-    return db_char
+        # Обновляем доступные способности на основе УЖЕ установленных уровней веток
+        _update_character_available_abilities(db, db_char)
+
+        db.commit() # Коммитим все изменения, включая добавленные способности
+        db.refresh(db_char) # Обновляем еще раз, чтобы подтянуть связи способностей
+        print(f"  Character created successfully with ID: {db_char.id}")
+        return db_char
+    except Exception as e:
+        db.rollback()
+        print(f"  ERROR: Commit failed during character creation: {e}")
+        # Можно выбросить HTTPException или вернуть None/спец.ошибку
+        raise HTTPException(status_code=500, detail=f"Ошибка базы данных при создании персонажа: {e}")
+
+
 
 
 def update_character_skills(db: Session, character_id: int, user_id: int, skill_updates: CharacterUpdateSkills) -> Optional[Character]:
