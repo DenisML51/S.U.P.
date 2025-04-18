@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { theme } from '../../../styles/theme'; // Обновленный путь
 import AbilityCardDetailed from '../components/AbilityCardDetailed'; // Импорт карточки
 
-const CharacterAbilitiesTab = ({ character, allAbilities, onAbilityClick, apiActionError }) => {
+const CharacterAbilitiesTab = ({ character, allAbilities, onAbilityClick, apiActionError, handleApiAction }) => {
     const [subTab, setSubTab] = useState('learned'); // 'learned', 'weapon', 'all'
 
     const learnedAbilities = character?.available_abilities || [];
@@ -67,7 +67,8 @@ const CharacterAbilitiesTab = ({ character, allAbilities, onAbilityClick, apiAct
                             key={ability.id}
                             ability={ability}
                             character={character}
-                            onClick={onAbilityClick} // Передаем обработчик для открытия модалки
+                            onClick={onAbilityClick}
+                            handleApiAction={handleApiAction}// Передаем обработчик для открытия модалки
                         />
                     ))}
                 </div>

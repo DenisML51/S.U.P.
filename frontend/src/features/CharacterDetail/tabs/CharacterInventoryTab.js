@@ -18,7 +18,8 @@ const CharacterInventoryTab = ({
     handleUnequip,
     handleDropItem,
     onAddItemClick,
-    apiActionError
+    apiActionError,
+    handleApiAction
 }) => {
     const [activeSubTab, setActiveSubTab] = useState('all');
 
@@ -75,6 +76,7 @@ const CharacterInventoryTab = ({
                             onEquip={handleEquip}
                             onUnequip={handleUnequip}
                             onDrop={handleDropItem}
+                            handleApiAction={handleApiAction}
                             // onUse={...}
                         />
                     ))}

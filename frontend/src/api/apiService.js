@@ -127,6 +127,13 @@ export const joinParty = (lobbyKey) => {
     return axios.post(`${API_URL}/parties/join`, { lobby_key: lobbyKey }, { headers: getAuthHeaders() });
 };
 
+export const activateAction = (characterId, activationData) => {
+    console.log(`API Call: activateAction for char ID: ${characterId}`, activationData);
+    // activationData должен иметь вид:
+    // { activation_type: 'item' | 'ability', target_id: number, target_entities?: number[] }
+    return axios.post(`${API_URL}/characters/${characterId}/activate`, activationData, { headers: getAuthHeaders() });
+};
+
 // --- Reference Data ---
 // Этим запросам обычно не нужна авторизация, но если нужна - нужно добавить headers
 export const getAllWeapons = () => axios.get(`${API_URL}/data/weapons`); // { headers: getAuthHeaders() } если нужно

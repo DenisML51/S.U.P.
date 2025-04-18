@@ -52,7 +52,7 @@ class InitialSkillDistribution(BaseModel):
             (value - 1) for key, value in values.items()
             if key.startswith("skill_") and isinstance(value, int)
         )
-        required_points = 36 # 18 навыков * (1 базовая + 2 очка в среднем) = 54 очка, 54 - 18 = 36
+        required_points = 45 # 18 навыков * (1 базовая + 2 очка в среднем) = 54 очка, 54 - 18 = 36
         if total_points_spent != required_points:
             raise ValueError(
                 f"При создании должно быть потрачено ровно {required_points} очков навыков (свыше 1). "

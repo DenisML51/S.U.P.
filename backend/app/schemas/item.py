@@ -62,6 +62,7 @@ class GeneralItemOut(ItemBase):
     item_type: str = 'general'
     effect: Optional[str] = None
     uses: Optional[int] = None
+    effect_dice_formula: Optional[str] = None
 
 
 class AmmoOut(ItemBase):

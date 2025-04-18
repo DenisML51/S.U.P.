@@ -9,7 +9,7 @@ const SKILL_NAMES = [
     'skill_logic', 'skill_attention', 'skill_erudition', 'skill_culture', 'skill_science', 'skill_medicine',
     'skill_suggestion', 'skill_insight', 'skill_authority', 'skill_self_control', 'skill_religion', 'skill_flow'
 ];
-const SKILL_POINTS_TO_SPEND = 36; // 36 очков сверх базы 1
+const SKILL_POINTS_TO_SPEND = 45; // 36 очков сверх базы 1
 
 // --- ДОБАВЛЕНО: Определяем ветки и очки для них ---
 const BRANCH_KEYS = ['medic', 'mutant', 'sharpshooter', 'scout', 'technician', 'fighter', 'juggernaut'];

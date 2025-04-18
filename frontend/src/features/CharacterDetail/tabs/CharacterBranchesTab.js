@@ -12,7 +12,7 @@ const ALL_BRANCHES = [
     { key: 'juggernaut', name: 'Джаггернаут' }
 ];
 
-const CharacterBranchesTab = ({ character, allAbilities, onAbilityClick, apiActionError }) => {
+const CharacterBranchesTab = ({ character, allAbilities, onAbilityClick, apiActionError, handleApiAction }) => {
     const [selectedBranch, setSelectedBranch] = useState(null); // Ключ выбранной ветки
 
     // Получаем способности для выбранной ветки
@@ -73,6 +73,7 @@ const CharacterBranchesTab = ({ character, allAbilities, onAbilityClick, apiActi
                                     ability={ability}
                                     character={character}
                                     onClick={onAbilityClick} // Передаем колбэк для открытия модалки
+                                    handleApiAction={handleApiAction}
                                 />
                             ))
                         ) : selectedBranch ? (

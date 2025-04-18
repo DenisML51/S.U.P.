@@ -1,168 +1,130 @@
 // src/features/CharacterDetail/tabs/CharacterEquipmentTab.js
-import React, { useState } from 'react'; // Добавили useState для hover эффекта
+import React from 'react'; // Убрали useState
 import EquippedItemDisplay from '../components/EquippedItemDisplay';
 import { theme } from '../../../styles/theme';
 
-// --- Иконки для слотов ---
-const SlotIcon = ({ type }) => {
-    // Сделаем иконку чуть крупнее и ярче
-    const iconStyle = { width: '28px', height: '28px', fill: theme.colors.primary, marginRight: '12px', flexShrink: 0 };
+// Иконки для заголовков секций
+const SectionIcon = ({ type }) => {
+    const iconStyle = { width: '22px', height: '22px', fill: theme.colors.secondary, marginRight: '10px'};
     switch (type) {
-        case 'armor':
-             return <svg style={iconStyle} viewBox="0 0 24 24"><path d="M12,1A1,1,0,0,0,11,2V5.08A7,7,0,0,0,6,12v5a1,1,0,0,0,.25.66l3,2.84A1,1,0,0,0,10,21h4a1,1,0,0,0,.75-.3l3-2.84A1,1,0,0,0,18,17V12A7,7,0,0,0,13,5.08V2A1,1,0,0,0,12,1Zm4,11a5,5,0,0,1-8,0V12h8Z"/></svg>;
-        case 'shield':
+        case 'offense': // Меч
+            return <svg style={iconStyle} viewBox="0 0 24 24"><path d="M21.71,5.29l-4-4a1,1,0,0,0-1.42,0l-12,12a1,1,0,0,0,0,1.42l4,4a1,1,0,0,0,1.42,0l12-12A1,1,0,0,0,21.71,5.29ZM11,18.59l-2-2L12.59,13,14,14.41ZM18.59,10,17,11.59l-4-4L14.59,6Zm-4-4L16,7.41,10.41,13,9,11.59Z"/></svg>;
+        case 'defense': // Щит
              return <svg style={iconStyle} viewBox="0 0 24 24"><path d="M12,1A10,10,0,0,0,2,11v3.54a1,1,0,0,0,.41.81l7,4.46A1,1,0,0,0,10,20h4a1,1,0,0,0,.59-.19l7-4.46A1,1,0,0,0,22,14.54V11A10,10,0,0,0,12,1Zm0,17.74L5.88,15.51,5,15.17V11a7,7,0,0,1,14,0v4.17l-.88.34Z"/></svg>;
-        case 'weapon':
-             return <svg style={iconStyle} viewBox="0 0 24 24"><path d="M21.71,5.29l-4-4a1,1,0,0,0-1.42,0l-12,12a1,1,0,0,0,0,1.42l4,4a1,1,0,0,0,1.42,0l12-12A1,1,0,0,0,21.71,5.29ZM11,18.59l-2-2L12.59,13,14,14.41ZM18.59,10,17,11.59l-4-4L14.59,6Zm-4-4L16,7.41,10.41,13,9,11.59Z"/></svg>;
-        default: return <div style={{width: '28px', height: '28px', marginRight: '12px', flexShrink: 0}}></div>; // Пустышка для выравнивания
+        default: return null;
     }
 };
 
-// --- Новая иконка для снятия предмета ---
-const UnequipIcon = () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-        {/* Простая иконка "выхода" или "снятия" */}
-        <path d="M16 13v-2h-5v-2h5V7l4 4-4 4zm-4-1H4v-2h8V8H4a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3h-2v3z"/>
-    </svg>
-);
-
-
+// --- Основной Компонент Вкладки ---
 const CharacterEquipmentTab = ({ character, handleUnequip, apiActionError }) => {
-    // Состояние для отслеживания наведения на слот
-    const [hoveredSlot, setHoveredSlot] = useState(null);
 
-    if (!character) return null;
+    if (!character) {
+        // Можно вернуть плейсхолдер или сообщение об ошибке
+        return <div style={styles.placeholderText}>Нет данных о персонаже для отображения экипировки.</div>;
+    }
 
-    const equipmentSlots = [
-        { key: 'armor', label: 'Броня', itemData: character.equipped_armor, iconType: 'armor' },
-        { key: 'shield', label: 'Щит', itemData: character.equipped_shield, iconType: 'shield' },
-        { key: 'weapon1', label: 'Оружие 1', itemData: character.equipped_weapon1, iconType: 'weapon' },
-        { key: 'weapon2', label: 'Оружие 2', itemData: character.equipped_weapon2, iconType: 'weapon' }
-    ];
+    // --- Логика определения занятости слотов ---
+    const weapon1 = character.equipped_weapon1;
+    const weapon2 = character.equipped_weapon2;
+    const shield = character.equipped_shield;
+    const armor = character.equipped_armor;
 
-     const relevantError = typeof apiActionError === 'string' && apiActionError && (apiActionError.includes('экипиров') || apiActionError.includes('снятия')) ? (
+    // Проверка на двуручное оружие
+    const isW1TwoHanded = weapon1?.item?.item_type === 'weapon' && weapon1.item.is_two_handed === true;
+    // Доступность слотов
+    const isW2SlotAvailable = !isW1TwoHanded;
+    const isShieldSlotAvailable = !isW1TwoHanded && !weapon2; // Щит нельзя с двуручным или со вторым оружием
+
+    // Обработка ошибок (без изменений)
+    const relevantError = typeof apiActionError === 'string' && apiActionError && (apiActionError.includes('экипиров') || apiActionError.includes('снятия')) ? (
          <p style={styles.apiActionErrorStyle}>{apiActionError}</p>
      ) : null;
 
-
+    // --- Рендеринг ---
     return (
         <div style={styles.tabContent}>
-            <h4 style={styles.tabHeaderNoBorder}>Экипировка</h4>
-             {relevantError}
-            <div style={styles.equipmentSlotsContainer}>
-                {equipmentSlots.map(slot => {
-                    const isHovered = hoveredSlot === slot.key;
-                    return (
-                        // Обертка для каждого слота
-                        <div
-                            key={slot.key}
-                            style={{
-                                ...styles.equipmentSlotWrapper,
-                                // Применяем стили при наведении
-                                transform: isHovered ? 'scale(1.02)' : 'scale(1)',
-                                boxShadow: isHovered ? theme.effects.shadow.replace('4px', '8px').replace('0.3', '0.5') : theme.effects.shadow, // Увеличиваем тень
-                            }}
-                            onMouseEnter={() => setHoveredSlot(slot.key)}
-                            onMouseLeave={() => setHoveredSlot(null)}
-                        >
-                            {/* Заголовок слота с иконкой */}
-                            <div style={styles.slotHeader}>
-                                <SlotIcon type={slot.iconType} />
-                                <span style={styles.slotLabel}>{slot.label}</span>
-                                {/* Кнопка снятия теперь справа от заголовка */}
-                                {slot.itemData && (
-                                    <button
-                                        onClick={() => handleUnequip(slot.key)}
-                                        style={styles.unequipButtonHeader}
-                                        title={`Снять ${slot.itemData?.item?.name}`}
-                                    >
-                                        <UnequipIcon /> {/* Используем новую иконку */}
-                                    </button>
-                                )}
-                            </div>
-                            {/* Карточка с предметом (или пустой слот) */}
-                            <div style={{...styles.slotItemCard, background: slot.itemData ? styles.slotItemCard.background : styles.emptySlotBackground }}> {/* Разный фон для пустого */}
-                                <EquippedItemDisplay itemData={slot.itemData} />
-                            </div>
-                        </div>
-                    );
-                })}
+            {/* <h4 style={styles.tabHeaderNoBorder}>Экипировка</h4> // Убрали заголовок для лаконичности */}
+            {relevantError}
+
+            {/* Основной Grid-контейнер для секций */}
+            <div style={styles.equipmentLayoutGrid}>
+
+                {/* === Секция Вооружения === */}
+                <section style={{...styles.section, ...styles.offenseSection}}>
+                    <h5 style={styles.sectionTitle}>
+                        <SectionIcon type="offense" />
+                        Вооружение
+                    </h5>
+                    {/* Контейнер для основного и доп. оружия/щита */}
+                    <div style={styles.offenseLayout}>
+                         {/* Основное оружие (W1) */}
+                         <div style={styles.itemContainer}>
+                            <span style={styles.slotLabel}>Основное оружие:</span>
+                            <EquippedItemDisplay
+                                itemData={weapon1}
+                                character={character}
+                                onUnequip={handleUnequip}
+                                slotKey="weapon1"
+                            />
+                         </div>
+
+                         {/* Контейнер для Доп. оружия / Щита */}
+                         <div style={styles.offhandContainer}>
+                             {/* Доп. оружие */}
+                             {isW2SlotAvailable && (
+                                <div style={styles.itemContainerSmall}>
+                                    <span style={styles.slotLabel}>Доп. оружие:</span>
+                                    <EquippedItemDisplay itemData={weapon2} character={character} onUnequip={handleUnequip} slotKey="weapon2"/>
+                                </div>
+                              )}
+                             {/* Щит */}
+                             {isShieldSlotAvailable && (
+                                <div style={styles.itemContainerSmall}>
+                                     <span style={styles.slotLabel}>Щит:</span>
+                                     <EquippedItemDisplay itemData={shield} character={character} onUnequip={handleUnequip} slotKey="shield"/>
+                                </div>
+                              )}
+                             {/* Заглушки */}
+                             {isW1TwoHanded && ( <div style={{...styles.itemContainerSmall, opacity: 0.6}}><span style={styles.slotLabel}>Доп. / Щит:</span><div style={styles.disabledSlotText}>(Слот недоступен)</div></div> )}
+                             {!isW1TwoHanded && weapon2 && !isShieldSlotAvailable && ( <div style={{...styles.itemContainerSmall, opacity: 0.6}}><span style={styles.slotLabel}>Щит:</span><div style={styles.disabledSlotText}>(Слот недоступен)</div></div> )}
+                         </div>
+                    </div>
+                </section>
+
+                {/* === Секция Защиты === */}
+                <section style={{...styles.section, ...styles.defenseSection}}>
+                     <h5 style={styles.sectionTitle}>
+                         <SectionIcon type="defense" />
+                         Защита Тела
+                     </h5>
+                     <div style={styles.itemContainer}> {/* Броня */}
+                         <span style={styles.slotLabel}>Броня:</span>
+                         <EquippedItemDisplay itemData={armor} character={character} onUnequip={handleUnequip} slotKey="armor"/>
+                     </div>
+                     {/* Можно добавить другие слоты защиты */}
+                </section>
+
             </div>
         </div>
     );
 };
 
-// Обновленные стили
+// --- Стили ---
 const styles = {
     tabContent: { animation: 'fadeIn 0.5s ease-out' },
-    tabHeaderNoBorder: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', color: theme.colors.primary, fontSize: '1.1rem', paddingBottom: '10px', borderBottom: `1px solid ${theme.colors.surface}cc` },
-    equipmentSlotsContainer: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-        gap: '25px',
-    },
-    equipmentSlotWrapper: {
-        background: theme.effects.glass,
-        backdropFilter: 'blur(5px)',
-        borderRadius: '12px',
-        padding: '20px', // Увеличили паддинг
-        boxShadow: theme.effects.shadow, // Базовая тень
-        border: `1px solid ${theme.colors.surface}99`,
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'transform 0.2s ease-out, box-shadow 0.2s ease-out', // Плавный переход
-        cursor: 'default', // Убираем курсор по умолчанию для обертки
-    },
-    slotHeader: {
-        display: 'flex',
-        alignItems: 'center',
-        marginBottom: '15px',
-        paddingBottom: '10px',
-        borderBottom: `1px dashed ${theme.colors.surface}aa`,
-    },
-    slotLabel: {
-        fontWeight: 'bold',
-        color: theme.colors.primary,
-        fontSize: '1rem',
-        flexGrow: 1,
-    },
-    slotItemCard: { // Контейнер для EquippedItemDisplay
-        background: 'rgba(0,0,0,0.2)', // Фон для непустого слота
-        borderRadius: '8px',
-        padding: '5px',
-        minHeight: '80px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexGrow: 1, // Занимает доступное пространство по высоте
-    },
-    emptySlotBackground: 'rgba(0,0,0,0.1)', // Другой фон для пустого слота
-    unequipButtonHeader: { // Кнопка снятия в заголовке
-        background: theme.colors.surface, // Фон кнопки
-        color: theme.colors.error, // Цвет иконки
-        border: `1px solid ${theme.colors.surface}cc`,
-        borderRadius: '6px', // Чуть менее круглый
-        width: '30px', // Размер кнопки
-        height: '30px',
-        padding: '0',
-        display: 'flex', // Центрируем иконку
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: 'pointer',
-        opacity: 0.8, // Полупрозрачный
-        transition: theme.transitions.default,
-        marginLeft: '10px',
-        flexShrink: 0,
-        ':hover': { // Псевдокласс hover не работает в inline-стилях
-            background: `${theme.colors.error}33`, // Фон при наведении
-            opacity: 1,
-            borderColor: theme.colors.error,
-            boxShadow: `0 0 5px ${theme.colors.error}55` // Легкая тень
-        }
-    },
+    equipmentLayoutGrid: { display: 'grid', gap: '25px', '@media (max-width: 900px)': { gridTemplateColumns: '1fr' } },
+    section: { background: `${theme.colors.surface}44`, borderRadius: '12px', padding: '20px', border: `1px solid ${theme.colors.surface}99`, display: 'flex', flexDirection: 'column', gap: '15px' },
+    offenseSection: { /* Специфичные стили, если нужны */ },
+    defenseSection: { /* Специфичные стили, если нужны */ },
+    sectionTitle: { margin: '0 0 10px 0', color: theme.colors.secondary, fontSize: '1.05rem', display: 'flex', alignItems: 'center', paddingBottom: '10px', borderBottom: `1px dashed ${theme.colors.surface}aa`, textTransform: 'uppercase', letterSpacing: '0.5px' },
+    offenseLayout: { display: 'flex', gap: '20px', flexWrap: 'wrap' },
+    itemContainer: { flex: '1 1 45%', minWidth: '280px', display: 'flex', flexDirection: 'column', gap: '8px' },
+    itemContainerSmall: { display: 'flex', flexDirection: 'column', gap: '5px' },
+    offhandContainer: { flex: '1 1 45%', minWidth: '280px', display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '15px', paddingTop: '15px', borderTop: `1px solid ${theme.colors.surface}55` },
+    slotLabel: { fontWeight: 'bold', color: theme.colors.textSecondary, fontSize: '0.8rem', marginLeft: '5px', textTransform: 'uppercase', opacity: 0.8 },
+    disabledSlotText: { fontStyle: 'italic', color: theme.colors.textSecondary, fontSize: '0.9rem', textAlign: 'center', padding: '20px 10px', border: `1px dashed ${theme.colors.surface}88`, borderRadius: '10px', background: 'rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100px', boxSizing: 'border-box' },
+    placeholderText: { color: theme.colors.textSecondary, fontStyle: 'italic', textAlign: 'center', marginTop: '30px' },
     apiActionErrorStyle: { background: `${theme.colors.error}22`, color: theme.colors.error, padding: '8px 12px', borderRadius: '6px', border: `1px solid ${theme.colors.error}55`, textAlign: 'center', marginBottom: '15px', fontSize: '0.9rem' },
-    // Стили для EquippedItemDisplay находятся в его файле
 };
 
 export default CharacterEquipmentTab;
-

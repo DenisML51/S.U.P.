@@ -10,8 +10,7 @@ import { useApiActionHandler } from '../../hooks/useApiActionHandler';
 
 // Импорт компонентов секций и вкладок
 import CharacterStatusSection from './sections/CharacterStatusSection';
-// CharacterSkillsSection больше не используется здесь
-import CharacterSkillsTab from './tabs/CharacterSkillsTab'; // Новая вкладка для навыков
+import CharacterSkillsTab from './tabs/CharacterSkillsTab';
 import CharacterEquipmentTab from './tabs/CharacterEquipmentTab';
 import CharacterInventoryTab from './tabs/CharacterInventoryTab';
 import CharacterAbilitiesTab from './tabs/CharacterAbilitiesTab';
@@ -50,90 +49,180 @@ const CharacterDetailPage = () => {
         setIsLoadingAbilities(true);
         try {
             const res = await apiService.getAllAbilities();
-            setAllAbilities(res.data);
+            setAllAbilities(res.data || []); // Убедимся, что это массив
         } catch (err) {
             console.error("Failed to fetch all abilities", err);
              setLoadingError(prev => prev ? `${prev}\nОшибка загрузки справочника способностей.` : "Ошибка загрузки справочника способностей.");
         } finally {
              setIsLoadingAbilities(false);
         }
-    }, [setLoadingError]);
+    }, [setLoadingError]); // Убрали fetchAllAbilities из зависимостей
 
-    useEffect(() => { fetchAllAbilities(); }, [fetchAllAbilities]);
+    useEffect(() => {
+        fetchAllAbilities();
+    }, [fetchAllAbilities]); // Зависимость от fetchAllAbilities
 
-    // Сброс ошибок при смене вкладки
+    // Сброс ошибок при смене вкладки или персонажа
     useEffect(() => {
         clearActionError();
         clearTriggeredEmotion();
-    }, [activeTab, clearActionError, clearTriggeredEmotion]);
-
+    }, [activeTab, characterId, clearActionError, clearTriggeredEmotion]); // Добавили characterId
 
     // --- Event Handlers ---
-    const handleEquip = useCallback((inventoryItemId, slot) => { handleApiAction(apiService.equipItem(characterId, inventoryItemId, slot), `Предмет экипирован`, `Ошибка экипировки`); }, [handleApiAction, characterId]);
-    const handleUnequip = useCallback((slot) => { handleApiAction(apiService.unequipItem(characterId, slot), `Предмет снят`, `Ошибка снятия`); }, [handleApiAction, characterId]);
-    const handleDropItem = useCallback((inventoryItemId) => { if (window.confirm(`Выбросить предмет?`)) { handleApiAction(apiService.removeItemFromInventory(characterId, inventoryItemId, 1), `Предмет удален`, `Ошибка удаления`); } }, [handleApiAction, characterId]);
-    const handleAbilityCardClick = useCallback((ability) => { setSelectedAbilityForModal(ability); setShowAbilityModal(true); }, []);
+    const handleEquip = useCallback((inventoryItemId, slot) => {
+        handleApiAction(apiService.equipItem(characterId, inventoryItemId, slot), `Предмет экипирован`, `Ошибка экипировки`);
+    }, [handleApiAction, characterId]);
 
+    const handleUnequip = useCallback((slot) => {
+        handleApiAction(apiService.unequipItem(characterId, slot), `Предмет снят`, `Ошибка снятия`);
+    }, [handleApiAction, characterId]);
+
+    const handleDropItem = useCallback((inventoryItemId) => {
+        // Подтверждение уже в ItemCard
+        handleApiAction(apiService.removeItemFromInventory(characterId, inventoryItemId, 1), `Предмет удален`, `Ошибка удаления`);
+    }, [handleApiAction, characterId]);
+
+    // Открытие модалки способности
+    const handleAbilityCardClick = useCallback((ability) => {
+        setSelectedAbilityForModal(ability);
+        setShowAbilityModal(true);
+    }, []);
 
     // --- Rendering Logic ---
-    if (isLoading || (isLoadingAbilities && allAbilities.length === 0)) { return <div style={styles.loading}>Загрузка данных...</div>; }
-    if (loadingError && !character) { return <div style={styles.error}>{loadingError} <button onClick={() => refreshCharacterData(true)}>Попробовать снова</button></div>; }
-    if (!character) { return <div style={styles.error}>Не удалось загрузить персонажа.</div>; }
+    if (isLoading || (isLoadingAbilities && allAbilities.length === 0 && !loadingError)) { // Показываем загрузку, если грузятся способности ИЛИ персонаж
+        return <div style={styles.loading}>Загрузка данных...</div>;
+    }
+
+    if (loadingError && !character) { // Если есть ошибка загрузки И персонаж не загружен
+        return <div style={styles.error}>{loadingError} <button onClick={() => refreshCharacterData(true)}>Попробовать снова</button></div>;
+    }
+
+    if (!character) { // Если не грузится и не ошибка, но персонажа нет
+        return <div style={styles.error}>Не удалось загрузить персонажа. Проверьте ID или попробуйте позже.</div>;
+    }
 
     // Функция рендера контента активной вкладки
     const renderTabContent = () => {
          switch (activeTab) {
-             case 'skills': // Новый кейс для навыков
+             case 'skills':
                  return <CharacterSkillsTab character={character} />;
              case 'equipment':
-                 return <CharacterEquipmentTab character={character} handleUnequip={handleUnequip} apiActionError={actionError} />;
+                 return <CharacterEquipmentTab
+                            character={character}
+                            handleUnequip={handleUnequip}
+                            apiActionError={actionError} // Передаем ошибку для отображения
+                        />;
              case 'inventory':
-                 // Передаем handleUnequip, т.к. ItemCard его использует
-                 return <CharacterInventoryTab character={character} handleEquip={handleEquip} handleUnequip={handleUnequip} handleDropItem={handleDropItem} onAddItemClick={() => setShowAddItemModal(true)} apiActionError={actionError} />;
+                 return <CharacterInventoryTab
+                             character={character}
+                             handleEquip={handleEquip}
+                             handleUnequip={handleUnequip}
+                             handleDropItem={handleDropItem}
+                             onAddItemClick={() => setShowAddItemModal(true)}
+                             apiActionError={actionError} // Передаем ошибку
+                             handleApiAction={handleApiAction} // Передаем обработчик API
+                         />;
              case 'abilities':
-                 return <CharacterAbilitiesTab character={character} allAbilities={allAbilities} onAbilityClick={handleAbilityCardClick} apiActionError={actionError} />;
+                 return <CharacterAbilitiesTab
+                            character={character}
+                            allAbilities={allAbilities} // Передаем все способности
+                            onAbilityClick={handleAbilityCardClick} // Для открытия модалки
+                            apiActionError={actionError}
+                            handleApiAction={handleApiAction}
+                         />;
              case 'branches':
-                  return <CharacterBranchesTab character={character} allAbilities={allAbilities} onAbilityClick={handleAbilityCardClick} apiActionError={actionError} />;
+                  return <CharacterBranchesTab
+                            character={character}
+                            allAbilities={allAbilities} // Передаем все способности
+                            onAbilityClick={handleAbilityCardClick} // Для открытия модалки
+                            apiActionError={actionError}
+                            handleApiAction={handleApiAction}
+                          />;
              case 'notes':
-                 return <CharacterNotesTab character={character} onEditNotesClick={() => setShowEditNotesModal(true)} apiActionError={actionError} />;
+                 return <CharacterNotesTab
+                            character={character}
+                            onEditNotesClick={() => setShowEditNotesModal(true)}
+                            apiActionError={actionError}
+                         />;
              default: return null;
          }
      };
 
+    // --- Основной Рендеринг Страницы ---
     return (
         <Fragment>
             {/* --- Модальные окна --- */}
-            {showLevelUpModal && ( <LevelUpModal characterId={characterId} currentCharacterData={character} onClose={() => setShowLevelUpModal(false)} onLevelUpSuccess={() => { setShowLevelUpModal(false); refreshCharacterData(); }} /> )}
-            {showAddItemModal && ( <AddItemModal characterId={characterId} onClose={() => setShowAddItemModal(false)} onSuccess={() => { setShowAddItemModal(false); refreshCharacterData(); }} /> )}
-            {showEditNotesModal && ( <EditNotesModal characterId={characterId} currentNotes={{ appearance_notes: character.appearance_notes, character_notes: character.character_notes, motivation_notes: character.motivation_notes, background_notes: character.background_notes, }} onClose={() => setShowEditNotesModal(false)} onSuccess={() => { setShowEditNotesModal(false); refreshCharacterData(); }} /> )}
-            {showAbilityModal && selectedAbilityForModal && ( <AbilityDetailModal ability={selectedAbilityForModal} onClose={() => { setShowAbilityModal(false); setSelectedAbilityForModal(null); }} /> )}
+            {showLevelUpModal && (
+                <LevelUpModal
+                    characterId={characterId}
+                    currentCharacterData={character}
+                    onClose={() => setShowLevelUpModal(false)}
+                    onLevelUpSuccess={() => { setShowLevelUpModal(false); refreshCharacterData(); }}
+                />
+            )}
+            {showAddItemModal && (
+                <AddItemModal
+                    characterId={characterId}
+                    onClose={() => setShowAddItemModal(false)}
+                    onSuccess={() => { setShowAddItemModal(false); refreshCharacterData(); }}
+                />
+            )}
+            {showEditNotesModal && (
+                <EditNotesModal
+                    characterId={characterId}
+                    currentNotes={{
+                        appearance_notes: character.appearance_notes,
+                        character_notes: character.character_notes,
+                        motivation_notes: character.motivation_notes,
+                        background_notes: character.background_notes,
+                    }}
+                    onClose={() => setShowEditNotesModal(false)}
+                    onSuccess={() => { setShowEditNotesModal(false); refreshCharacterData(); }}
+                />
+            )}
+            {/* Модалка способностей, передаем character */}
+            {showAbilityModal && selectedAbilityForModal && (
+                <AbilityDetailModal
+                    ability={selectedAbilityForModal}
+                    onClose={() => { setShowAbilityModal(false); setSelectedAbilityForModal(null); }}
+                    character={character} // Передаем character
+                />
+            )}
+            {/* Другие модалки (SelectMedkitModal, ShortRestModal и т.д.) рендерятся внутри CharacterStatusSection */}
+
 
             {/* --- Основная разметка страницы --- */}
             <div style={styles.pageContainer}>
+                {/* Шапка */}
                 <div style={styles.header}>
                     <button onClick={() => navigate('/')} style={styles.backButton}>{"<"} Назад</button>
                     <h1 style={styles.characterNameHeader}>{character.name}</h1>
-                    <div style={{ minWidth: '80px' }}></div> {/* Распорка */}
+                     <div style={{ minWidth: '80px' }}></div> {/* Распорка */}
                 </div>
 
-                {/* Отображение общих ошибок загрузки */}
-                {typeof loadingError === 'string' && loadingError && <div style={styles.apiError}>{loadingError}</div>}
-                 {/* Отображение триггера эмоций */}
-                 {triggeredEmotion && ( <p style={styles.emotionTriggeredText}>Эмоция: <strong>{triggeredEmotion}</strong>! (ПУ сброшено до {character.base_pu})</p> )}
+                {/* Отображение общих ошибок загрузки (если персонаж все же загрузился) */}
+                {typeof loadingError === 'string' && loadingError && character && <div style={styles.apiError}>{loadingError}</div>}
 
-                {/* Основной макет */}
+                 {/* Отображение триггера эмоций */}
+                 {triggeredEmotion && (
+                     <p style={styles.emotionTriggeredText}>
+                         Эмоция: <strong>{triggeredEmotion}</strong>! (ПУ сброшено до {character.base_pu})
+                     </p>
+                 )}
+
+                {/* Основной макет: Статус слева, Вкладки справа */}
                 <div style={styles.mainLayout}>
-                    {/* Левая колонка (только статус) */}
+                    {/* Левая колонка (Статус) */}
                     <div style={styles.leftColumn}>
                         <CharacterStatusSection
                             character={character}
                             handleApiAction={handleApiAction} // Передаем обработчик API
-                            onLevelUpClick={() => setShowLevelUpModal(true)} // Передаем обработчик клика Level Up
-                            refreshCharacterData={refreshCharacterData} // Передаем функцию обновления
+                            onLevelUpClick={() => setShowLevelUpModal(true)} // Обработчик клика Level Up
+                            refreshCharacterData={refreshCharacterData} // Функция обновления для AddStatusModal
                         />
                     </div>
 
-                    {/* Правая колонка (вкладки) */}
+                    {/* Правая колонка (Вкладки) */}
                     <div style={styles.rightColumn}>
                         {/* Кнопки вкладок */}
                         <div style={styles.tabButtons}>
@@ -144,10 +233,11 @@ const CharacterDetailPage = () => {
                             <button onClick={() => setActiveTab('branches')} style={activeTab === 'branches' ? styles.tabButtonActive : styles.tabButton}>Ветки</button>
                             <button onClick={() => setActiveTab('notes')} style={activeTab === 'notes' ? styles.tabButtonActive : styles.tabButton}>Заметки</button>
                         </div>
+
                         {/* Контейнер для контента вкладок */}
                         <div style={styles.tabContentContainer}>
-                             {/* Отображение ошибок API действий (кроме вкладок Навыки и Заметки, где нет API действий) */}
-                             {typeof actionError === 'string' && actionError && !['skills', 'notes'].includes(activeTab) && (
+                             {/* Отображение ошибок API действий (можно сделать более контекстным) */}
+                             {typeof actionError === 'string' && actionError && (
                                  <p style={{...styles.apiActionErrorStyle, marginBottom: '15px'}}>{actionError}</p>
                              )}
                              {renderTabContent()} {/* Рендер активной вкладки */}
@@ -158,6 +248,7 @@ const CharacterDetailPage = () => {
         </Fragment>
     );
 };
+
 
 // Стили styles (без изменений)
 const styles = {

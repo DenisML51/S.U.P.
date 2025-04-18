@@ -8,6 +8,7 @@ from .. import models, schemas
 # Импортируем нужные CRUD модули
 from ..crud import character as character_crud
 from ..crud import item as item_crud
+from ..crud import action as action_crud
 from ..db.database import get_db
 from ..core.auth import get_current_user
 
@@ -308,3 +309,33 @@ async def take_long_rest(
     if character_details is None:
          raise HTTPException(status_code=404, detail="Не удалось получить обновленные данные персонажа после длительного отдыха")
     return character_details
+
+
+@router.post("/{character_id}/activate", response_model=schemas.ActionResultOut, tags=["Actions"], summary="Активировать способность или использовать предмет")
+async def activate_character_action_endpoint(
+    character_id: int,
+    activation_data: schemas.ActivationRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Эндпоинт для выполнения действий персонажа: использование предмета или активация способности.
+    Возвращает результат действия.
+    """
+    result = action_crud.activate_action( # Используем функцию из crud/action.py
+        db=db,
+        character_id=character_id,
+        user_id=current_user.id,
+        activation_data=activation_data
+    )
+    if result is None or not result.success:
+        # Если CRUD вернул ошибку внутри ActionResultOut или None
+        error_message = result.message if result else "Неизвестная ошибка активации."
+        print(f"Activation failed for character {character_id}: {error_message}") # Лог ошибки
+        # Можно вернуть 400 или 500 в зависимости от типа ошибки в result.message
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_message
+        )
+    print(f"Activation successful for character {character_id}: {result.message}") # Лог успеха
+    return result

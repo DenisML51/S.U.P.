@@ -1,12 +1,14 @@
 # backend/app/models/item.py
 from __future__ import annotations
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 from sqlalchemy import Column, Integer, String, ForeignKey, Table, Text, Boolean, Float
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from ..db.database import Base
 from .association_tables import weapon_granted_abilities
-from .ability import Ability
+# from .ability import Ability
+if TYPE_CHECKING:
+    from .ability import Ability
 
 class Item(Base):
     __tablename__ = "items"
@@ -65,6 +67,7 @@ class GeneralItem(Item):
     id: Mapped[int] = mapped_column(ForeignKey('items.id'), primary_key=True)
     effect: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     uses: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    effect_dice_formula: Mapped[Optional[str]] = mapped_column(String, nullable=True, comment="Формула для расчета эффекта, напр. '1к8+Мод.Мед', '2к4'")
     __mapper_args__ = {'polymorphic_identity': 'general'}
 
 class Ammo(Item):

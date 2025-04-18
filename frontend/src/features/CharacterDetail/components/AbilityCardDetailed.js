@@ -1,112 +1,165 @@
 // src/features/CharacterDetail/components/AbilityCardDetailed.js
+// Отображает детальную карточку способности во вкладке "Способности"
 import React, { useCallback, useMemo } from 'react';
-import { theme } from '../../../styles/theme'; // Обновленный путь
+import { theme } from '../../../styles/theme'; // Путь к теме
+// Импортируем apiService для вызова activateAction
+import * as apiService from '../../../api/apiService';
 
-// Функция для получения цвета по редкости (можно вынести в utils или theme)
-const getRarityColor = (rarity) => {
-    switch (rarity?.toLowerCase()) {
-        case 'необычная': return theme.colors.success || '#66BB6A'; // Green
-        case 'редкая': return '#2196F3'; // Blue
-        case 'очень редкая': return theme.colors.primary || '#BB86FC'; // Purple
-        case 'экзотика': return theme.colors.warning || '#FFA726'; // Orange
-        case 'обычная':
-        default: return theme.colors.textSecondary || 'grey'; // Grey
+// Вспомогательная функция для получения цвета по редкости (если нужна для отображения ветки?)
+const getBranchColor = (branchName) => {
+    // Можно определить цвета для разных веток
+    switch (branchName?.toLowerCase()) {
+        case 'medic': return theme.colors.success || '#66BB6A';
+        case 'mutant': return '#BA68C8'; // Purple
+        case 'sharpshooter': return '#FFD54F'; // Yellow
+        case 'scout': return '#4DB6AC'; // Teal
+        case 'technician': return '#7986CB'; // Indigo
+        case 'fighter': return theme.colors.error || '#CF6679'; // Red
+        case 'juggernaut': return '#90A4AE'; // Blue Grey
+        case 'weapon': return theme.colors.textSecondary; // Серый для оружейных
+        default: return theme.colors.primary;
     }
 };
 
-const AbilityCardDetailed = ({ ability, character, onClick }) => { // Добавили onClick
+// Основной Компонент
+const AbilityCardDetailed = ({ ability, character, onClick, handleApiAction }) => {
 
-    // Функция проверки требований (оптимизирована)
+    // Хук для проверки требований (обернут в useCallback)
     const checkRequirements = useCallback(() => {
-        // Если требований нет или нет данных персонажа, считаем выполненными
-        if (!ability.skill_requirements || !character) {
-            return { met: true, details: [] };
+        if (!ability || !ability.skill_requirements || !character) {
+             return { met: true, details: null }; // Считаем выполненными, если нет требований/данных
         }
         try {
-             // Парсим JSON только если это непустая строка
-             let requirements = {};
-             if (typeof ability.skill_requirements === 'string' && ability.skill_requirements.trim()) {
-                  requirements = JSON.parse(ability.skill_requirements);
-             } else {
-                  return { met: true, details: [] }; // Нет требований
-             }
+            let requirements = {};
+            if (typeof ability.skill_requirements === 'string' && ability.skill_requirements.trim()) {
+                requirements = JSON.parse(ability.skill_requirements);
+            } else {
+                return { met: true, details: null };
+            }
 
             let allMet = true;
-            const details = Object.entries(requirements).map(([skillKey, requiredValue]) => {
-                 // Проверяем наличие навыка у персонажа
-                if (!(skillKey in character)) {
-                     console.warn(`AbilityCard: Skill key "${skillKey}" not found in character data for ability "${ability.name}".`);
-                     allMet = false;
-                     return { key: skillKey, required: requiredValue, current: '?', met: false };
-                }
-                const currentValue = character[skillKey];
-                const met = currentValue >= requiredValue;
+            const details = {};
+            for (const skillKey in requirements) {
+                const requiredValue = requirements[skillKey];
+                const characterValue = character[skillKey] ?? 0; // Используем 0, если навык не найден
+                const met = characterValue >= requiredValue;
+                details[skillKey] = { required: requiredValue, current: characterValue, met: met };
                 if (!met) allMet = false;
-                 // Форматируем имя навыка для отображения
-                const skillDisplayName = skillKey.replace(/^skill_/, '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); // Преобразуем skill_logic -> Logic
-                return { key: skillDisplayName, required: requiredValue, current: currentValue, met: met };
-            });
+            }
             return { met: allMet, details: details };
         } catch (e) {
-             console.error(`AbilityCard: Failed to parse skill_requirements JSON for ability "${ability.name}":`, ability.skill_requirements, e);
-             // Возвращаем информацию об ошибке
-             return { met: false, details: [{key: 'Ошибка парсинга требований', required: '', current: '', met: false}] };
+            console.error("AbilityCardDetailed: Failed to parse skill_requirements:", ability.skill_requirements, e);
+            return { met: false, details: { error: `Ошибка парсинга: ${ability.skill_requirements}` } };
         }
     }, [ability, character]);
 
+    // Вычисляем статус выполнения требований
     const requirementsCheck = useMemo(() => checkRequirements(), [checkRequirements]);
 
-    // Определяем стили в зависимости от статуса изучения и требований
+    // Ранний выход, если нет данных о способности
+    if (!ability) return null;
+
+    // Определяем, изучена ли способность персонажем
     const isLearned = character?.available_abilities?.some(ab => ab.id === ability.id);
+    // Является ли атакой оружия
+    const isWeaponAttack = ability.is_weapon_attack === true;
+
+    // Определяем, можно ли активировать способность
+    // Условие: передан обработчик И (способность изучена ИЛИ (это атака оружия И требования выполнены))
+    // TODO: В будущем добавить проверку кулдауна, ресурсов (ОС) и т.д.
+    const canActivate = !!handleApiAction && (isLearned || (isWeaponAttack && requirementsCheck.met));
+
+    // Формируем строку с мета-информацией
+    const metaInfo = [
+        ability.action_type,
+        ability.range ? `Дальн: ${ability.range}` : null,
+        ability.cooldown ? `КД: ${ability.cooldown}` : null,
+        ability.concentration ? '(Конц.)' : null
+    ].filter(Boolean).join(' | ');
+
+    // Формируем строку с требованиями для отображения
+    let requirementsString = requirementsCheck.details ?
+                                 Object.entries(requirementsCheck.details)
+                                     .map(([key, val]) => {
+                                         const skillName = key.replace('skill_', '').charAt(0).toUpperCase() + key.replace('skill_', '').slice(1);
+                                         return `${skillName} ${val.required}${val.met ? '✓' : ` (у вас ${val.current})`}`;
+                                     })
+                                     .join(', ')
+                             : (ability.skill_requirements ? ability.skill_requirements : null); // Показываем строку как есть, если парсинг не удался
+
+    // Определяем стиль карточки
     const cardStyle = {
-        ...styles.abilityCard, // Применяем базовый стиль
-        ...(isLearned ? styles.learnedAbilityCard : styles.unlearnedAbilityCard),
-        ...(!isLearned && !requirementsCheck.met ? styles.unmetReqAbilityCard : {})
+        ...styles.abilityCard,
+        borderLeftColor: getBranchColor(ability.branch),
+        ...(isLearned ? styles.learned : {}),
+        ...(!isLearned && !requirementsCheck.met ? styles.unmetReq : {})
     };
 
+    // Обработчик клика по кнопке "Активировать"
+    const handleActivateClick = (e) => {
+        e.stopPropagation(); // Предотвращаем открытие модалки при клике на кнопку
+        if (!canActivate) return; // Двойная проверка
 
+        // Формируем данные для запроса активации
+        const activationData = {
+            activation_type: 'ability',
+            target_id: ability.id // Передаем ID способности
+        };
+
+        // Вызываем общий обработчик API из props
+        handleApiAction(
+            apiService.activateAction(character.id, activationData), // Промис вызова API
+            `Способность '${ability.name}' активирована`, // Базовое сообщение успеха (бэкенд вернет детали)
+            `Ошибка активации способности '${ability.name}'` // Префикс для сообщения об ошибке
+        );
+    };
+
+    // --- Рендеринг Карточки ---
     return (
-        // Оборачиваем карточку в div с обработчиком клика
-        <div onClick={() => onClick(ability)} style={{cursor: 'pointer'}}>
-            <div style={cardStyle} title={`Нажмите для деталей: ${ability.name}`}>
-                {/* Название и мета-информация */}
-                <div style={styles.cardHeader}>
-                    <strong style={styles.abilityName}>{ability.name}</strong>
-                    <span style={styles.abilityMeta}>
-                        ({ability.action_type}{ability.cooldown ? `, КД: ${ability.cooldown}` : ''})
-                    </span>
+        // Обертка для клика по всей карточке (открытие модалки)
+        <div onClick={() => onClick(ability)} style={{cursor: 'pointer', position: 'relative'}}>
+            <div style={cardStyle} title={requirementsString ? `Требования: ${requirementsString}` : `Нажмите для деталей: ${ability.name}`}>
+                {/* Заголовок: Ветка/Уровень и Мета-инфо */}
+                <div style={styles.header}>
+                    <span style={styles.branch}>[{ability.branch} / Ур. {ability.level_required}]</span>
+                    <span style={styles.meta}>{metaInfo}</span>
                 </div>
-                <span style={styles.abilityBranchLevel}>Ур. {ability.level_required} [{ability.branch}]</span>
 
-                 {/* Отображение требований */}
-                 {requirementsCheck.details.length > 0 && (
-                      <div style={{...styles.abilityReqContainer, color: requirementsCheck.met ? theme.colors.secondary : theme.colors.error }}>
-                          Треб.: {requirementsCheck.details.map((req, index) => (
-                             <span key={req.key} title={`Нужно: ${req.required}, У вас: ${req.current}`}>
-                                 {index > 0 ? ', ' : ''}
-                                 <span style={{ textDecoration: req.met ? 'none' : 'line-through' }}>
-                                      {req.key} {req.required}
-                                 </span>
-                             </span>
-                         ))}
-                      </div>
-                  )}
+                {/* Название */}
+                <h4 style={styles.name}>{ability.name}</h4>
 
+                {/* Требования (если есть и не выполнены) */}
+                {!requirementsCheck.met && requirementsString && (
+                    <p style={styles.req}>Требования: {requirementsString}</p>
+                 )}
 
-                {/* Краткое описание */}
-                <p style={styles.abilityDescCard}>
-                    {/* Обрезаем длинное описание */}
-                    {ability.description.length > 100 ? `${ability.description.substring(0, 97)}...` : ability.description}
-                 </p>
+                {/* Краткое Описание */}
+                <p style={styles.desc}>
+                    {ability.description.length > 150 ? `${ability.description.substring(0, 150)}...` : ability.description}
+                </p>
 
-                {/* Можно добавить иконку или индикатор статуса (изучено/не изучено) */}
-                 {!isLearned && !requirementsCheck.met && <span style={styles.reqNotMetIndicator}>!</span>}
+                {/* Кнопка Активировать */}
+                {/* Отображаем, если можно активировать */}
+                {canActivate && (
+                    <button
+                        onClick={handleActivateClick}
+                        style={styles.activateButton}
+                        title={`Активировать: ${ability.name}`}
+                        // disabled={!canActivate} // Можно добавить disabled, если нужно визуально блокировать
+                    >
+                       Активировать
+                    </button>
+                )}
+
+                {/* Индикатор невыполненных требований (если не изучено) */}
+                {!isLearned && !requirementsCheck.met && <span style={styles.reqNotMetIndicator} title={`Требования не выполнены: ${requirementsString}`}>!</span>}
             </div>
         </div>
     );
 };
 
-// Стили для AbilityCardDetailed
+
+// --- Стили ---
 const styles = {
     abilityCard: {
         background: theme.colors.surface,
@@ -116,72 +169,100 @@ const styles = {
         transition: theme.transitions.default,
         display: 'flex',
         flexDirection: 'column',
-        // height: '100%', // <<< УДАЛЕНО СВОЙСТВО HEIGHT
-        borderLeft: '4px solid transparent', // Базовая прозрачная рамка
-        marginBottom: '15px', // Оставляем отступ снизу
+        borderLeft: '4px solid transparent', // Цвет будет зависеть от ветки
+        marginBottom: '15px',
+        position: 'relative', // Для позиционирования кнопки и индикатора
+        paddingBottom: '50px' // Оставляем место для кнопки активации
     },
-    learnedAbilityCard: {
-        borderLeftColor: theme.colors.secondary // Цвет для изученной
+    learned: { // Стиль для изученных
+        // Можно добавить эффект, например, легкую подсветку
+        // boxShadow: `0 0 10px ${theme.colors.secondary}33`,
     },
-    unlearnedAbilityCard: {
-        opacity: 0.7,
-        filter: 'grayscale(50%)' // Серая для неизученной
+    unmetReq: { // Стиль для недоступных (не изучено и требования не выполнены)
+        opacity: 0.65,
+        filter: 'grayscale(60%)'
     },
-    unmetReqAbilityCard: {
-        borderLeftColor: theme.colors.error, // Красная рамка, если требования не выполнены
-        filter: 'grayscale(70%)',
-        opacity: 0.6
-    },
-    cardHeader: {
+    header: {
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'flex-start', // Выравнивание по верху для длинных названий
-        marginBottom: '4px'
-    },
-    abilityName: {
-        fontWeight: 'bold',
-        color: theme.colors.secondary,
-        display: 'block', // Чтобы занимало всю ширину до меты
-        fontSize: '1rem',
-        marginRight: '5px', // Отступ от меты
-        wordBreak: 'break-word' // Перенос длинных названий
-    },
-    abilityMeta: {
-        fontSize: '0.75rem',
-        color: theme.colors.textSecondary,
-        whiteSpace: 'nowrap',
-        textAlign: 'right',
-        flexShrink: 0 // Не сжимать мету
-    },
-    abilityBranchLevel: {
-        fontSize: '0.8rem',
-        color: theme.colors.textSecondary,
-        display: 'block',
-        marginBottom: '8px'
-    },
-    abilityReqContainer: {
-        fontSize: '0.75rem',
-        display: 'block',
+        alignItems: 'baseline',
         marginBottom: '8px',
-        fontStyle: 'italic',
-        wordBreak: 'break-word' // Перенос длинных требований
     },
-    abilityDescCard: {
-        fontSize: '0.9rem',
-        color: theme.colors.text,
-        margin: '5px 0',
-        flexGrow: 1, // Описание занимает доступное место
-        lineHeight: 1.4
-    },
-    reqNotMetIndicator: {
-        position: 'absolute',
-        top: '5px',
-        right: '5px',
-        color: theme.colors.error,
+    branch: {
+        fontSize: '0.7rem',
+        color: theme.colors.textSecondary,
         fontWeight: 'bold',
-        fontSize: '1.2rem'
+        textTransform: 'uppercase',
     },
-     // Стили для эффектов спасброска убраны из карточки, т.к. она стала краткой
+    meta: {
+        fontSize: '0.7rem',
+        color: theme.colors.textSecondary,
+        fontStyle: 'italic',
+        textAlign: 'right',
+        whiteSpace: 'nowrap'
+    },
+    name: {
+        fontWeight: 'bold',
+        color: theme.colors.primary,
+        fontSize: '1.1rem',
+        margin: '0 0 8px 0',
+    },
+    req: {
+        fontSize: '0.75rem',
+        color: theme.colors.warning, // Или error
+        fontStyle: 'italic',
+        margin: '0 0 8px 0',
+        borderTop: `1px dashed ${theme.colors.surface}88`,
+        paddingTop: '6px'
+    },
+    desc: {
+        fontSize: '0.9rem',
+        color: theme.colors.textSecondary,
+        margin: 0,
+        lineHeight: 1.5,
+        flexGrow: 1, // Занимает доступное пространство
+    },
+    activateButton: {
+        position: 'absolute',
+        bottom: '10px',
+        right: '15px',
+        padding: '5px 10px',
+        fontSize: '0.8rem',
+        background: theme.colors.secondary + 'CC', // Цвет кнопки активации
+        color: theme.colors.background,
+        border: `1px solid ${theme.colors.secondary}`,
+        borderRadius: '6px',
+        cursor: 'pointer',
+        transition: theme.transitions.default,
+        fontWeight: 'bold',
+        ':hover': { // Псевдокласс hover не работает в inline-стилях
+            background: theme.colors.secondary,
+            boxShadow: `0 0 8px ${theme.colors.secondary}88`
+        },
+         ':disabled': {
+             opacity: 0.5,
+             cursor: 'not-allowed',
+             background: theme.colors.textSecondary,
+             borderColor: theme.colors.textSecondary,
+         }
+    },
+    reqNotMetIndicator: { // Индикатор "!" для невыполненных требований
+        position: 'absolute',
+        top: '10px',
+        right: '15px',
+        background: theme.colors.error,
+        color: theme.colors.text,
+        width: '18px',
+        height: '18px',
+        borderRadius: '50%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: 'bold',
+        fontSize: '0.8rem',
+        boxShadow: `0 0 5px ${theme.colors.error}88`,
+        cursor: 'help' // Подсказка при наведении (через title)
+    }
 };
 
 export default AbilityCardDetailed;
