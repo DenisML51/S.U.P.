@@ -13,7 +13,7 @@ class ItemBase(BaseModel):
     item_type: str # weapon, armor, shield, general, ammo
     category: str
     rarity: str
-    weight: int
+    weight: float
     # Опциональные поля в базовом классе, т.к. не все предметы их имеют
     strength_requirement: Optional[int] = None
     stealth_disadvantage: Optional[bool] = None

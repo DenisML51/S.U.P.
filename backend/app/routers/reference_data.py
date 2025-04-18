@@ -32,6 +32,7 @@ def get_all_shields_endpoint(db: Session = Depends(get_db)):
 @router.get("/general_items", response_model=List[schemas.GeneralItemOut], summary="Список общих предметов")
 def get_all_general_items_endpoint(db: Session = Depends(get_db)):
     items = reference_crud.get_all_items(db, models.GeneralItem)
+    print(f"Fetched {len(items)} general items from CRUD.")
     return items
 
 @router.get("/ammo", response_model=List[schemas.AmmoOut], summary="Список типов боеприпасов")

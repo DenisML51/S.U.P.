@@ -1,7 +1,7 @@
 # backend/app/models/item.py
 from __future__ import annotations
 from typing import Optional, List
-from sqlalchemy import Column, Integer, String, ForeignKey, Table, Text, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey, Table, Text, Boolean, Float
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from ..db.database import Base
@@ -16,7 +16,7 @@ class Item(Base):
     item_type: Mapped[str] = mapped_column(String(50))
     category: Mapped[str] = mapped_column(String(50), default='Простое')
     rarity: Mapped[str] = mapped_column(String(50), default='Обычная')
-    weight: Mapped[int] = mapped_column(Integer, default=1)
+    weight: Mapped[float] = mapped_column(Float, default=1.0)
     # Базовые определения, которые будут наследоваться
     strength_requirement: Mapped[int] = mapped_column(Integer, default=0)
     stealth_disadvantage: Mapped[bool] = mapped_column(Boolean, default=False)
