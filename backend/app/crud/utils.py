@@ -1,6 +1,9 @@
 # backend/app/crud/utils.py
 from sqlalchemy.orm import Session
-from typing import Optional
+import re 
+import random
+import math
+from typing import Optional, Dict, Any, Tuple
 
 # Импортируем модели напрямую, т.к. utils не должен зависеть от других crud модулей
 from .. import models, schemas # schemas нужен для VALID_BRANCH_KEYS
@@ -9,6 +12,96 @@ from .. import models, schemas # schemas нужен для VALID_BRANCH_KEYS
 NEGATIVE_EMOTIONS = [ "ПУ: Паника", "ПУ: Ярость", "ПУ: Апатия", "ПУ: Паранойя", "ПУ: Слабоумие", "ПУ: Срыв" ]
 POSITIVE_EMOTIONS = [ "ПУ: Адреналин", "ПУ: Вдохновение", "ПУ: Спокойствие", "ПУ: Прозрение", "ПУ: Эмпатия", "ПУ: Воля" ]
 # -------------------------------------------------------------------------
+SKILL_MODIFIER_MAP: Dict[str, str] = {
+    # Сопоставление строк из формул с именами атрибутов модели Character
+    "Сил": "strength_mod",
+    "Лов": "dexterity_mod",
+    "Вын": "endurance_mod",
+    "Реа": "reaction_mod",
+    "Тех": "technique_mod",
+    "Ада": "adaptation_mod",
+    "Лог": "logic_mod",
+    "Вни": "attention_mod",
+    "Эру": "erudition_mod",
+    "Кул": "culture_mod",
+    "Нау": "science_mod",
+    "Мед": "medicine_mod",
+    "Вну": "suggestion_mod",
+    "Про": "insight_mod",
+    "Авт": "authority_mod",
+    "Сам": "self_control_mod",
+    "Рел": "religion_mod",
+    "Пот": "flow_mod",
+    # Добавьте другие сокращения или полные имена, если используете
+}
+
+def _parse_and_roll(formula: str, character: models.Character) -> Tuple[int, str]:
+    """
+    Парсит формулу вида 'NdM+X+Мод.АБВ' или 'NdM', бросает кубики и добавляет модификаторы.
+    Возвращает кортеж: (результат_броска: int, детали_броска: str).
+    """
+    if not formula or not character:
+        return 0, "Нет формулы или персонажа"
+
+    total_result = 0
+    details_list = []
+    dice_regex = re.compile(r"(\d+)к(\d+)") # NdM
+    static_mod_regex = re.compile(r"([\+\-])(\d+)(?!к)") # +X or -X (не часть NdM)
+    skill_mod_regex = re.compile(r"([\+\-])Мод\.(\w+)") # +Мод.АБВ or -Мод.АБВ
+
+    # 1. Бросок кубиков
+    dice_match = dice_regex.search(formula)
+    if dice_match:
+        num_dice = int(dice_match.group(1))
+        die_type = int(dice_match.group(2))
+        rolls = [random.randint(1, die_type) for _ in range(num_dice)]
+        dice_sum = sum(rolls)
+        total_result += dice_sum
+        details_list.append(f"{num_dice}к{die_type}({'+'.join(map(str, rolls))}={dice_sum})")
+    else:
+        # Если кубиков нет, может быть просто число или модификатор
+         # Пробуем найти число в начале строки, если нет к
+         static_start_match = re.match(r"^(\d+)$", formula.split('+')[0].split('-')[0].strip())
+         if static_start_match:
+             start_val = int(static_start_match.group(1))
+             total_result += start_val
+             details_list.append(str(start_val))
+         # Иначе начинаем с 0
+
+    # 2. Статический модификатор
+    static_mod_match = static_mod_regex.search(formula)
+    if static_mod_match:
+        sign = static_mod_match.group(1)
+        value = int(static_mod_match.group(2))
+        if sign == '+':
+            total_result += value
+            details_list.append(f"+{value}")
+        else:
+            total_result -= value
+            details_list.append(f"-{value}")
+
+    # 3. Модификатор навыка
+    skill_mod_match = skill_mod_regex.search(formula)
+    if skill_mod_match:
+        sign = skill_mod_match.group(1)
+        mod_key_short = skill_mod_match.group(2)
+        mod_attr = SKILL_MODIFIER_MAP.get(mod_key_short)
+        if mod_attr and hasattr(character, mod_attr):
+            mod_value = getattr(character, mod_attr)
+            if sign == '+':
+                total_result += mod_value
+                details_list.append(f"+{mod_value}(Мод.{mod_key_short})")
+            else:
+                total_result -= mod_value
+                details_list.append(f"-{mod_value}(Мод.{mod_key_short})")
+        else:
+            details_list.append(f"(Ошибка: неизв. мод. '{mod_key_short}')")
+
+    # Убедимся, что результат не отрицательный (для лечения/урона обычно)
+    final_result = max(0, total_result)
+    roll_details = " ".join(details_list) + f" = {final_result}"
+
+    return final_result, roll_details
 
 # --- Вспомогательные функции ---
 def _get_skill_modifier(skill_level: int) -> int:

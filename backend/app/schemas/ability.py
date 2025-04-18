@@ -20,5 +20,10 @@ class AbilityOut(BaseModel):
     effect_on_save_fail: Optional[str] = None
     effect_on_save_success: Optional[str] = None
 
+    is_weapon_attack: bool = False # Добавляем значение по умолчанию
+    attack_skill: Optional[str] = None
+    damage_formula: Optional[str] = None
+    damage_type: Optional[str] = None
+
     class Config:
         from_attributes = True

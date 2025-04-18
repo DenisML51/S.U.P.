@@ -4,6 +4,8 @@ from typing import Optional, List
 from sqlalchemy import Column, Integer, String, ForeignKey, Table, Text, Boolean
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
+# from app.models.character import Character, Weapon
+
 from ..db.database import Base
 # Импортируем таблицу связи
 from .association_tables import weapon_granted_abilities, character_abilities
@@ -28,6 +30,12 @@ class Ability(Base):
     saving_throw_dc_formula: Mapped[Optional[str]] = mapped_column(String, nullable=True) # "8+Поток+Проф?", "СЛ Способности"
     effect_on_save_fail: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     effect_on_save_success: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    is_weapon_attack: Mapped[bool] = mapped_column(Boolean, default=False, index=True, comment="Является ли эта способность базовой атакой оружия")
+    attack_skill: Mapped[Optional[str]] = mapped_column(String, nullable=True, comment="Навык для броска атаки (Сила, Ловкость, Внимательность)")
+    damage_formula: Mapped[Optional[str]] = mapped_column(String, nullable=True, comment="Формула урона, напр. '1к10+Мод.Сил', '2к6', '1'")
+    damage_type: Mapped[Optional[str]] = mapped_column(String, nullable=True, comment="Тип урона способности (Колющий, Энерг., Огонь и т.д.)")
+
 
     # Связь "многие-ко-многим" с Character (изучившие способность)
     characters: Mapped[List["Character"]] = relationship(

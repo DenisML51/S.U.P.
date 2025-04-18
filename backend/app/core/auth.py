@@ -1,4 +1,5 @@
 # backend/app/core/auth.py
+from __future__ import annotations
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 SECRET_KEY = "your_super_secret_key" # ВАЖНО: Вынести в переменные окружения!
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 3000
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
