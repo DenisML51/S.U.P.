@@ -1,0 +1,27 @@
+
+services:
+
+  backend:
+    build:
+      context: ./backend 
+      dockerfile: Dockerfile
+    container_name: player_tool_backend
+    volumes:
+      - ./backend/app:/app/app  
+
+      - ./backend/test.db:/app/test.db
+    ports:
+      - "8000:8000"
+    environment:
+
+      - PYTHONUNBUFFERED=1 
+
+  frontend:
+    build:
+      context: ./frontend 
+      dockerfile: Dockerfile
+    container_name: player_tool_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
