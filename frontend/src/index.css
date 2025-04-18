@@ -79,3 +79,19 @@ body {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.3) rgba(0, 0, 0, 0.1);
 }
+
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none; /* Скрывает кнопки */
+  margin: 0; /* Убирает отступы, если они есть */
+}
+
+/* Firefox */
+input[type=number] {
+  -moz-appearance: textfield; /* Скрывает кнопки в Firefox */
+}
+
+/* Optional: Center text in number inputs */
+input[type=number] {
+ text-align: center;
+ }
