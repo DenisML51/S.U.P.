@@ -7,12 +7,13 @@ const CharacterAbilitiesTab = ({ character, allAbilities, onAbilityClick, apiAct
     const [subTab, setSubTab] = useState('learned'); // 'learned', 'weapon', 'all'
 
     const learnedAbilities = character?.available_abilities || [];
+
     const weaponAbilities = useMemo(() => {
         const abilities = new Map(); // Используем Map для уникальности по ID
         [character?.equipped_weapon1, character?.equipped_weapon2].forEach(wInvItem => {
             if (wInvItem?.item?.item_type === 'weapon' && wInvItem.item.granted_abilities) {
                 wInvItem.item.granted_abilities.forEach(ab => {
-                    if (!abilities.has(ab.id)) { // Добавляем только если еще нет
+                    if (ab && !abilities.has(ab.id)) { // Добавляем проверку на существование ab
                         abilities.set(ab.id, ab);
                     }
                 });
@@ -21,30 +22,39 @@ const CharacterAbilitiesTab = ({ character, allAbilities, onAbilityClick, apiAct
         return Array.from(abilities.values());
     }, [character?.equipped_weapon1, character?.equipped_weapon2]);
 
+    // --- ДОБАВЛЕНО: Создаем Set ID способностей от оружия ---
+    const weaponAbilityIdsSet = useMemo(() => new Set(weaponAbilities.map(ab => ab?.id).filter(id => id != null)), [weaponAbilities]);
+    // -----------------------------------------------------
+
     // Фильтруем способности для вкладки 'all'
     const allRelevantAbilities = useMemo(() => {
-         // Показываем только способности из веток + полученные от оружия
-         const learnedIds = new Set(learnedAbilities.map(a => a.id));
-         const weaponIds = new Set(weaponAbilities.map(a => a.id));
-         return allAbilities.filter(a =>
-             (a.branch !== 'weapon' && a.branch !== 'general') || // Включаем все способности веток
-             weaponIds.has(a.id) // Включаем способности, полученные от оружия
-             // Можно добавить сюда способности "general"
-         ).sort((a, b) => { // Сортировка для вкладки 'all'
-             const aLearned = learnedIds.has(a.id);
-             const bLearned = learnedIds.has(b.id);
-             if (aLearned !== bLearned) return aLearned ? -1 : 1; // Изученные сначала
-             if (a.branch !== b.branch) return a.branch.localeCompare(b.branch); // По ветке
-             return a.level_required - b.level_required; // По уровню
-         });
-     }, [allAbilities, learnedAbilities, weaponAbilities]);
+        const learnedIds = new Set(learnedAbilities.map(a => a?.id).filter(id => id != null));
+        // Используем уже созданный Set ID способностей от оружия
+        // const weaponIds = new Set(weaponAbilities.map(a => a.id));
+        return allAbilities.filter(a =>
+            a && // Добавим проверку, что сама способность существует
+            (
+                (a.branch !== 'weapon' && a.branch !== 'general') || // Включаем все способности веток
+                weaponAbilityIdsSet.has(a.id) // Включаем способности, полученные от оружия
+                // Можно добавить сюда способности "general"
+            )
+        ).sort((a, b) => { // Сортировка для вкладки 'all'
+            // Добавим проверки на null/undefined при сортировке
+            if (!a || !b) return 0;
+            const aLearned = learnedIds.has(a.id);
+            const bLearned = learnedIds.has(b.id);
+            if (aLearned !== bLearned) return aLearned ? -1 : 1; // Изученные сначала
+            if (a.branch !== b.branch) return (a.branch || '').localeCompare(b.branch || ''); // По ветке
+            return (a.level_required || 0) - (b.level_required || 0); // По уровню
+        });
+    }, [allAbilities, learnedAbilities, weaponAbilityIdsSet]); // Зависимость от weaponAbilityIdsSet
 
     const currentAbilities = subTab === 'learned' ? learnedAbilities
                             : subTab === 'weapon' ? weaponAbilities
                             : allRelevantAbilities; // Используем отфильтрованный список для 'all'
 
     // Фильтруем actionError
-     const relevantError = typeof apiActionError === 'string' && apiActionError && apiActionError.includes('способност') ? apiActionError : null;
+    const relevantError = typeof apiActionError === 'string' && apiActionError && apiActionError.includes('способност') ? apiActionError : null;
 
     return (
         <div style={styles.tabContent}>
@@ -56,20 +66,25 @@ const CharacterAbilitiesTab = ({ character, allAbilities, onAbilityClick, apiAct
                  </div>
                  <h4 style={styles.tabTitle}>Способности</h4>
             </div>
-             {relevantError && <p style={styles.apiActionErrorStyle}>{relevantError}</p>}
 
+            {relevantError && <p style={styles.apiActionErrorStyle}>{relevantError}</p>}
 
             {currentAbilities.length > 0 ? (
                 <div style={styles.abilitiesGrid}>
                     {currentAbilities.map(ability => (
-                         // Передаем character для проверки требований прямо в карточку
-                        <AbilityCardDetailed
-                            key={ability.id}
-                            ability={ability}
-                            character={character}
-                            onClick={onAbilityClick}
-                            handleApiAction={handleApiAction}// Передаем обработчик для открытия модалки
-                        />
+                        // Добавим проверку на null/undefined перед рендерингом карточки
+                        ability ? (
+                            <AbilityCardDetailed
+                                key={ability.id}
+                                ability={ability}
+                                character={character}
+                                onClick={onAbilityClick} // Для открытия модалки
+                                handleApiAction={handleApiAction} // Для активации
+                                // --- ДОБАВЛЕНО: Передаем Set ID способностей от оружия ---
+                                weaponAbilityIds={weaponAbilityIdsSet}
+                                // -------------------------------------------------------
+                            />
+                        ) : null
                     ))}
                 </div>
             ) : (
@@ -83,7 +98,7 @@ const CharacterAbilitiesTab = ({ character, allAbilities, onAbilityClick, apiAct
     );
 };
 
-// Стили
+// Стили (без изменений)
 const styles = {
     tabContent: { animation: 'fadeIn 0.5s ease-out' },
     subTabHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: `1px solid ${theme.colors.surface}66`, paddingBottom: '10px' },
@@ -98,3 +113,4 @@ const styles = {
 };
 
 export default CharacterAbilitiesTab;
+

@@ -1,13 +1,10 @@
 // src/features/CharacterDetail/components/AbilityCardDetailed.js
-// Отображает детальную карточку способности во вкладке "Способности"
 import React, { useCallback, useMemo } from 'react';
 import { theme } from '../../../styles/theme'; // Путь к теме
-// Импортируем apiService для вызова activateAction
-import * as apiService from '../../../api/apiService';
+import * as apiService from '../../../api/apiService'; // Импортируем apiService
 
-// Вспомогательная функция для получения цвета по редкости (если нужна для отображения ветки?)
+// Вспомогательная функция для цвета ветки (без изменений)
 const getBranchColor = (branchName) => {
-    // Можно определить цвета для разных веток
     switch (branchName?.toLowerCase()) {
         case 'medic': return theme.colors.success || '#66BB6A';
         case 'mutant': return '#BA68C8'; // Purple
@@ -21,55 +18,64 @@ const getBranchColor = (branchName) => {
     }
 };
 
-// Основной Компонент
-const AbilityCardDetailed = ({ ability, character, onClick, handleApiAction }) => {
+// --- ИЗМЕНЕНИЕ: Добавляем пропс weaponAbilityIds ---
+const AbilityCardDetailed = ({ ability, character, onClick, handleApiAction, weaponAbilityIds = new Set() }) => {
 
-    // Хук для проверки требований (обернут в useCallback)
+    // Хук для проверки требований (без изменений)
     const checkRequirements = useCallback(() => {
-        if (!ability || !ability.skill_requirements || !character) {
-             return { met: true, details: null }; // Считаем выполненными, если нет требований/данных
-        }
-        try {
-            let requirements = {};
-            if (typeof ability.skill_requirements === 'string' && ability.skill_requirements.trim()) {
-                requirements = JSON.parse(ability.skill_requirements);
-            } else {
-                return { met: true, details: null };
-            }
-
-            let allMet = true;
-            const details = {};
-            for (const skillKey in requirements) {
-                const requiredValue = requirements[skillKey];
-                const characterValue = character[skillKey] ?? 0; // Используем 0, если навык не найден
-                const met = characterValue >= requiredValue;
-                details[skillKey] = { required: requiredValue, current: characterValue, met: met };
-                if (!met) allMet = false;
-            }
-            return { met: allMet, details: details };
-        } catch (e) {
-            console.error("AbilityCardDetailed: Failed to parse skill_requirements:", ability.skill_requirements, e);
-            return { met: false, details: { error: `Ошибка парсинга: ${ability.skill_requirements}` } };
-        }
+        // ... (логика проверки требований остается прежней) ...
+         if (!ability || !ability.skill_requirements || !character) {
+             return { met: true, details: null };
+         }
+         try {
+             let requirements = {};
+             if (typeof ability.skill_requirements === 'string' && ability.skill_requirements.trim()) {
+                 requirements = JSON.parse(ability.skill_requirements);
+             } else {
+                 return { met: true, details: null };
+             }
+             let allMet = true;
+             const details = {};
+             for (const skillKey in requirements) {
+                 const requiredValue = requirements[skillKey];
+                 // Используем 0, если навык не найден или null/undefined
+                 const characterValue = character[skillKey] ?? 0;
+                 const met = characterValue >= requiredValue;
+                 details[skillKey] = { required: requiredValue, current: characterValue, met: met };
+                 if (!met) allMet = false;
+             }
+             return { met: allMet, details: details };
+         } catch (e) {
+             console.error("AbilityCardDetailed: Failed to parse skill_requirements:", ability.skill_requirements, e);
+             return { met: false, details: { error: `Ошибка парсинга: ${ability.skill_requirements}` } };
+         }
     }, [ability, character]);
 
-    // Вычисляем статус выполнения требований
+    // Вычисляем статус выполнения требований (без изменений)
     const requirementsCheck = useMemo(() => checkRequirements(), [checkRequirements]);
 
-    // Ранний выход, если нет данных о способности
+    // Ранний выход, если нет данных о способности (без изменений)
     if (!ability) return null;
 
-    // Определяем, изучена ли способность персонажем
-    const isLearned = character?.available_abilities?.some(ab => ab.id === ability.id);
-    // Является ли атакой оружия
-    const isWeaponAttack = ability.is_weapon_attack === true;
+    // Определяем, изучена ли способность персонажем (без изменений)
+    const isLearned = character?.available_abilities?.some(ab => ab?.id === ability.id);
 
-    // Определяем, можно ли активировать способность
-    // Условие: передан обработчик И (способность изучена ИЛИ (это атака оружия И требования выполнены))
-    // TODO: В будущем добавить проверку кулдауна, ресурсов (ОС) и т.д.
-    const canActivate = !!handleApiAction && (isLearned || (isWeaponAttack && requirementsCheck.met));
+    // Является ли атакой оружия (без изменений)
+    // const isWeaponAttack = ability.is_weapon_attack === true; // Это поле больше не используется в логике активации
 
-    // Формируем строку с мета-информацией
+    // --- ИЗМЕНЕНИЕ: Определяем, предоставлена ли способность оружием ---
+    const isGrantedByWeapon = weaponAbilityIds.has(ability.id);
+    // -------------------------------------------------------------------
+
+    // --- ИЗМЕНЕНИЕ: Обновляем логику canActivate ---
+    // Можно активировать, если:
+    // 1. Способность изучена персонажем (isLearned)
+    // ИЛИ
+    // 2. Способность предоставлена оружием (isGrantedByWeapon) И требования выполнены (requirementsCheck.met)
+    const canActivate = !!handleApiAction && (isLearned || (isGrantedByWeapon && requirementsCheck.met));
+    // -----------------------------------------------
+
+    // Формируем строку с мета-информацией (без изменений)
     const metaInfo = [
         ability.action_type,
         ability.range ? `Дальн: ${ability.range}` : null,
@@ -77,67 +83,61 @@ const AbilityCardDetailed = ({ ability, character, onClick, handleApiAction }) =
         ability.concentration ? '(Конц.)' : null
     ].filter(Boolean).join(' | ');
 
-    // Формируем строку с требованиями для отображения
+    // Формируем строку с требованиями для отображения (без изменений)
     let requirementsString = requirementsCheck.details ?
                                  Object.entries(requirementsCheck.details)
                                      .map(([key, val]) => {
-                                         const skillName = key.replace('skill_', '').charAt(0).toUpperCase() + key.replace('skill_', '').slice(1);
-                                         return `${skillName} ${val.required}${val.met ? '✓' : ` (у вас ${val.current})`}`;
+                                         // Улучшаем отображение имени навыка
+                                         const skillName = key.replace('skill_', '');
+                                         const russianName = { /* карта переводов, если нужна */ strength: 'Сила', dexterity: 'Ловкость' }[skillName] || skillName.charAt(0).toUpperCase() + skillName.slice(1);
+                                         return `${russianName} ${val.required}${val.met ? '✓' : ` (у вас ${val.current})`}`;
                                      })
                                      .join(', ')
-                             : (ability.skill_requirements ? ability.skill_requirements : null); // Показываем строку как есть, если парсинг не удался
+                             : (ability.skill_requirements ? ability.skill_requirements : null);
 
-    // Определяем стиль карточки
+    // Определяем стиль карточки (без изменений)
     const cardStyle = {
         ...styles.abilityCard,
         borderLeftColor: getBranchColor(ability.branch),
         ...(isLearned ? styles.learned : {}),
-        ...(!isLearned && !requirementsCheck.met ? styles.unmetReq : {})
+        // Условие для недоступных теперь только !canActivate, если не изучена и не предоставлена/требования не выполнены
+        ...(!isLearned && !canActivate ? styles.unmetReq : {})
     };
 
-    // Обработчик клика по кнопке "Активировать"
+    // Обработчик клика по кнопке "Активировать" (без изменений)
     const handleActivateClick = (e) => {
-        e.stopPropagation(); // Предотвращаем открытие модалки при клике на кнопку
-        if (!canActivate) return; // Двойная проверка
-
-        // Формируем данные для запроса активации
+        e.stopPropagation();
+        if (!canActivate) return;
         const activationData = {
             activation_type: 'ability',
-            target_id: ability.id // Передаем ID способности
+            target_id: ability.id
         };
-
-        // Вызываем общий обработчик API из props
         handleApiAction(
-            apiService.activateAction(character.id, activationData), // Промис вызова API
-            `Способность '${ability.name}' активирована`, // Базовое сообщение успеха (бэкенд вернет детали)
-            `Ошибка активации способности '${ability.name}'` // Префикс для сообщения об ошибке
+            apiService.activateAction(character.id, activationData),
+            `Способность '${ability.name}' активирована`,
+            `Ошибка активации способности '${ability.name}'`
         );
     };
 
     // --- Рендеринг Карточки ---
     return (
-        // Обертка для клика по всей карточке (открытие модалки)
         <div onClick={() => onClick(ability)} style={{cursor: 'pointer', position: 'relative'}}>
             <div style={cardStyle} title={requirementsString ? `Требования: ${requirementsString}` : `Нажмите для деталей: ${ability.name}`}>
-                {/* Заголовок: Ветка/Уровень и Мета-инфо */}
+                {/* Заголовок */}
                 <div style={styles.header}>
                     <span style={styles.branch}>[{ability.branch} / Ур. {ability.level_required}]</span>
                     <span style={styles.meta}>{metaInfo}</span>
                 </div>
-
                 {/* Название */}
                 <h4 style={styles.name}>{ability.name}</h4>
-
                 {/* Требования (если есть и не выполнены) */}
                 {!requirementsCheck.met && requirementsString && (
                     <p style={styles.req}>Требования: {requirementsString}</p>
                  )}
-
                 {/* Краткое Описание */}
                 <p style={styles.desc}>
-                    {ability.description.length > 150 ? `${ability.description.substring(0, 150)}...` : ability.description}
+                    {ability.description?.length > 150 ? `${ability.description.substring(0, 150)}...` : ability.description}
                 </p>
-
                 {/* Кнопка Активировать */}
                 {/* Отображаем, если можно активировать */}
                 {canActivate && (
@@ -145,21 +145,18 @@ const AbilityCardDetailed = ({ ability, character, onClick, handleApiAction }) =
                         onClick={handleActivateClick}
                         style={styles.activateButton}
                         title={`Активировать: ${ability.name}`}
-                        // disabled={!canActivate} // Можно добавить disabled, если нужно визуально блокировать
                     >
                        Активировать
                     </button>
                 )}
-
-                {/* Индикатор невыполненных требований (если не изучено) */}
-                {!isLearned && !requirementsCheck.met && <span style={styles.reqNotMetIndicator} title={`Требования не выполнены: ${requirementsString}`}>!</span>}
+                {/* Индикатор недоступности (если не изучено и нельзя активировать) */}
+                {!isLearned && !canActivate && <span style={styles.reqNotMetIndicator} title={`Недоступно (не изучено или требования не выполнены)`}>!</span>}
             </div>
         </div>
     );
 };
 
-
-// --- Стили ---
+// Стили (без изменений)
 const styles = {
     abilityCard: {
         background: theme.colors.surface,

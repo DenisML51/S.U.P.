@@ -35,7 +35,26 @@ class Weapon(Item):
     range_max: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     reload_info: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     is_two_handed: Mapped[bool] = mapped_column(Boolean, default=False)
-    granted_abilities: Mapped[List["Ability"]] = relationship("Ability", secondary=weapon_granted_abilities, back_populates="granted_by_weapons", lazy="selectin")
+        # --- ИЗМЕНЕНИЕ: Добавлено поле для ручного указания способностей ---
+    manual_ability_names_json: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+        comment='JSON list of Ability names to grant, e.g., ["Удар Ножом", "Бросок ножа"]'
+    )
+
+    required_ammo_type: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+        comment="Тип патронов, необходимый для оружия (e.g., 'Пистолетные 9мм', 'Дробовик 12к', 'Винтовочные', 'Энергоячейка')"
+    )
+    # -------------------------------------------------------------------
+
+    granted_abilities: Mapped[List["Ability"]] = relationship(
+        "Ability",
+        secondary=weapon_granted_abilities,
+        back_populates="granted_by_weapons",
+        lazy="selectin" # Оставляем selectin для предзагрузки
+    )
     __mapper_args__ = {'polymorphic_identity': 'weapon'}
 
 class Armor(Item):

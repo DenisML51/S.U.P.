@@ -36,6 +36,7 @@ class WeaponOut(ItemBase):
     stealth_disadvantage: bool = False
     # Добавляем поле для способностей оружия
     granted_abilities: List[AbilityOut] = []
+    required_ammo_type: Optional[str] = None
 
 
 class ArmorOut(ItemBase):

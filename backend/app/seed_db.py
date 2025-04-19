@@ -1,3 +1,4 @@
+# backend/scripts/seed_db.py
 import sys
 import os
 import json
@@ -10,9 +11,14 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # --- Настройка Пути ---
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(project_root)
-logger.info(f"Project root added to sys.path: {project_root}")
+# Определяем корень проекта относительно текущего файла
+# Предполагается, что seed_db.py находится в backend/scripts/
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Добавляем директорию 'backend' в sys.path, чтобы импорты работали
+backend_dir = os.path.join(project_root, 'backend')
+if backend_dir not in sys.path:
+    sys.path.append(backend_dir)
+logger.info(f"Backend directory added to sys.path: {backend_dir}")
 
 # --- Импорты Моделей и БД ---
 try:
@@ -31,55 +37,57 @@ except Exception as e:
     logger.error(f"An unexpected error occurred during imports: {e}", exc_info=True)
     sys.exit(1)
 
+
 # --- ДАННЫЕ ДЛЯ ЗАПОЛНЕНИЯ ---
 
-# Оружейные
 weapons_data = [
     # Ближний бой
-    { "name": "Нож", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 1, "damage": "1к4", "damage_type": "Колющий", "properties": "Легкое, Фехтовальное, Дистанция Броска (6/18)", "is_two_handed": False },
-    { "name": "Боевой нож", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 1, "damage": "1к4", "damage_type": "Колющий", "properties": "Легкое, Фехтовальное, Дистанция Броска (6/18)", "is_two_handed": False },
-    { "name": "Дубинка", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 2, "damage": "1к6", "damage_type": "Дробящий", "properties": None, "is_two_handed": False },
-    { "name": "Обломок трубы", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 2, "damage": "1к6", "damage_type": "Дробящий", "properties": None, "is_two_handed": False },
-    { "name": "Монтировка", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 2, "damage": "1к6", "damage_type": "Дробящий", "properties": "Особое (Преимущество на проверки Силы для взлома)", "is_two_handed": False },
-    { "name": "Топор", "item_type": "weapon", "category": "Воинское", "rarity": "Обычная", "weight": 3, "damage": "1к8", "damage_type": "Рубящий", "properties": None, "is_two_handed": False },
-    { "name": "Мачете", "item_type": "weapon", "category": "Воинское", "rarity": "Обычная", "weight": 3, "damage": "1к8", "damage_type": "Рубящий", "properties": None, "is_two_handed": False },
-    { "name": "Меч", "item_type": "weapon", "category": "Воинское", "rarity": "Необычная", "weight": 3, "damage": "1к8", "damage_type": "Рубящий", "properties": "Фехтовальное", "is_two_handed": False },
-    { "name": "Катана", "item_type": "weapon", "category": "Воинское", "rarity": "Необычная", "weight": 3, "damage": "1к8", "damage_type": "Рубящий", "properties": "Фехтовальное", "is_two_handed": False },
-    { "name": "Рапира", "item_type": "weapon", "category": "Воинское", "rarity": "Необычная", "weight": 2, "damage": "1к8", "damage_type": "Колющий", "properties": "Фехтовальное", "is_two_handed": False },
-    { "name": "Молот", "item_type": "weapon", "category": "Воинское", "rarity": "Необычная", "weight": 10, "damage": "1к10", "damage_type": "Дробящий", "properties": "Двуручное", "is_two_handed": True },
-    { "name": "Тяжелая дубина", "item_type": "weapon", "category": "Воинское", "rarity": "Обычная", "weight": 8, "damage": "1к10", "damage_type": "Дробящий", "properties": "Двуручное", "is_two_handed": True },
-    { "name": "Двуручный меч", "item_type": "weapon", "category": "Воинское", "rarity": "Необычная", "weight": 6, "damage": "1к12", "damage_type": "Рубящий", "properties": "Двуручное, Тяжелое", "is_two_handed": True },
-    { "name": "Двуручный топор", "item_type": "weapon", "category": "Воинское", "rarity": "Необычная", "weight": 7, "damage": "1к12", "damage_type": "Рубящий", "properties": "Двуручное, Тяжелое", "is_two_handed": True },
-    { "name": "Цепной Меч", "item_type": "weapon", "category": "Экзотика", "rarity": "Редкая", "weight": 6, "damage": "1к10", "damage_type": "Рубящий", "properties": "Двуручное ИЛИ Одноручное (с Силой 13+), Разрывное, Шумное", "is_two_handed": True },
-    { "name": "Силовой Меч", "item_type": "weapon", "category": "Экзотика", "rarity": "Редкая", "weight": 3, "damage": "1к8", "damage_type": "Энерг./Рубящий", "properties": "Фехтовальное, Пробивание", "is_two_handed": False },
-    { "name": "Силовой Молот", "item_type": "weapon", "category": "Экзотика", "rarity": "Редкая", "weight": 12, "damage": "2к10", "damage_type": "Энерг./Дроб.", "properties": "Двуручное, Тяжелое, Пробивание", "is_two_handed": True },
-    { "name": "Кастет", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 1, "damage": "1к4", "damage_type": "Дробящий", "properties": "Легкое", "is_two_handed": False },
-    { "name": "Укрепленные перчатки", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 1, "damage": "1к4", "damage_type": "Дробящий", "properties": "Легкое", "is_two_handed": False },
-    { "name": "Безоружный удар", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 0, "damage": "1", "damage_type": "Дробящий", "properties": "Легкое", "is_two_handed": False },
-    { "name": "Пистолет (легкий, 9мм)", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 2, "damage": "1к8", "damage_type": "Колющий", "properties": "Боеприпасы", "range_normal": 15, "range_max": 45, "reload_info": "12 выстр./Бонусное д.", "is_two_handed": False },
-    { "name": "Револьвер (тяжелый)", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 3, "damage": "1к10", "damage_type": "Колющий", "properties": "Боеприпасы", "range_normal": 20, "range_max": 60, "reload_info": "6 выстр./Действие", "is_two_handed": False },
-    { "name": "Обрез", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 5, "damage": "2к6", "damage_type": "Колющий", "properties": "Боеприпасы, Двуручное", "range_normal": 8, "range_max": 20, "reload_info": "2 выстр./Бонусное д.", "is_two_handed": True },
-    { "name": "Легкий дробовик", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 6, "damage": "2к6", "damage_type": "Колющий", "properties": "Боеприпасы, Двуручное", "range_normal": 8, "range_max": 20, "reload_info": "2 выстр./Бонусное д.", "is_two_handed": True },
-    { "name": "Дробовик (помповый)", "item_type": "weapon", "category": "Воинское", "rarity": "Необычная", "weight": 7, "damage": "2к8", "damage_type": "Колющий", "properties": "Боеприпасы, Двуручное, Особое (атака конусом)", "range_normal": 15, "range_max": 40, "reload_info": "5 выстр./Действие", "is_two_handed": True },
-    { "name": "Дробовик (авто)", "item_type": "weapon", "category": "Воинское", "rarity": "Редкая", "weight": 8, "damage": "2к8", "damage_type": "Колющий", "properties": "Боеприпасы, Двуручное, Особое (атака конусом)", "range_normal": 15, "range_max": 40, "reload_info": "8 выстр./Действие", "is_two_handed": True },
-    { "name": "Автомат", "item_type": "weapon", "category": "Воинское", "rarity": "Необычная", "weight": 8, "damage": "1к10", "damage_type": "Колющий", "properties": "Боеприпасы, Двуручное, Очередь", "range_normal": 40, "range_max": 120, "reload_info": "30 выстр./Действие", "is_two_handed": True },
-    { "name": "Штурмовая винтовка", "item_type": "weapon", "category": "Воинское", "rarity": "Необычная", "weight": 9, "damage": "1к10", "damage_type": "Колющий", "properties": "Боеприпасы, Двуручное, Очередь", "range_normal": 40, "range_max": 120, "reload_info": "30 выстр./Действие", "is_two_handed": True },
-    { "name": "Снайперская Винтовка", "item_type": "weapon", "category": "Воинское", "rarity": "Редкая", "weight": 10, "damage": "1к12", "damage_type": "Колющий", "properties": "Боеприпасы, Двуручное, Тяжелое, Точное", "range_normal": 100, "range_max": 300, "reload_info": "5 выстр./Действие", "is_two_handed": True },
-    { "name": "Ржавый Мушкет", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 10, "damage": "1к12", "damage_type": "Колющий", "properties": "Боеприпасы, Двуручное, Шумное, Ненадежное", "range_normal": 15, "range_max": 40, "reload_info": "1 выстр./Действие x2", "is_two_handed": True },
-    { "name": "Старинное ружье", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 10, "damage": "1к12", "damage_type": "Колющий", "properties": "Боеприпасы, Двуручное, Шумное, Ненадежное", "range_normal": 15, "range_max": 40, "reload_info": "1 выстр./Действие x2", "is_two_handed": True },
-    { "name": "Лазерный Пистолет", "item_type": "weapon", "category": "Воинское", "rarity": "Обычная", "weight": 1, "damage": "1к6", "damage_type": "Энерг.", "properties": "Боеприпасы (заряд)", "range_normal": 25, "range_max": 75, "reload_info": "40 выстр./Бонусное д.", "is_two_handed": False },
-    { "name": "Лазерная Винтовка", "item_type": "weapon", "category": "Воинское", "rarity": "Обычная", "weight": 3, "damage": "1к8", "damage_type": "Энерг.", "properties": "Боеприпасы (заряд), Двуручное", "range_normal": 50, "range_max": 150, "reload_info": "60 выстр./Действие", "is_two_handed": True },
-    { "name": "Болт-Пистолет", "item_type": "weapon", "category": "Экзотика", "rarity": "Редкая", "weight": 4, "damage": "1к10", "damage_type": "Взрывной", "properties": "Боеприпасы, Шумное, Разрывное", "range_normal": 15, "range_max": 40, "reload_info": "10 выстр./Действие", "is_two_handed": False },
-    { "name": "Болтер", "item_type": "weapon", "category": "Экзотика", "rarity": "Очень Редкая", "weight": 12, "damage": "2к6", "damage_type": "Взрывной", "properties": "Боеприпасы, Двуручное, Шумное, Разрывное", "range_normal": 30, "range_max": 90, "reload_info": "20 выстр./Действие", "is_two_handed": True },
-    { "name": "Термо-Пистолет", "item_type": "weapon", "category": "Экзотика", "rarity": "Редкая", "weight": 5, "damage": "2к8", "damage_type": "Огненный", "properties": "Боеприпасы (заряд), Пробивание", "range_normal": 5, "range_max": 10, "reload_info": "3 выстр./Действие", "is_two_handed": False },
-    { "name": "Термо-Ружье", "item_type": "weapon", "category": "Экзотика", "rarity": "Очень Редкая", "weight": 10, "damage": "4к8", "damage_type": "Огненный", "properties": "Боеприпасы (заряд), Двуручное, Пробивание", "range_normal": 10, "range_max": 20, "reload_info": "1 выстр./Действие", "is_two_handed": True },
-    { "name": "Огнемет", "item_type": "weapon", "category": "Экзотика", "rarity": "Редкая", "weight": 15, "damage": "2к6", "damage_type": "Огненный", "properties": "Боеприпасы (топливо), Двуручное, Взрыв (конус 5м)", "range_normal": 5, "range_max": 5, "reload_info": "5 исп./Действие", "is_two_handed": True },
-    { "name": "Граната (Осколочная)", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 1, "damage": "3к6", "damage_type": "Оскол.", "properties": "Взрыв (Радиус 5м), Одноразовая, Дистанция Броска (10/20)", "range_normal": 10, "range_max": 20, "is_two_handed": False },
-    { "name": "Граната (Светошумовая)", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 1, "damage": "-", "damage_type": "Эффект", "properties": "Взрыв (Радиус 5м), Одноразовая, Дистанция Броска (10/20), Особое (Оглушение)", "range_normal": 10, "range_max": 20, "is_two_handed": False },
-    { "name": "Плазменный пистолет", "item_type": "weapon", "category": "Экзотика", "rarity": "Очень Редкая", "weight": 3, "damage": "2к6", "damage_type": "Энерг./Огонь", "properties": "Боеприпасы (заряд), Перегрев?", "range_normal": 20, "range_max": 60, "reload_info": "10 выстр./Действие", "is_two_handed": False },
+    { "name": "Нож", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 1, "damage": "1к4", "damage_type": "Колющий", "properties": "Легкое, Фехтовальное, Дистанция Броска (6/18)", "is_two_handed": False, "manual_ability_names_json": '["Удар Ножом", "Бросок ножа"]', "required_ammo_type": None },
+    { "name": "Боевой нож", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 1, "damage": "1к4", "damage_type": "Колющий", "properties": "Легкое, Фехтовальное, Дистанция Броска (6/18)", "is_two_handed": False, "manual_ability_names_json": '["Удар Боевым ножом", "Бросок боевого ножа"]', "required_ammo_type": None },
+    { "name": "Дубинка", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 2, "damage": "1к6", "damage_type": "Дробящий", "properties": None, "is_two_handed": False, "manual_ability_names_json": '["Удар Дубинкой"]', "required_ammo_type": None },
+    { "name": "Обломок трубы", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 2, "damage": "1к6", "damage_type": "Дробящий", "properties": None, "is_two_handed": False, "manual_ability_names_json": '["Удар Обломком трубы"]', "required_ammo_type": None },
+    { "name": "Монтировка", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 2, "damage": "1к6", "damage_type": "Дробящий", "properties": "Особое (Преимущество на проверки Силы для взлома)", "is_two_handed": False, "manual_ability_names_json": '["Удар Монтировкой"]', "required_ammo_type": None },
+    { "name": "Топор", "item_type": "weapon", "category": "Воинское", "rarity": "Обычная", "weight": 3, "damage": "1к8", "damage_type": "Рубящий", "properties": None, "is_two_handed": False, "manual_ability_names_json": '["Удар Топором"]', "required_ammo_type": None },
+    { "name": "Мачете", "item_type": "weapon", "category": "Воинское", "rarity": "Обычная", "weight": 3, "damage": "1к8", "damage_type": "Рубящий", "properties": None, "is_two_handed": False, "manual_ability_names_json": '["Удар Мачете"]', "required_ammo_type": None },
+    { "name": "Меч", "item_type": "weapon", "category": "Воинское", "rarity": "Необычная", "weight": 3, "damage": "1к8", "damage_type": "Рубящий", "properties": "Фехтовальное", "is_two_handed": False, "manual_ability_names_json": '["Удар Мечом"]', "required_ammo_type": None },
+    { "name": "Катана", "item_type": "weapon", "category": "Воинское", "rarity": "Необычная", "weight": 3, "damage": "1к8", "damage_type": "Рубящий", "properties": "Фехтовальное", "is_two_handed": False, "manual_ability_names_json": '["Удар Катаной"]', "required_ammo_type": None },
+    { "name": "Рапира", "item_type": "weapon", "category": "Воинское", "rarity": "Необычная", "weight": 2, "damage": "1к8", "damage_type": "Колющий", "properties": "Фехтовальное", "is_two_handed": False, "manual_ability_names_json": '["Удар Рапирой"]', "required_ammo_type": None },
+    { "name": "Молот", "item_type": "weapon", "category": "Воинское", "rarity": "Необычная", "weight": 10, "damage": "1к10", "damage_type": "Дробящий", "properties": "Двуручное", "is_two_handed": True, "manual_ability_names_json": '["Удар Молотом"]', "required_ammo_type": None },
+    { "name": "Тяжелая дубина", "item_type": "weapon", "category": "Воинское", "rarity": "Обычная", "weight": 8, "damage": "1к10", "damage_type": "Дробящий", "properties": "Двуручное", "is_two_handed": True, "manual_ability_names_json": '["Удар Тяжелой дубиной"]', "required_ammo_type": None },
+    { "name": "Двуручный меч", "item_type": "weapon", "category": "Воинское", "rarity": "Необычная", "weight": 6, "damage": "1к12", "damage_type": "Рубящий", "properties": "Двуручное, Тяжелое", "is_two_handed": True, "manual_ability_names_json": '["Удар Двуручным мечом"]', "required_ammo_type": None },
+    { "name": "Двуручный топор", "item_type": "weapon", "category": "Воинское", "rarity": "Необычная", "weight": 7, "damage": "1к12", "damage_type": "Рубящий", "properties": "Двуручное, Тяжелое", "is_two_handed": True, "manual_ability_names_json": '["Удар Двуручным топором"]', "required_ammo_type": None },
+    { "name": "Цепной Меч", "item_type": "weapon", "category": "Экзотика", "rarity": "Редкая", "weight": 6, "damage": "1к10", "damage_type": "Рубящий", "properties": "Двуручное ИЛИ Одноручное (с Силой 13+), Разрывное, Шумное", "is_two_handed": True, "manual_ability_names_json": '["Удар Цепным Мечом"]', "required_ammo_type": None },
+    { "name": "Силовой Меч", "item_type": "weapon", "category": "Экзотика", "rarity": "Редкая", "weight": 3, "damage": "1к8", "damage_type": "Энерг./Рубящий", "properties": "Фехтовальное, Пробивание", "is_two_handed": False, "manual_ability_names_json": '["Удар Силовым Мечом"]', "required_ammo_type": None },
+    { "name": "Силовой Молот", "item_type": "weapon", "category": "Экзотика", "rarity": "Редкая", "weight": 12, "damage": "2к10", "damage_type": "Энерг./Дроб.", "properties": "Двуручное, Тяжелое, Пробивание", "is_two_handed": True, "manual_ability_names_json": '["Удар Силовым Молотом"]', "required_ammo_type": None },
+    { "name": "Кастет", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 1, "damage": "1к4", "damage_type": "Дробящий", "properties": "Легкое", "is_two_handed": False, "manual_ability_names_json": '["Удар Кастетом"]', "required_ammo_type": None },
+    { "name": "Укрепленные перчатки", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 1, "damage": "1к4", "damage_type": "Дробящий", "properties": "Легкое", "is_two_handed": False, "manual_ability_names_json": '["Удар Укрепленными перчатками"]', "required_ammo_type": None },
+    { "name": "Безоружный удар", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 0, "damage": "1", "damage_type": "Дробящий", "properties": "Легкое", "is_two_handed": False, "manual_ability_names_json": '["Безоружный удар"]', "required_ammo_type": None },
+
+    # Дальнобойное
+    { "name": "Пистолет (легкий, 9мм)", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 2, "damage": "1к8", "damage_type": "Колющий", "properties": "Боеприпасы", "range_normal": 15, "range_max": 45, "reload_info": "12 выстр./Бонусное д.", "is_two_handed": False, "manual_ability_names_json": '["Одиночный выстрел"]', "required_ammo_type": "Пистолетные 9мм" },
+    { "name": "Револьвер (тяжелый)", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 3, "damage": "1к10", "damage_type": "Колющий", "properties": "Боеприпасы", "range_normal": 20, "range_max": 60, "reload_info": "6 выстр./Действие", "is_two_handed": False, "manual_ability_names_json": '["Одиночный выстрел"]', "required_ammo_type": "Револьверные" },
+    { "name": "Обрез", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 5, "damage": "2к6", "damage_type": "Колющий", "properties": "Боеприпасы, Двуручное", "range_normal": 8, "range_max": 20, "reload_info": "2 выстр./Бонусное д.", "is_two_handed": True, "manual_ability_names_json": '["Одиночный выстрел", "Атака конусом (Дробовик)"]', "required_ammo_type": "Дробовик 12к" },
+    { "name": "Легкий дробовик", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 6, "damage": "2к6", "damage_type": "Колющий", "properties": "Боеприпасы, Двуручное", "range_normal": 8, "range_max": 20, "reload_info": "2 выстр./Бонусное д.", "is_two_handed": True, "manual_ability_names_json": '["Одиночный выстрел", "Атака конусом (Дробовик)"]', "required_ammo_type": "Дробовик 12к" },
+    { "name": "Дробовик (помповый)", "item_type": "weapon", "category": "Воинское", "rarity": "Необычная", "weight": 7, "damage": "2к8", "damage_type": "Колющий", "properties": "Боеприпасы, Двуручное, Особое (атака конусом)", "range_normal": 15, "range_max": 40, "reload_info": "5 выстр./Действие", "is_two_handed": True, "manual_ability_names_json": '["Одиночный выстрел", "Атака конусом (Дробовик)"]', "required_ammo_type": "Дробовик 12к" },
+    { "name": "Дробовик (авто)", "item_type": "weapon", "category": "Воинское", "rarity": "Редкая", "weight": 8, "damage": "2к8", "damage_type": "Колющий", "properties": "Боеприпасы, Двуручное, Особое (атака конусом)", "range_normal": 15, "range_max": 40, "reload_info": "8 выстр./Действие", "is_two_handed": True, "manual_ability_names_json": '["Одиночный выстрел", "Атака конусом (Дробовик)"]', "required_ammo_type": "Дробовик 12к" },
+    { "name": "Автомат", "item_type": "weapon", "category": "Воинское", "rarity": "Необычная", "weight": 8, "damage": "1к10", "damage_type": "Колющий", "properties": "Боеприпасы, Двуручное, Очередь", "range_normal": 40, "range_max": 120, "reload_info": "30 выстр./Действие", "is_two_handed": True, "manual_ability_names_json": '["Одиночный выстрел", "Очередь"]', "required_ammo_type": "Винтовочные 5.56" },
+    { "name": "Штурмовая винтовка", "item_type": "weapon", "category": "Воинское", "rarity": "Необычная", "weight": 9, "damage": "1к10", "damage_type": "Колющий", "properties": "Боеприпасы, Двуручное, Очередь", "range_normal": 40, "range_max": 120, "reload_info": "30 выстр./Действие", "is_two_handed": True, "manual_ability_names_json": '["Одиночный выстрел", "Очередь"]', "required_ammo_type": "Винтовочные 5.56" },
+    { "name": "Снайперская Винтовка", "item_type": "weapon", "category": "Воинское", "rarity": "Редкая", "weight": 10, "damage": "1к12", "damage_type": "Колющий", "properties": "Боеприпасы, Двуручное, Тяжелое, Точное", "range_normal": 100, "range_max": 300, "reload_info": "5 выстр./Действие", "is_two_handed": True, "manual_ability_names_json": '["Одиночный выстрел"]', "required_ammo_type": "Винтовочные (крупн.)" }, # Пример другого типа
+    { "name": "Ржавый Мушкет", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 10, "damage": "1к12", "damage_type": "Колющий", "properties": "Боеприпасы, Двуручное, Шумное, Ненадежное", "range_normal": 15, "range_max": 40, "reload_info": "1 выстр./Действие x2", "is_two_handed": True, "manual_ability_names_json": '["Одиночный выстрел"]', "required_ammo_type": "Мушкетные заряды" }, # Пример другого типа
+    { "name": "Старинное ружье", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 10, "damage": "1к12", "damage_type": "Колющий", "properties": "Боеприпасы, Двуручное, Шумное, Ненадежное", "range_normal": 15, "range_max": 40, "reload_info": "1 выстр./Действие x2", "is_two_handed": True, "manual_ability_names_json": '["Одиночный выстрел"]', "required_ammo_type": "Мушкетные заряды" }, # Пример другого типа
+    { "name": "Лазерный Пистолет", "item_type": "weapon", "category": "Воинское", "rarity": "Обычная", "weight": 1, "damage": "1к6", "damage_type": "Энерг.", "properties": "Боеприпасы (заряд)", "range_normal": 25, "range_max": 75, "reload_info": "40 выстр./Бонусное д.", "is_two_handed": False, "manual_ability_names_json": '["Одиночный выстрел"]', "required_ammo_type": "Энергоячейка (малая)" },
+    { "name": "Лазерная Винтовка", "item_type": "weapon", "category": "Воинское", "rarity": "Обычная", "weight": 3, "damage": "1к8", "damage_type": "Энерг.", "properties": "Боеприпасы (заряд), Двуручное", "range_normal": 50, "range_max": 150, "reload_info": "60 выстр./Действие", "is_two_handed": True, "manual_ability_names_json": '["Одиночный выстрел"]', "required_ammo_type": "Энергоячейка (станд.)" },
+    { "name": "Болт-Пистолет", "item_type": "weapon", "category": "Экзотика", "rarity": "Редкая", "weight": 4, "damage": "1к10", "damage_type": "Взрывной", "properties": "Боеприпасы, Шумное, Разрывное", "range_normal": 15, "range_max": 40, "reload_info": "10 выстр./Действие", "is_two_handed": False, "manual_ability_names_json": '["Одиночный выстрел"]', "required_ammo_type": "Болты (пистолетные)" }, # Пример другого типа
+    { "name": "Болтер", "item_type": "weapon", "category": "Экзотика", "rarity": "Очень Редкая", "weight": 12, "damage": "2к6", "damage_type": "Взрывной", "properties": "Боеприпасы, Двуручное, Шумное, Разрывное", "range_normal": 30, "range_max": 90, "reload_info": "20 выстр./Действие", "is_two_handed": True, "manual_ability_names_json": '["Одиночный выстрел"]', "required_ammo_type": "Болты (стандартные)" }, # Пример другого типа
+    { "name": "Термо-Пистолет", "item_type": "weapon", "category": "Экзотика", "rarity": "Редкая", "weight": 5, "damage": "2к8", "damage_type": "Огненный", "properties": "Боеприпасы (заряд), Пробивание", "range_normal": 5, "range_max": 10, "reload_info": "3 выстр./Действие", "is_two_handed": False, "manual_ability_names_json": '["Одиночный выстрел"]', "required_ammo_type": "Термо-заряд (малый)" }, # Пример другого типа
+    { "name": "Термо-Ружье", "item_type": "weapon", "category": "Экзотика", "rarity": "Очень Редкая", "weight": 10, "damage": "4к8", "damage_type": "Огненный", "properties": "Боеприпасы (заряд), Двуручное, Пробивание", "range_normal": 10, "range_max": 20, "reload_info": "1 выстр./Действие", "is_two_handed": True, "manual_ability_names_json": '["Одиночный выстрел"]', "required_ammo_type": "Термо-заряд (станд.)" }, # Пример другого типа
+    { "name": "Огнемет", "item_type": "weapon", "category": "Экзотика", "rarity": "Редкая", "weight": 15, "damage": "2к6", "damage_type": "Огненный", "properties": "Боеприпасы (топливо), Двуручное, Взрыв (конус 5м)", "range_normal": 5, "range_max": 5, "reload_info": "5 исп./Действие", "is_two_handed": True, "manual_ability_names_json": '["Струя огня (Огнемет)"]', "required_ammo_type": "Топливо (огнемет)" }, # Пример другого типа
+    { "name": "Граната (Осколочная)", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 1, "damage": "3к6", "damage_type": "Оскол.", "properties": "Взрыв (Радиус 5м), Одноразовая, Дистанция Броска (10/20)", "range_normal": 10, "range_max": 20, "is_two_handed": False, "manual_ability_names_json": '["Бросок гранаты"]', "required_ammo_type": None }, # Гранаты не требуют патронов
+    { "name": "Граната (Светошумовая)", "item_type": "weapon", "category": "Простое", "rarity": "Обычная", "weight": 1, "damage": "-", "damage_type": "Эффект", "properties": "Взрыв (Радиус 5м), Одноразовая, Дистанция Броска (10/20), Особое (Оглушение)", "range_normal": 10, "range_max": 20, "is_two_handed": False, "manual_ability_names_json": '["Бросок гранаты"]', "required_ammo_type": None },
+    { "name": "Плазменный пистолет", "item_type": "weapon", "category": "Экзотика", "rarity": "Очень Редкая", "weight": 3, "damage": "2к6", "damage_type": "Энерг./Огонь", "properties": "Боеприпасы (заряд), Перегрев?", "range_normal": 20, "range_max": 60, "reload_info": "10 выстр./Действие", "is_two_handed": False, "manual_ability_names_json": '["Одиночный выстрел"]', "required_ammo_type": "Плазма-ячейка (малая)" }, # Пример другого типа
 ]
 
-# БРОНЯ
+# БРОНЯ (без изменений)
 armors_data = [
     { "name": "Укрепленная одежда", "item_type": "armor", "category": "Простое", "rarity": "Обычная", "weight": 4, "armor_type": "Лёгкая", "ac_bonus": 11, "max_dex_bonus": None, "strength_requirement": 0, "stealth_disadvantage": False, "properties": None },
     { "name": "Ряса", "item_type": "armor", "category": "Простое", "rarity": "Обычная", "weight": 4, "armor_type": "Лёгкая", "ac_bonus": 11, "max_dex_bonus": None, "strength_requirement": 0, "stealth_disadvantage": False, "properties": None },
@@ -96,8 +104,7 @@ armors_data = [
     { "name": "Тяжелая пехотная броня", "item_type": "armor", "category": "Экзотика", "rarity": "Очень Редкая", "weight": 50, "armor_type": "Тяжёлая", "ac_bonus": 18, "max_dex_bonus": 0, "strength_requirement": 8, "stealth_disadvantage": True, "properties": "Модульность" },
     { "name": "Силовая Броня", "item_type": "armor", "category": "Экзотика", "rarity": "Легендарная", "weight": 100, "armor_type": "Тяжёлая", "ac_bonus": 19, "max_dex_bonus": 0, "strength_requirement": 9, "stealth_disadvantage": True, "properties": "Треб. Владение, +2 Сила, Интегр. системы" },
 ]
-
-# ЩИТЫ
+# ЩИТЫ (без изменений)
 shields_data = [
     { "name": "Легкий щит", "item_type": "shield", "category": "Простое", "rarity": "Обычная", "weight": 2, "ac_bonus": 1, "strength_requirement": 0, "properties": None },
     { "name": "Баклер", "item_type": "shield", "category": "Простое", "rarity": "Обычная", "weight": 2, "ac_bonus": 1, "strength_requirement": 0, "properties": None },
@@ -106,8 +113,7 @@ shields_data = [
     { "name": "Тяжелый штурмовой щит", "item_type": "shield", "category": "Воинское", "rarity": "Редкая", "weight": 12, "ac_bonus": 3, "strength_requirement": 6, "properties": "Укрытие 1/2 (Бонусное д.)" },
     { "name": "Энергетический щит", "item_type": "shield", "category": "Экзотика", "rarity": "Очень Редкая", "weight": 4, "ac_bonus": 2, "strength_requirement": 0, "properties": "+4 AC vs Энерг., Требует заряд" },
 ]
-
-# ОБЩИЕ ПРЕДМЕТЫ
+# ОБЩИЕ ПРЕДМЕТЫ (без изменений)
 general_items_data = [
     { "name": "Мультитул", "item_type": "general", "category": "Инструменты", "rarity": "Обычная", "weight": 1, "description": "Набор отверток, ключей, пассатижей.", "effect": "Преимущество на Технику (ремонт).", "uses": None, "effect_dice_formula": None },
     { "name": "Набор для взлома (Мех.)", "item_type": "general", "category": "Инструменты", "rarity": "Необычная", "weight": 1, "description": "Отмычки, щупы.", "effect": "Позволяет вскрывать мех. замки (Ловкость).", "uses": None, "effect_dice_formula": None },
@@ -134,18 +140,31 @@ general_items_data = [
     { "name": "Святая вода (Ампула)", "item_type": "general", "category": "Снаряжение", "rarity": "Необычная", "weight": 0.2, "description": "Освященная жидкость.", "effect": "Метательное. 2к6 урона Светом.", "uses": 1, "effect_dice_formula": "2к6" }, # Указали тип урона в effect
     { "name": "Кислота (Ампула)", "item_type": "general", "category": "Снаряжение", "rarity": "Необычная", "weight": 0.2, "description": "Едкая жидкость.", "effect": "Метательное. 2к6 урона Кислотой.", "uses": 1, "effect_dice_formula": "2к6" }, # Указали тип урона в effect
 ]
-
-# СПЕЦ. БОЕПРИПАСЫ
+# СПЕЦ. БОЕПРИПАСЫ (добавьте ammo_type для всех)
 ammo_data = [
-    { "name": "Бронебойные патроны (AP)", "item_type": "ammo", "category": "Спец.", "rarity": "Редкая", "weight": 0, "ammo_type": "Баллистическое", "effect": "Игнорирует часть AC от брони / Дает Пробивание." },
-    { "name": "Экспансивные/Разрывные", "item_type": "ammo", "category": "Спец.", "rarity": "Необычная", "weight": 0, "ammo_type": "Баллистическое", "effect": "Спасбросок Выносливости (СЛ 12) или Кровотечение (1к4)." },
-    { "name": "Зажигательные патроны", "item_type": "ammo", "category": "Спец.", "rarity": "Необычная", "weight": 0, "ammo_type": "Баллист./Дробовик", "effect": "Спасбросок Ловкости (СЛ 10) или Горение (1к4)." },
-    { "name": "ЭDM-заряды", "item_type": "ammo", "category": "Спец.", "rarity": "Редкая", "weight": 0, "ammo_type": "Энергетическое", "effect": "Урон/2, Отключение техники/щитов (Спас Техники СЛ 13)." },
-    { "name": "Транквилизаторы", "item_type": "ammo", "category": "Спец.", "rarity": "Необычная", "weight": 0, "ammo_type": "Пистолет/Винтовка", "effect": "Нелетальный урон, цель Без сознания при 0 ПЗ." },
-    { "name": "Благословленные/Пси-снаряды", "item_type": "ammo", "category": "Спец.", "rarity": "Очень Редкая", "weight": 0, "ammo_type": "Любое", "effect": "Урон магический/психический, доп. эффекты." },
+    { "name": "Пистолетные патроны 9мм", "item_type": "ammo", "category": "Боеприпасы", "rarity": "Обычная", "weight": 0.02, "ammo_type": "Пистолетные 9мм", "effect": None },
+    { "name": "Револьверные патроны", "item_type": "ammo", "category": "Боеприпасы", "rarity": "Обычная", "weight": 0.03, "ammo_type": "Револьверные", "effect": None },
+    { "name": "Патроны для дробовика 12к", "item_type": "ammo", "category": "Боеприпасы", "rarity": "Обычная", "weight": 0.05, "ammo_type": "Дробовик 12к", "effect": None },
+    { "name": "Винтовочные патроны 5.56", "item_type": "ammo", "category": "Боеприпасы", "rarity": "Обычная", "weight": 0.03, "ammo_type": "Винтовочные 5.56", "effect": None },
+    { "name": "Винтовочные патроны (крупн.)", "item_type": "ammo", "category": "Боеприпасы", "rarity": "Необычная", "weight": 0.04, "ammo_type": "Винтовочные (крупн.)", "effect": None },
+    { "name": "Мушкетные заряды", "item_type": "ammo", "category": "Боеприпасы", "rarity": "Обычная", "weight": 0.06, "ammo_type": "Мушкетные заряды", "effect": None },
+    { "name": "Энергоячейка (малая)", "item_type": "ammo", "category": "Боеприпасы", "rarity": "Обычная", "weight": 0.1, "ammo_type": "Энергоячейка (малая)", "effect": "Заряд для лаз. пистолетов" },
+    { "name": "Энергоячейка (станд.)", "item_type": "ammo", "category": "Боеприпасы", "rarity": "Обычная", "weight": 0.3, "ammo_type": "Энергоячейка (станд.)", "effect": "Заряд для лаз. винтовок" },
+    { "name": "Болты (пистолетные)", "item_type": "ammo", "category": "Боеприпасы", "rarity": "Редкая", "weight": 0.08, "ammo_type": "Болты (пистолетные)", "effect": None },
+    { "name": "Болты (стандартные)", "item_type": "ammo", "category": "Боеприпасы", "rarity": "Редкая", "weight": 0.1, "ammo_type": "Болты (стандартные)", "effect": None },
+    { "name": "Термо-заряд (малый)", "item_type": "ammo", "category": "Боеприпасы", "rarity": "Редкая", "weight": 0.2, "ammo_type": "Термо-заряд (малый)", "effect": None },
+    { "name": "Термо-заряд (станд.)", "item_type": "ammo", "category": "Боеприпасы", "rarity": "Редкая", "weight": 0.5, "ammo_type": "Термо-заряд (станд.)", "effect": None },
+    { "name": "Топливо (огнемет)", "item_type": "ammo", "category": "Боеприпасы", "rarity": "Необычная", "weight": 1.0, "ammo_type": "Топливо (огнемет)", "effect": None },
+    { "name": "Плазма-ячейка (малая)", "item_type": "ammo", "category": "Боеприпасы", "rarity": "Очень Редкая", "weight": 0.4, "ammo_type": "Плазма-ячейка (малая)", "effect": None },
+    # --- Спец боеприпасы ---
+    { "name": "Бронебойные патроны (AP) 5.56", "item_type": "ammo", "category": "Спец.", "rarity": "Редкая", "weight": 0.03, "ammo_type": "Винтовочные 5.56", "effect": "Игнорирует часть AC от брони / Дает Пробивание." },
+    { "name": "Экспансивные патроны 9мм", "item_type": "ammo", "category": "Спец.", "rarity": "Необычная", "weight": 0.02, "ammo_type": "Пистолетные 9мм", "effect": "Спасбросок Выносливости (СЛ 12) или Кровотечение (1к4)." },
+    { "name": "Зажигательные патроны 12к", "item_type": "ammo", "category": "Спец.", "rarity": "Необычная", "weight": 0.05, "ammo_type": "Дробовик 12к", "effect": "Спасбросок Ловкости (СЛ 10) или Горение (1к4)." },
+    { "name": "ЭDM-заряды (малые)", "item_type": "ammo", "category": "Спец.", "rarity": "Редкая", "weight": 0.1, "ammo_type": "Энергоячейка (малая)", "effect": "Урон/2, Отключение техники/щитов (Спас Техники СЛ 13)." },
+    { "name": "Транквилизаторы 9мм", "item_type": "ammo", "category": "Спец.", "rarity": "Необычная", "weight": 0.02, "ammo_type": "Пистолетные 9мм", "effect": "Нелетальный урон, цель Без сознания при 0 ПЗ." },
 ]
 
-# --- СПОСОБНОСТИ (Ветки + Атаки Оружия) ---
+# СПОСОБНОСТИ (без изменений)
 abilities_data = [
     # --- Атаки Оружием (Специфичные) ---
     { "name": "Удар Ножом", "branch": "weapon", "level_required": 0, "action_type": "Атака", "description": "Атака ножом в ближнем бою.", "is_weapon_attack": True, "attack_skill": "Ловкость", "damage_formula": "1к4+Мод.Лов", "damage_type": "Колющий" },
@@ -173,11 +192,9 @@ abilities_data = [
     { "name": "Бросок гранаты", "branch": "weapon", "level_required": 0, "action_type": "Действие", "description": "Метание гранаты.", "range": "10/20м", "target": "Точка", "is_weapon_attack": False, "attack_skill": "Ловкость", "damage_formula": "См. гранату", "damage_type": "См. гранату", "saving_throw_attribute": "Ловкость", "saving_throw_dc_formula": "8+Мод.Лов"},
     { "name": "Атака конусом (Дробовик)", "branch": "weapon", "level_required": 0, "action_type": "Действие", "description": "Выстрел дробью в конус 5м. Спасбросок Ловкости (СЛ 8+Мод.Лов) для половинного урона.", "range": "Конус 5м", "target": "Зона", "is_weapon_attack": False, "attack_skill": None, "damage_formula": "Половина урона", "damage_type": "Колющий", "saving_throw_attribute": "Ловкость", "saving_throw_dc_formula": "8+Мод.Лов"},
     { "name": "Струя огня (Огнемет)", "branch": "weapon", "level_required": 0, "action_type": "Действие", "description": "Выпуск струи огня в конус 5м. Спасбросок Ловкости (СЛ 8+Мод.Лов) для половинного урона.", "range": "Конус 5м", "target": "Зона", "is_weapon_attack": False, "attack_skill": None, "damage_formula": "2к6", "damage_type": "Огненный", "saving_throw_attribute": "Ловкость", "saving_throw_dc_formula": "8+Мод.Лов"},
-
     # Общие способности оружия
     { "name": "Одиночный выстрел", "branch": "weapon", "level_required": 0, "action_type": "Атака", "description": "Стандартный выстрел из дальнобойного оружия. Урон и тип зависят от оружия.", "range": "См. оружие", "target": "Одна цель", "is_weapon_attack": True, "attack_skill": "Ловкость", "damage_formula": "См. оружие", "damage_type": "См. оружие" },
     { "name": "Очередь", "branch": "weapon", "level_required": 0, "action_type": "Атака (Действие)", "description": "Трата 3-5 патронов. Атака с помехой, +1 кубик урона при попадании. Альтернативно: атака до 3 целей в 3м с помехой по каждой.", "range": "См. оружие", "target": "Одна цель / До 3 целей", "is_weapon_attack": False, "attack_skill": "Ловкость", "damage_formula": "См. оружие+1к", "damage_type": "См. оружие" },
-
     # --- Способности Веток Развития ---
     # Медик (Ключевой стат: Медицина/Интеллект -> Мод.Мед)
     { "name": "Первая Помощь", "branch": "medic", "level_required": 1, "action_type": "Действие", "range": "5 метров", "target": "Союзник", "description": "Стабилизация союзника с 0 ПЗ или восстановление 1к4 + Мод.Мед ПЗ.", "damage_formula": "1к4+Мод.Мед", "damage_type": "Лечение" },
@@ -187,7 +204,6 @@ abilities_data = [
     { "name": "Массовое Лечение", "branch": "medic", "level_required": 5, "skill_requirements": '{"medicine": 6}', "action_type": "Действие", "range": "10 метров", "target": "До 6 союзников в радиусе", "cooldown": "Длительный отдых", "description": "Каждая цель восстанавливает 3к8 + Мод.Мед ПЗ.", "damage_formula": "3к8+Мод.Мед", "damage_type": "Лечение" },
     { "name": "Реанимация", "branch": "medic", "level_required": 6, "skill_requirements": '{"medicine": 7}', "action_type": "1 минута", "range": "Касание", "target": "Существо, умершее < 1 мин", "cooldown": "Длительный отдых", "description": "Возвращает цель к жизни с 1 ПЗ. Цель получает 4 уровня Истощения." },
     { "name": "Аура Исцеления", "branch": "medic", "level_required": 7, "skill_requirements": '{"medicine": 8}', "action_type": "Действие", "range": "Себя (аура 10м)", "target": "Союзники в ауре", "duration": "1 мин (Конц.)", "concentration": True, "cooldown": "Длительный отдых", "description": "Союзники (включая вас), начинающие ход в ауре, восстанавливают 1к6 ПЗ.", "damage_formula": "1к6", "damage_type": "Лечение"},
-
     # Мутант (Ключевой стат: Адаптация/Выносливость -> Мод.Ада / Мод.Вын)
     { "name": "Когти Мутанта", "branch": "mutant", "level_required": 1, "action_type": "Пассивно", "description": "Ваши безоружные удары наносят 1к6 рубящего урона." },
     { "name": "Шкура Мутанта", "branch": "mutant", "level_required": 1, "action_type": "Пассивно", "description": "Вы получаете +1 к СЛ Защиты, если не носите тяжелую броню." },
@@ -198,7 +214,6 @@ abilities_data = [
     { "name": "Адаптация к Среде", "branch": "mutant", "level_required": 5, "skill_requirements": '{"adaptation": 6}', "action_type": "Действие", "range": "Себя", "target": "Себя", "duration": "1 час", "cooldown": "Длительный отдых", "description": "Выберите тип урона (Кислота/Холод/Огонь/Электричество/Яд). Вы получаете сопротивление к нему на 1 час." },
     { "name": "Изменение Формы", "branch": "mutant", "level_required": 6, "skill_requirements": '{"adaptation": 7}', "action_type": "Действие", "range": "Себя", "target": "Себя", "duration": "1 час (Конц.)", "concentration": True, "cooldown": "Длительный отдых", "description": "Вы превращаетесь в зверя с CR <= Ур.Мутанта/3. Характеристики заменяются, кроме Инт/Про/Сам." },
     { "name": "Выброс Адреналина", "branch": "mutant", "level_required": 7, "skill_requirements": '{"adaptation": 8}', "action_type": "Реакция", "trigger": "Здоровье < 1/2", "range": "Себя", "target": "Себя", "duration": "1 минута", "cooldown": "Длительный отдых", "description": "Вы получаете врем. ПЗ = УровеньМутанта x 2. На 1 мин: преим. на спасбр/проверки Силы, сопротивление физ. урону." },
-
     # Снайпер (Ключевой стат: Внимательность -> Мод.Вни)
     { "name": "Верный Глаз", "branch": "sharpshooter", "level_required": 1, "action_type": "Пассивно", "description": "Игнорируете укрытие 1/2 и 3/4. +1 к атакам дальнобойным оружием." },
     { "name": "Прицельный Выстрел", "branch": "sharpshooter", "level_required": 2, "skill_requirements": '{"attention": 3}', "action_type": "Бонусное действие", "range": "Себя", "target": "Себя", "description": "Следующая атака дальноб. оружием в этом ходу совершается с преимуществом." },
@@ -207,7 +222,6 @@ abilities_data = [
     { "name": "Пробивающий Выстрел", "branch": "sharpshooter", "level_required": 5, "skill_requirements": '{"attention": 6}', "action_type": "Действие", "range": "См. оружие", "target": "Линия", "saving_throw_attribute": "Ловкость", "saving_throw_dc_formula": "8+Мод.Вни", "description": "Атака по основной цели. При попадании: цель и существа на линии за ней совершают спасбросок Ловкости. Провал - полный урон оружия, успех - половина." },
     { "name": "Подавляющий Огонь", "branch": "sharpshooter", "level_required": 6, "skill_requirements": '{"attention": 7}', "action_type": "Действие", "range": "См. оружие", "target": "Зона (куб 3м)", "saving_throw_attribute": "Самообладание", "saving_throw_dc_formula": "8+Мод.Вни", "description": "Выберите точку. Существа в кубе 3м совершают спасбросок Самообладания. При провале - помеха на атаки и проверки до конца их след. хода." },
     { "name": "Смертельный Выстрел", "branch": "sharpshooter", "level_required": 7, "skill_requirements": '{"attention": 8}', "action_type": "Действие", "range": "См. оружие", "target": "Одна цель", "cooldown": "Длительный отдых", "saving_throw_attribute": "Выносливость", "saving_throw_dc_formula": "8+Мод.Вни", "description": "Атака дальноб. оружием. При попадании цель совершает спасбросок Выносливости. Провал - ПЗ=0. Успех - доп. урон 6к10.", "damage_formula": "6к10", "damage_type": "Дополнительный" },
-
     # Скаут (Ключевой стат: Реакция -> Мод.Реа)
     { "name": "Скрытое Передвижение", "branch": "scout", "level_required": 1, "action_type": "Пассивно", "description": "Преим. на Скрытность при движении <= полскорости. Действие 'Спрятаться' - бонусным действием." },
     { "name": "Быстрый Удар", "branch": "scout", "level_required": 2, "skill_requirements": '{"reaction": 3}', "action_type": "Бонусное действие", "trigger": "После действия 'Рывок'", "description": "После 'Рывка' можно совершить одну атаку оружием бонусным действием." },
@@ -216,7 +230,6 @@ abilities_data = [
     { "name": "Ускользание", "branch": "scout", "level_required": 5, "skill_requirements": '{"reaction": 6}', "action_type": "Реакция", "trigger": "При спасброске Ловкости от AoE-эффекта с уроном в половину при успехе", "description": "При успехе спасброска Ловкости от AoE - урон 0, при провале - половина." },
     { "name": "Слепая Зона", "branch": "scout", "level_required": 6, "skill_requirements": '{"reaction": 7}', "action_type": "Пассивно", "description": "Атаки по вам совершаются с помехой, если рядом (1.5м) нет ваших союзников." },
     { "name": "Удар из Тени", "branch": "scout", "level_required": 7, "skill_requirements": '{"reaction": 8}', "action_type": "Бонусное действие", "trigger": "После попадания атакой из скрытности", "description": "Наносит цели доп. урон 3к6 типа оружия.", "damage_formula": "3к6", "damage_type": "Тип оружия" },
-
     # Техник (Ключевой стат: Логика -> Мод.Лог)
     { "name": "Ремонт", "branch": "technician", "level_required": 1, "action_type": "Действие", "range": "Касание", "target": "Механизм/Объект", "description": "Восстанавливает 1к8 + Мод.Тех ПЗ механизму.", "damage_formula": "1к8+Мод.Тех", "damage_type": "Ремонт" },
     { "name": "Взлом Систем", "branch": "technician", "level_required": 2, "skill_requirements": '{"logic": 3}', "action_type": "Действие", "range": "10м / Касание", "target": "Устройство/Сеть", "description": "Попытка взлома (проверка Техники против СЛ)." },
@@ -225,7 +238,6 @@ abilities_data = [
     { "name": "Перегрузка Систем", "branch": "technician", "level_required": 5, "skill_requirements": '{"logic": 6}', "action_type": "Действие", "range": "15 метров", "target": "Механизм/Устройство", "saving_throw_attribute": "Интеллект", "saving_throw_dc_formula": "8+Мод.Лог", "description": "Спасбросок Интеллекта цели. Провал - 'Отключение' на 1 раунд." },
     { "name": "Дистанционное Управление", "branch": "technician", "level_required": 6, "skill_requirements": '{"logic": 7}', "action_type": "Действие", "range": "30 метров", "target": "Устройство/Механизм", "duration": "1 мин (Конц.)", "concentration": True, "description": "Получение контроля над простым устройством (дверь, камера)." },
     { "name": "Техно-мастерство", "branch": "technician", "level_required": 7, "skill_requirements": '{"logic": 8}', "action_type": "Пассивно", "description": "Удвоенный бонус мастерства (или преимущество?) для проверок Техники." },
-
     # Боец (Ключевой стат: Сила/Ловкость - зависит от стиля)
     { "name": "Второе Дыхание", "branch": "fighter", "level_required": 1, "action_type": "Бонусное действие", "range": "Себя", "cooldown": "Короткий отдых", "description": "Восстанавливает 1к10 + Ур.Бойца ПЗ.", "damage_formula": "1к10+Уровень", "damage_type": "Лечение" },
     { "name": "Всплеск Действий", "branch": "fighter", "level_required": 2, "action_type": "Без действия", "range": "Себя", "cooldown": "Короткий отдых", "description": "Можно совершить одно доп. Основное Действие." },
@@ -238,7 +250,6 @@ abilities_data = [
     { "name": "Несокрушимость", "branch": "fighter", "level_required": 5, "action_type": "Пассивно", "trigger": "ПЗ опускаются до 0, но не убит", "cooldown": "Длительный отдых", "description": "Вместо 0 ПЗ остается 1 ПЗ." },
     { "name": "Улучшенный Критический Удар", "branch": "fighter", "level_required": 6, "action_type": "Пассивно", "description": "Атаки оружием критуют на 16-18 (3к6)." }, # Уточнил механику критов
     { "name": "Третья Атака", "branch": "fighter", "level_required": 7, "action_type": "Пассивно", "description": "Можно атаковать трижды действием Атака." },
-
     # Джаггернаут (Ключевой стат: Выносливость/Сила -> Мод.Вын / Мод.Сил)
     { "name": "Несгибаемый", "branch": "juggernaut", "level_required": 1, "action_type": "Пассивно", "description": "Макс. ПЗ + Ур.Джаггернаута. Преим. на спасбр. от Яда/Болезней." },
     { "name": "Провокация", "branch": "juggernaut", "level_required": 2, "skill_requirements": '{"authority": 3}', "action_type": "Бонусное действие", "range": "10 метров", "target": "Существо (видит/слышит)", "saving_throw_attribute": "Самообладание", "saving_throw_dc_formula": "8+Мод.Авт", "description": "Спасбросок Самообладания цели. Провал - помеха на атаки по другим до конца вашего след. хода." },
@@ -248,10 +259,8 @@ abilities_data = [
     { "name": "Контратака", "branch": "juggernaut", "level_required": 6, "skill_requirements": '{"reaction": 7}', "action_type": "Реакция", "trigger": "Существо попадает по вам атакой ближ. боя", "range": "1.5м", "target": "Атакующий", "description": "Реакцией совершить одну атаку оружием ближ. боя против атакующего." },
     { "name": "Живой Щит", "branch": "juggernaut", "level_required": 7, "skill_requirements": '{"endurance": 8}', "action_type": "Реакция", "trigger": "Союзник в 1.5м атакован", "range": "1.5м", "target": "Вы", "description": "Вы становитесь целью этой атаки вместо союзника." },
 ]
-
-# СОСТОЯНИЯ
+# СОСТОЯНИЯ (без изменений)
 status_effects_data = [
-    # ... (Полный список status_effects_data из предыдущей версии) ...
     { "name": "При смерти (Unconscious)", "description": "Недееспособен, не может двигаться/говорить, роняет предметы. Атаки по нему с преим., вблизи - крит. Провал спасбр. Сил/Лов. Восстанавливается при лечении >0 ПЗ или стабилизации." },
     { "name": "Горение (Burning)", "description": "Урон огнем (1к4/1к6) в начале хода. Действие на тушение (СЛ Лов 10)." },
     { "name": "Глухота (Deafened)", "description": "Не может слышать, провал проверок на слух." },
@@ -304,14 +313,18 @@ def seed_data():
         for data in abilities_data:
             names_to_add = split_names(data["name"])
             for name in names_to_add:
-                data_copy = data.copy(); data_copy["name"] = name
+                data_copy = data.copy()
+                data_copy["name"] = name
                 exists = db.query(Ability.id).filter(Ability.name == name).first()
                 if not exists:
                     # Проверка JSON требований
                     reqs = data_copy.get("skill_requirements")
                     if isinstance(reqs, str):
-                        try: json.loads(reqs)
-                        except json.JSONDecodeError: logger.warning(f"Invalid JSON in skill_reqs for '{name}'"); data_copy["skill_requirements"] = None
+                        try:
+                            json.loads(reqs)
+                        except json.JSONDecodeError:
+                            logger.warning(f"Invalid JSON in skill_reqs for '{name}'")
+                            data_copy["skill_requirements"] = None
                     # Очистка полей и установка дефолтов
                     ability_fields_cleaned = {k: v for k, v in data_copy.items() if hasattr(Ability, k)}
                     ability_fields_cleaned.setdefault('is_weapon_attack', False)
@@ -320,26 +333,34 @@ def seed_data():
                     # Создание объекта
                     try:
                         ability = Ability(**ability_fields_cleaned)
-                        db.add(ability); db.flush(); ability_map[name] = ability
-                        # logger.info(f"  Added Ability template: {name} (ID: {ability.id})") # Убрал детальный лог для краткости
-                    except Exception as e: logger.error(f"  ERROR creating Ability '{name}': {e}", exc_info=True); logger.error(f"    Data: {ability_fields_cleaned}")
+                        db.add(ability)
+                        db.flush() # Получаем ID
+                        ability_map[name] = ability # Сохраняем объект в карту
+                        # logger.info(f"  Added Ability template: {name} (ID: {ability.id})")
+                    except Exception as e:
+                        logger.error(f"  ERROR creating Ability '{name}': {e}", exc_info=True)
+                        logger.error(f"    Data: {ability_fields_cleaned}")
                 else:
                     # Добавляем существующую способность в карту, если её там еще нет
                     if name not in ability_map:
                         existing_ability = db.query(Ability).filter(Ability.name == name).first()
-                        if existing_ability: ability_map[name] = existing_ability
-
+                        if existing_ability:
+                            ability_map[name] = existing_ability
         logger.info(f"Total abilities prepared in map: {len(ability_map)}")
 
         logger.info("Seeding Status Effects...")
         for data in status_effects_data:
              names_to_add = split_names(data["name"])
              for name in names_to_add:
-                 data_copy = data.copy(); data_copy["name"] = name
+                 data_copy = data.copy()
+                 data_copy["name"] = name
                  if not db.query(StatusEffect.id).filter(StatusEffect.name == name).first():
                      status_fields_cleaned = {k: v for k, v in data_copy.items() if hasattr(StatusEffect, k)}
-                     try: db.add(StatusEffect(**status_fields_cleaned)); # logger.info(f"  Added Status Effect: {name}")
-                     except Exception as e: logger.error(f"  ERROR creating StatusEffect '{name}': {e}")
+                     try:
+                         db.add(StatusEffect(**status_fields_cleaned))
+                         # logger.info(f"  Added Status Effect: {name}")
+                     except Exception as e:
+                         logger.error(f"  ERROR creating StatusEffect '{name}': {e}")
 
         # --- Коммит способностей и эффектов ПЕРЕД предметами ---
         db.commit()
@@ -350,46 +371,23 @@ def seed_data():
         logger.info("Seeding Weapons and linking abilities...")
         for data in weapons_data:
             names_to_add = split_names(data["name"])
-            base_weapon_name = names_to_add[0]
-            properties_str = data.get("properties", "") or ""
+            granted_ability_names_json = data.get("manual_ability_names_json")
+            granted_ability_names = []
+            if granted_ability_names_json:
+                try:
+                    parsed_names = json.loads(granted_ability_names_json)
+                    if isinstance(parsed_names, list):
+                        granted_ability_names = [name for name in parsed_names if isinstance(name, str)]
+                    else:
+                        logger.warning(f"  Invalid format in manual_ability_names_json for '{data['name']}'. Expected a list.")
+                except json.JSONDecodeError:
+                    logger.warning(f"  Failed to parse manual_ability_names_json for '{data['name']}': {granted_ability_names_json}")
 
-            # --- Логика определения способностей для привязки ---
-            granted_ability_names = set()
-            # 1. Атака Ближнего Боя
-            melee_attack_name = f"Удар {base_weapon_name}".replace("Удар Безоружный удар", "Безоружный удар")
-            if melee_attack_name in ability_map: granted_ability_names.add(melee_attack_name)
-            # 2. Метание
-            is_throwable = "Дистанция Броска" in properties_str
-            if is_throwable:
-                throw_ability_name = None
-                if base_weapon_name.lower().startswith("граната"): throw_ability_name = "Бросок гранаты"
-                elif "нож" in base_weapon_name.lower() or "Нож" in base_weapon_name.lower(): throw_ability_name = f"Бросок {base_weapon_name.lower().replace('боевой ','')}"
-                if throw_ability_name and throw_ability_name in ability_map: granted_ability_names.add(throw_ability_name)
-                elif throw_ability_name: logger.warning(f" Throw ability '{throw_ability_name}' not found for '{base_weapon_name}'")
-            # 3. Атака Дальнего Боя и Спец. Режимы
-            has_range_normal = data.get("range_normal") is not None
-            is_grenade_no_dmg = data.get("damage") == "-"
-            is_flamethrower = "Взрыв (конус 5м)" in properties_str and data.get("damage_type") == "Огненный"
-            is_cone_shotgun = "Особое (атака конусом)" in properties_str
-            has_burst = "Очередь" in properties_str
-            is_throwable_only = is_throwable and not has_range_normal
+            logger.info(f"  Manual abilities determined for '{data['name']}': {granted_ability_names}")
 
-            if is_flamethrower: granted_ability_names.add("Струя огня (Огнемет)")
-            elif is_cone_shotgun:
-                granted_ability_names.add("Атака конусом (Дробовик)")
-                granted_ability_names.add("Одиночный выстрел")
-            elif has_range_normal and not is_grenade_no_dmg and not is_throwable_only:
-                granted_ability_names.add("Одиночный выстрел")
-                if has_burst: granted_ability_names.add("Очередь")
-            # Для гранат уже добавили "Бросок гранаты", другие не нужны
-            # Метательные ножи уже получили "Бросок..." и "Удар..."
-
-            logger.info(f"  Abilities determined for '{base_weapon_name}': {list(granted_ability_names)}")
-            # --- Конец логики ---
-
-            # Создаем записи оружия и линкуем
             for name in names_to_add:
-                data_copy = data.copy(); data_copy["name"] = name
+                data_copy = data.copy()
+                data_copy["name"] = name
                 if not db.query(Item.id).filter(Item.name == name).first():
                     weapon_abilities_to_link = []
                     for ability_name in granted_ability_names:
@@ -397,71 +395,93 @@ def seed_data():
                         if ability_obj:
                             ability_in_session = db.merge(ability_obj)
                             weapon_abilities_to_link.append(ability_in_session)
-                        else: logger.warning(f"    Ability '{ability_name}' object not found for linking to '{name}'.")
+                        else:
+                            logger.warning(f"    Ability '{ability_name}' (from JSON) not found in ability_map for linking to '{name}'.")
 
-                    data_copy.pop('granted_abilities', None)
                     item_defaults = {"category": "Простое", "rarity": "Обычная", "weight": 1}
-                    weapon_defaults = {"strength_requirement": 0, "stealth_disadvantage": False, "range_normal": None, "range_max": None, "reload_info": None, "is_two_handed": False}
+                    weapon_defaults = {"strength_requirement": 0, "stealth_disadvantage": False, "range_normal": None, "range_max": None, "reload_info": None, "is_two_handed": False, "manual_ability_names_json": None, "required_ammo_type": None}
                     data_with_defaults = {**item_defaults, **weapon_defaults, **data_copy}
+
                     weapon_fields_cleaned = {k: v for k, v in data_with_defaults.items() if hasattr(Weapon, k)}
+
                     try:
                         item = Weapon(**weapon_fields_cleaned)
-                        if weapon_abilities_to_link: item.granted_abilities = weapon_abilities_to_link
-                        db.add(item); # logger.info(f"  Added Weapon: {name}")
-                    except Exception as e: logger.error(f"  ERROR creating Weapon '{name}': {e}", exc_info=True); logger.error(f"    Data: {weapon_fields_cleaned}")
+                        if weapon_abilities_to_link:
+                            item.granted_abilities = weapon_abilities_to_link
+                        db.add(item)
+                    except Exception as e:
+                        logger.error(f"  ERROR creating Weapon '{name}': {e}", exc_info=True)
+                        logger.error(f"    Data: {weapon_fields_cleaned}")
+                        logger.error(f"    Abilities to link: {[a.name for a in weapon_abilities_to_link]}")
 
-        # Создание Брони, Щитов, Общих предметов, Патронов
+        # Создание Брони, Щитов, Общих предметов, Патронов (без изменений)
         logger.info("Seeding Armor...")
         for data in armors_data:
             names_to_add = split_names(data["name"])
             for name in names_to_add:
-                 data_copy = data.copy(); data_copy["name"] = name
+                 data_copy = data.copy()
+                 data_copy["name"] = name
                  if not db.query(Item.id).filter(Item.name == name).first():
                      item_defaults = {"category": "Простое", "rarity": "Обычная", "weight": 1}
                      armor_defaults = {"strength_requirement": 0, "stealth_disadvantage": False, "max_dex_bonus": None, "properties": None}
                      data_with_defaults = {**item_defaults, **armor_defaults, **data_copy}
                      armor_fields_cleaned = {k: v for k, v in data_with_defaults.items() if hasattr(Armor, k)}
-                     try: db.add(Armor(**armor_fields_cleaned)); # logger.info(f"  Added Armor: {name}")
-                     except Exception as e: logger.error(f"  ERROR creating Armor '{name}': {e}")
+                     try:
+                         db.add(Armor(**armor_fields_cleaned))
+                         # logger.info(f"  Added Armor: {name}")
+                     except Exception as e:
+                         logger.error(f"  ERROR creating Armor '{name}': {e}")
 
         logger.info("Seeding Shields...")
         for data in shields_data:
             names_to_add = split_names(data["name"])
             for name in names_to_add:
-                 data_copy = data.copy(); data_copy["name"] = name
+                 data_copy = data.copy()
+                 data_copy["name"] = name
                  if not db.query(Item.id).filter(Item.name == name).first():
                      item_defaults = {"category": "Простое", "rarity": "Обычная", "weight": 1}
                      shield_defaults = {"strength_requirement": 0, "properties": None}
                      data_with_defaults = {**item_defaults, **shield_defaults, **data_copy}
                      shield_fields_cleaned = {k: v for k, v in data_with_defaults.items() if hasattr(Shield, k)}
-                     try: db.add(Shield(**shield_fields_cleaned)); # logger.info(f"  Added Shield: {name}")
-                     except Exception as e: logger.error(f"  ERROR creating Shield '{name}': {e}")
+                     try:
+                         db.add(Shield(**shield_fields_cleaned))
+                         # logger.info(f"  Added Shield: {name}")
+                     except Exception as e:
+                         logger.error(f"  ERROR creating Shield '{name}': {e}")
 
         logger.info("Seeding General Items...")
         for data in general_items_data:
             names_to_add = split_names(data["name"])
             for name in names_to_add:
-                 data_copy = data.copy(); data_copy["name"] = name
+                 data_copy = data.copy()
+                 data_copy["name"] = name
                  if not db.query(Item.id).filter(Item.name == name).first():
                      item_defaults = {"category": "Простое", "rarity": "Обычная", "weight": 1}
                      general_defaults = {"uses": None, "effect": None, "effect_dice_formula": None}
                      data_with_defaults = {**item_defaults, **general_defaults, **data_copy}
                      general_fields_cleaned = {k: v for k, v in data_with_defaults.items() if hasattr(GeneralItem, k)}
-                     try: db.add(GeneralItem(**general_fields_cleaned)); # logger.info(f"  Added General Item: {name}")
-                     except Exception as e: logger.error(f"  ERROR creating General Item '{name}': {e}")
+                     try:
+                         db.add(GeneralItem(**general_fields_cleaned))
+                         # logger.info(f"  Added General Item: {name}")
+                     except Exception as e:
+                         logger.error(f"  ERROR creating General Item '{name}': {e}")
 
         logger.info("Seeding Ammo...")
         for data in ammo_data:
             names_to_add = split_names(data["name"])
             for name in names_to_add:
-                 data_copy = data.copy(); data_copy["name"] = name
+                 data_copy = data.copy()
+                 data_copy["name"] = name
                  if not db.query(Item.id).filter(Item.name == name).first():
-                     item_defaults = {"category": "Спец.", "rarity": "Необычная", "weight": 0}
+                     item_defaults = {"category": "Боеприпасы", "rarity": "Обычная", "weight": 0} # Уточнил категорию и вес
                      ammo_defaults = {"effect": None}
                      data_with_defaults = {**item_defaults, **ammo_defaults, **data_copy}
                      ammo_fields_cleaned = {k: v for k, v in data_with_defaults.items() if hasattr(Ammo, k)}
-                     try: db.add(Ammo(**ammo_fields_cleaned)); # logger.info(f"  Added Ammo: {name}")
-                     except Exception as e: logger.error(f"  ERROR creating Ammo '{name}': {e}")
+                     try:
+                         db.add(Ammo(**ammo_fields_cleaned))
+                         # logger.info(f"  Added Ammo: {name}")
+                     except Exception as e:
+                         logger.error(f"  ERROR creating Ammo '{name}': {e}")
 
         # Финальный коммит для всех предметов
         db.commit()
@@ -471,7 +491,8 @@ def seed_data():
         logger.error(f"An error occurred during database seeding: {e}", exc_info=True)
         db.rollback()
     finally:
-        if db: db.close()
+        if db:
+            db.close()
         logger.info("Database session closed.")
 
 # --- Запуск Сидера ---
@@ -480,14 +501,7 @@ if __name__ == "__main__":
     # --- Создание таблиц ---
     try:
         logger.info("Creating database tables...")
-        from app.db.database import Base, engine
-        from app.models.user import User
-        from app.models.party import Party
-        from app.models.item import Item, Weapon, Armor, Shield, GeneralItem, Ammo
-        from app.models.ability import Ability
-        from app.models.status_effect import StatusEffect
-        from app.models.character import Character, CharacterInventoryItem
-        from app.models.association_tables import character_abilities, character_status_effects, weapon_granted_abilities
+        # Импорты моделей уже сделаны выше
         Base.metadata.create_all(bind=engine)
         logger.info("Tables created successfully (if they didn't exist).")
     except Exception as table_creation_error:
