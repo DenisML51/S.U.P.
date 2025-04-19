@@ -6,6 +6,7 @@ from jose import jwt, JWTError
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+from ..models.user import User as UserModel # Импортируем модель User
 import logging
 
 # Импортируем зависимости из новых мест
@@ -95,3 +96,17 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     logger.info(f"User {user.username} authenticated successfully.")
     # --- КОНЕЦ ЛОГИРОВАНИЯ ---
     return user
+
+async def get_current_admin_user(current_user: UserModel = Depends(get_current_user)) -> UserModel:
+    """
+    Зависимость, которая проверяет, является ли текущий пользователь администратором.
+    Вызывает HTTPException 403, если пользователь не админ.
+    """
+    if not current_user.is_admin:
+        logger.warning(f"User '{current_user.username}' (ID: {current_user.id}) attempted to access admin-only route.")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The user does not have administrative privileges"
+        )
+    logger.info(f"Admin access granted for user '{current_user.username}' (ID: {current_user.id}).")
+    return current_user

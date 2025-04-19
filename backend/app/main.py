@@ -11,7 +11,7 @@ from .websockets.manager import manager
 from .models.user import User
 
 # Импортируем созданные роутеры
-from .routers import auth, characters, parties, reference_data
+from .routers import auth, characters, parties, reference_data, admin
 
 # Создание таблиц при запуске
 Base.metadata.create_all(bind=engine)
@@ -37,6 +37,7 @@ app.include_router(auth.router)
 app.include_router(characters.router)
 app.include_router(parties.router)
 app.include_router(reference_data.router)
+app.include_router(admin.router)
 
 
 # WebSocket Эндпоинт

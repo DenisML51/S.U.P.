@@ -204,7 +204,7 @@ def activate_action(
             ammo_check_passed = True
             ammo_to_consume = 0
             if equipped_weapon and equipped_weapon.required_ammo_type:
-                if ability.name == "Очередь": ammo_to_consume = 3
+                if ability.name == "Очередь": ammo_to_consume = random.randint(3, 5)
                 elif ability.name == "Атака конусом (Дробовик)": ammo_to_consume = 1
                 elif ability.is_weapon_attack: ammo_to_consume = 1
 

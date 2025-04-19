@@ -6,79 +6,82 @@ import CreateCharacterModal from './CreateCharacterModal'; // Импорт мо�
 import CreatePartyForm from '../Lobby/CreatePartyForm'; // Импорт форм лобби
 import JoinPartyForm from '../Lobby/JoinPartyForm';     // Импорт форм лобби
 import { theme } from '../../styles/theme';
+// --- ИЗМЕНЕНИЕ: Импортируем useAuth ---
+import { useAuth } from '../../hooks/useAuth';
+// --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
 const CharactersPage = () => {
-  const [userData, setUserData] = useState({ username: "" });
+  // --- ИЗМЕНЕНИЕ: Используем useAuth для получения пользователя и logout ---
+  const { user, logout, isLoading: authLoading } = useAuth(); // Получаем пользователя и функцию logout
+  // Убираем локальное состояние userData, если оно больше не нужно кроме имени
+  // const [userData, setUserData] = useState({ username: "" });
+  // --- КОНЕЦ ИЗМЕНЕНИЯ ---
+
   const [characters, setCharacters] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null); // Состояние для ошибок загрузки
+  const [isLoadingData, setIsLoadingData] = useState(true); // Переименовали isLoading во избежание конфликта
+  const [error, setError] = useState(null);
   const [showCreateParty, setShowCreateParty] = useState(false);
   const [showJoinParty, setShowJoinParty] = useState(false);
   const [showCreateCharacter, setShowCreateCharacter] = useState(false);
   const navigate = useNavigate();
 
-  const fetchInitialData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null); // Сбрасываем ошибку
+  const fetchCharacterData = useCallback(async () => { // Переименовали fetchInitialData
+    // Не нужно запрашивать пользователя здесь, он уже есть из useAuth
+    setIsLoadingData(true);
+    setError(null);
     try {
-      // Параллельно запрашиваем данные пользователя и персонажей
-      const [userRes, charsRes] = await Promise.all([
-          apiService.getCurrentUser(),
-          apiService.getMyCharacters()
-      ]);
-      setUserData({ username: userRes.data.username });
-      setCharacters(charsRes.data);
+      console.log("CharactersPage: Fetching characters...");
+      const charsRes = await apiService.getMyCharacters();
+      setCharacters(charsRes.data || []); // Убедимся, что это массив
+      console.log("CharactersPage: Characters loaded:", charsRes.data);
     } catch (err) {
-      console.error("Failed to fetch initial data", err);
-       let errorMessage = "Ошибка загрузки данных.";
+      console.error("Failed to fetch characters", err);
+       let errorMessage = "Ошибка загрузки персонажей.";
        if (err.response?.data?.detail) { errorMessage = String(err.response.data.detail); }
        else if (err.message) { errorMessage = err.message; }
-       setError(errorMessage); // Устанавливаем ошибку
+       setError(errorMessage);
 
-      if (err.response && err.response.status === 401) {
-        console.log("Unauthorized, redirecting to login.");
-        localStorage.removeItem("token");
-        navigate("/login");
-      }
+      // Ошибка 401 должна обрабатываться в apiService или useAuth для автоматического logout
+      // if (err.response && err.response.status === 401) { ... }
     } finally {
-      setIsLoading(false);
+      setIsLoadingData(false);
     }
-  }, [navigate]); // navigate остается в зависимостях useCallback
+  }, []); // Убрали navigate из зависимостей
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-    } else {
-      fetchInitialData();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // fetchInitialData не меняется, убираем из зависимостей Effect
+    // Данные пользователя загружаются в useAuth
+    // Загружаем только список персонажей
+    fetchCharacterData();
+  }, [fetchCharacterData]); // Зависимость от fetchCharacterData
 
   const handleCreatePartySuccess = (party) => {
     setShowCreateParty(false);
-    // Передаем party state при навигации
     navigate("/lobby", { state: { party } });
   };
 
   const handleJoinPartySuccess = (party) => {
     setShowJoinParty(false);
-    // Передаем party state при навигации
     navigate("/lobby", { state: { party } });
   };
 
   const handleCharacterCreated = () => {
       setShowCreateCharacter(false);
-      fetchInitialData(); // Обновляем список персонажей после создания
+      fetchCharacterData(); // Обновляем список персонажей после создания
   };
 
+  // --- ИЗМЕНЕНИЕ: Используем logout из useAuth ---
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/login");
+    logout(); // Вызываем функцию logout из контекста
+    // Редирект теперь должен произойти автоматически в App.js из-за изменения isAuthenticated
+    // navigate("/login"); // Эту строку можно убрать, если App.js настроен правильно
+    // Или оставить для немедленного перехода, если App.js не успевает среагировать
+    navigate("/login", { replace: true }); // Используем replace для надежности
   };
+  // --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
   // --- Рендеринг ---
-  if (isLoading) {
+  // Используем isLoadingData для данных персонажей и authLoading для статуса аутентификации
+  if (authLoading || isLoadingData) {
       return <div style={styles.loading}>Загрузка...</div>;
   }
 
@@ -88,7 +91,8 @@ const CharactersPage = () => {
         <header style={styles.header}>
           <h1 style={styles.mainTitle}>Панель персонажей</h1>
           <div style={styles.userInfo}>
-            <span>Пользователь: {userData.username}</span>
+            {/* Используем имя пользователя из useAuth */}
+            <span>Пользователь: {user?.username || '...'}</span>
             <button onClick={handleLogout} style={styles.logoutButton}>Выйти</button>
           </div>
         </header>
@@ -139,16 +143,16 @@ const CharactersPage = () => {
   );
 };
 
-// Стили
+// Стили (оставляем ваши стили)
 const styles = {
     pageContainer: { minHeight: '100vh', background: theme.colors.background, color: theme.colors.text, padding: '40px 20px' },
-    contentWrapper: { maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '30px' }, // Уменьшен gap
+    contentWrapper: { maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '30px' },
     header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', background: theme.effects.glass, backdropFilter: theme.effects.blur, borderRadius: '16px', boxShadow: theme.effects.shadow },
-    mainTitle: { margin: 0, fontSize: '1.8rem', color: theme.colors.primary }, // Уменьшен размер
+    mainTitle: { margin: 0, fontSize: '1.8rem', color: theme.colors.primary },
     userInfo: { display: 'flex', alignItems: 'center', gap: '15px', color: theme.colors.textSecondary },
     logoutButton: { padding: '8px 16px', background: theme.colors.error, color: theme.colors.text, border: 'none', borderRadius: '8px', cursor: 'pointer', transition: theme.transitions.default, ':hover': { opacity: 0.9 } },
     actionButtons: { display: 'flex', gap: '20px' },
-    button: { flex: 1, padding: '14px', border: 'none', borderRadius: '12px', cursor: 'pointer', transition: theme.transitions.default, color: theme.colors.background, fontWeight: 'bold', fontSize: '1rem' }, // Цвет текста изменен
+    button: { flex: 1, padding: '14px', border: 'none', borderRadius: '12px', cursor: 'pointer', transition: theme.transitions.default, color: theme.colors.background, fontWeight: 'bold', fontSize: '1rem' },
     createPartyButton: { background: theme.colors.primary },
     joinPartyButton: { background: theme.colors.secondary },
     characterGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' },
@@ -157,8 +161,8 @@ const styles = {
     createCharacterText: { color: theme.colors.textSecondary },
     link: { textDecoration: 'none', color: 'inherit' },
     characterCard: { background: theme.effects.glass, backdropFilter: theme.effects.blur, borderRadius: '16px', padding: '20px', boxShadow: theme.effects.shadow, minHeight: '160px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', transition: theme.transitions.default, cursor: 'pointer' },
-    characterName: { margin: '0 0 15px 0', textAlign: 'center', color: theme.colors.primary, fontSize: '1.2rem' }, // Уменьшен размер
-    characterStats: { display: 'flex', justifyContent: 'space-around', color: theme.colors.textSecondary, fontSize: '0.9rem' }, // Уменьшен размер
+    characterName: { margin: '0 0 15px 0', textAlign: 'center', color: theme.colors.primary, fontSize: '1.2rem' },
+    characterStats: { display: 'flex', justifyContent: 'space-around', color: theme.colors.textSecondary, fontSize: '0.9rem' },
     loading: { textAlign: 'center', padding: '50px', fontSize: '1.5rem', color: theme.colors.text },
     errorBanner: { background: `${theme.colors.error}44`, color: theme.colors.error, padding: '10px 15px', borderRadius: '8px', border: `1px solid ${theme.colors.error}`, textAlign: 'center', marginBottom: '20px' },
 };

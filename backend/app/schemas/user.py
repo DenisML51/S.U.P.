@@ -9,6 +9,7 @@ class UserCreate(UserBase):
 
 class UserOut(UserBase):
     id: int
+    is_admin: bool
     # Добавляем Config для работы с ORM моделями
     class Config:
         from_attributes = True

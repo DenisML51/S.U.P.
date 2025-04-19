@@ -3,8 +3,9 @@ import sys
 import os
 import json
 import logging
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy import create_engine, inspect as sqlainspect
+
 
 # --- Настройка Логирования ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -28,6 +29,10 @@ try:
         Ability, StatusEffect, Character, CharacterInventoryItem,
         character_abilities, character_status_effects, weapon_granted_abilities
     )
+    from app.core.auth import get_password_hash # Импорт функции хэширования
+    from app.crud import user as user_crud
+    from app.schemas import UserCreate # Импорт схемы для создания пользователя
+
     logger.info("Models and DB session imported successfully.")
 except ImportError as e:
     logger.error(f"Error importing modules: {e}", exc_info=True)
@@ -302,6 +307,44 @@ status_effects_data = [
 def split_names(name):
     return [n.strip() for n in name.split('/') if n.strip()]
 
+def seed_admin_user(db: Session):
+    """Проверяет и создает пользователя-администратора, если он не существует."""
+    # --- ВАЖНО: Замените значения по умолчанию или используйте переменные окружения ---
+    ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+    ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "adminpass") # <-- ЗАМЕНИТЕ ЭТОТ ПАРОЛЬ!
+    # ----------------------------------------------------------------------------------
+
+    logger.info("--- Seeding Admin User ---")
+    admin_user = user_crud.get_user_by_username(db, username=ADMIN_USERNAME)
+    if not admin_user:
+        logger.warning(f"Admin user '{ADMIN_USERNAME}' not found, creating one.")
+        if ADMIN_PASSWORD == "adminpass":
+             logger.warning("!!! USING DEFAULT ADMIN PASSWORD - CHANGE THIS IN PRODUCTION OR SET ADMIN_PASSWORD ENV VAR !!!")
+
+        # Хэшируем пароль
+        hashed_password = get_password_hash(ADMIN_PASSWORD)
+
+        # Создаем запись пользователя напрямую в БД
+        db_admin = User( # Используем модель User напрямую
+            username=ADMIN_USERNAME,
+            hashed_password=hashed_password,
+            is_admin=True # Устанавливаем флаг администратора
+        )
+        db.add(db_admin)
+        db.commit() # Коммитим сразу после добавления админа
+        db.refresh(db_admin)
+        logger.info(f"Admin user '{ADMIN_USERNAME}' created successfully.")
+    else:
+        # Проверяем, является ли существующий пользователь админом
+        if not admin_user.is_admin:
+            logger.warning(f"User '{ADMIN_USERNAME}' exists but is not an admin. Setting admin flag.")
+            admin_user.is_admin = True
+            db.commit()
+            db.refresh(admin_user)
+            logger.info(f"Admin flag set for user '{ADMIN_USERNAME}'.")
+        else:
+            logger.info(f"Admin user '{ADMIN_USERNAME}' already exists and is admin.")
+
 # Основная функция заполнения
 def seed_data():
     db = SessionLocal()
@@ -509,5 +552,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # --- Запуск заполнения данными ---
+    db = SessionLocal()
+    seed_admin_user(db)
     seed_data()
     logger.info("Seeding process finished.")
