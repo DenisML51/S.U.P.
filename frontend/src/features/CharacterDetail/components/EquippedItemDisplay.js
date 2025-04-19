@@ -6,9 +6,11 @@ import { theme } from '../../../styles/theme';
 const getRarityColor = (rarity) => {
     switch (rarity?.toLowerCase()) {
         case 'необычная': return theme.colors.success || '#66BB6A';
-        case 'редкая': return '#2196F3';
-        case 'очень редкая': return theme.colors.primary || '#BB86FC';
-        case 'экзотика': return theme.colors.warning || '#FFA726';
+        case 'редкая': return '#2196F3'; // Синий
+        case 'очень редкая': return theme.colors.primary || '#BB86FC'; // Фиолетовый
+        case 'экзотика': return theme.colors.warning || '#FFA726'; // Оранжевый
+        case 'легендарная': return '#FF7043'; // Коралловый/Оранжево-красный
+        case 'обычная':
         default: return theme.colors.textSecondary || 'grey';
     }
 };

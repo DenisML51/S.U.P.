@@ -32,7 +32,7 @@ const CharacterEquipmentTab = ({ character, handleUnequip, apiActionError }) => 
     // Проверка на двуручное оружие
     const isW1TwoHanded = weapon1?.item?.item_type === 'weapon' && weapon1.item.is_two_handed === true;
     // Доступность слотов
-    const isW2SlotAvailable = !isW1TwoHanded;
+    const isW2SlotAvailable = !isW1TwoHanded && !shield;
     const isShieldSlotAvailable = !isW1TwoHanded && !weapon2; // Щит нельзя с двуручным или со вторым оружием
 
     // Обработка ошибок (без изменений)
@@ -49,12 +49,18 @@ const CharacterEquipmentTab = ({ character, handleUnequip, apiActionError }) => 
             {/* Основной Grid-контейнер для секций */}
             <div style={styles.equipmentLayoutGrid}>
 
+                                {/* === Секция Защиты === */}
+                <section style={{...styles.section, ...styles.defenseSection}}>
+
+                     <div style={styles.itemContainer}> {/* Броня */}
+                         <span style={styles.slotLabel}>Броня:</span>
+                         <EquippedItemDisplay itemData={armor} character={character} onUnequip={handleUnequip} slotKey="armor"/>
+                     </div>
+                     {/* Можно добавить другие слоты защиты */}
+                </section>
+
                 {/* === Секция Вооружения === */}
                 <section style={{...styles.section, ...styles.offenseSection}}>
-                    <h5 style={styles.sectionTitle}>
-                        <SectionIcon type="offense" />
-                        Вооружение
-                    </h5>
                     {/* Контейнер для основного и доп. оружия/щита */}
                     <div style={styles.offenseLayout}>
                          {/* Основное оружие (W1) */}
@@ -84,24 +90,12 @@ const CharacterEquipmentTab = ({ character, handleUnequip, apiActionError }) => 
                                      <EquippedItemDisplay itemData={shield} character={character} onUnequip={handleUnequip} slotKey="shield"/>
                                 </div>
                               )}
+
                              {/* Заглушки */}
                              {isW1TwoHanded && ( <div style={{...styles.itemContainerSmall, opacity: 0.6}}><span style={styles.slotLabel}>Доп. / Щит:</span><div style={styles.disabledSlotText}>(Слот недоступен)</div></div> )}
                              {!isW1TwoHanded && weapon2 && !isShieldSlotAvailable && ( <div style={{...styles.itemContainerSmall, opacity: 0.6}}><span style={styles.slotLabel}>Щит:</span><div style={styles.disabledSlotText}>(Слот недоступен)</div></div> )}
                          </div>
                     </div>
-                </section>
-
-                {/* === Секция Защиты === */}
-                <section style={{...styles.section, ...styles.defenseSection}}>
-                     <h5 style={styles.sectionTitle}>
-                         <SectionIcon type="defense" />
-                         Защита Тела
-                     </h5>
-                     <div style={styles.itemContainer}> {/* Броня */}
-                         <span style={styles.slotLabel}>Броня:</span>
-                         <EquippedItemDisplay itemData={armor} character={character} onUnequip={handleUnequip} slotKey="armor"/>
-                     </div>
-                     {/* Можно добавить другие слоты защиты */}
                 </section>
 
             </div>
