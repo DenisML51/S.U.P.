@@ -115,7 +115,6 @@ const AbilityCardBrief = ({ ability, character, onClick, handleApiAction, weapon
                 </button>
             )}
             {/* Индикатор, если не изучено и не активно */}
-             {!isLearned && !canActivate && <span style={styles.reqNotMetIndicator} title={`Недоступно (не изучено или требования не выполнены)`}>!</span>}
         </div>
     );
 };

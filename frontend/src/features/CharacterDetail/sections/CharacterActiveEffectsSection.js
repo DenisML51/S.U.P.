@@ -1,6 +1,8 @@
 // src/features/CharacterDetail/sections/CharacterActiveEffectsSection.js
 import React from 'react';
 import { theme } from '../../../styles/theme'; // Путь к теме
+import * as apiService from '../../../api/apiService';
+
 
 // Хелпер для определения цвета статуса по имени (без изменений в БД)
 const getStatusThemeColor = (effectName) => {
@@ -176,7 +178,6 @@ const styles = {
 
 // Импортируем apiService внутри компонента или передаем handleApiAction
 // Для простоты предполагаем, что handleApiAction передан
-import * as apiService from '../../../api/apiService';
 
 export default CharacterActiveEffectsSection;
 
