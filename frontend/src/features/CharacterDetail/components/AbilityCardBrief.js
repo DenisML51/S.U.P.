@@ -1,233 +1,247 @@
 // src/features/CharacterDetail/components/AbilityCardBrief.js
-// Отображает краткую карточку способности во вкладке "Ветки"
 import React, { useMemo, useCallback } from 'react';
-import { theme } from '../../../styles/theme'; // Путь к теме
-// Импортируем apiService для вызова activateAction
-import * as apiService from '../../../api/apiService';
+import { theme } from '../../../styles/theme';
+import * as apiService from '../../../api/apiService'; // Импортируем apiService
 
-// Основной Компонент
-// Принимает: ability (данные способности), character (данные персонажа),
-// onClick (функция для открытия модалки), handleApiAction (для активации)
-const AbilityCardBrief = ({ ability, character, onClick, handleApiAction }) => {
+// Иконки (можно вынести в общий файл)
+const ActionTypeIcon = () => ( <svg style={styles.detailTagIcon} viewBox="0 0 24 24" fill="currentColor"><path d="M13 6V3h-2v3H8l4 4 4-4h-3zm4.6 8.17l-4-4-4 4H3v2h18v-2h-2.4z"/></svg> );
+const AdvantageIcon = () => ( <svg style={styles.modTagIcon} viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg> );
+const DisadvantageIcon = () => ( <svg style={styles.modTagIcon} viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg> );
 
-    // Хук для проверки требований (обернут в useCallback для мемоизации)
+
+const AbilityCardBrief = ({ ability, character, onClick, handleApiAction, weaponAbilityIds = new Set() }) => { // Добавлен weaponAbilityIds
+
+    // --- Хуки в начале ---
     const checkRequirements = useCallback(() => {
-        if (!ability || !ability.skill_requirements || !character) {
-             return { met: true }; // Считаем выполненными, если нет требований/данных
-        }
-        try {
-            let requirements = {};
-            if (typeof ability.skill_requirements === 'string' && ability.skill_requirements.trim()) {
-                requirements = JSON.parse(ability.skill_requirements);
-            } else {
-                return { met: true };
-            }
-            let allMet = true;
-            for (const skillKey in requirements) {
-                if (!(skillKey in character) || character[skillKey] < requirements[skillKey]) {
-                    allMet = false;
-                    break;
-                }
-            }
-            return { met: allMet };
-        } catch (e) {
-            console.error("AbilityCardBrief: Failed to parse skill_requirements:", ability.skill_requirements, e);
-            return { met: false }; // Считаем невыполненными при ошибке
-        }
-    }, [ability, character]);
+         if (!ability || !ability.skill_requirements || !character) {
+             return { met: true, details: null };
+         }
+         try {
+             let requirements = {};
+             if (typeof ability.skill_requirements === 'string' && ability.skill_requirements.trim()) {
+                 requirements = JSON.parse(ability.skill_requirements);
+             } else {
+                 return { met: true, details: null };
+             }
+             let allMet = true;
+             const details = {};
+             for (const skillKey in requirements) {
+                 const requiredValue = requirements[skillKey];
+                 const characterValue = character?.[skillKey] ?? 0;
+                 const met = characterValue >= requiredValue;
+                 details[skillKey] = { required: requiredValue, current: characterValue, met: met };
+                 if (!met) allMet = false;
+             }
+             return { met: allMet, details: details };
+         } catch (e) {
+             console.error("AbilityCardBrief: Failed to parse skill_requirements:", ability?.skill_requirements, e);
+             return { met: false, details: { error: `Ошибка парсинга: ${ability?.skill_requirements}` } };
+         }
+     }, [ability, character]);
 
-    // Вычисляем статус выполнения требований
-    const requirementsMet = useMemo(() => checkRequirements().met, [checkRequirements]);
+    const requirementsCheck = useMemo(() => checkRequirements(), [checkRequirements]);
 
-    // Ранний выход, если нет данных о способности
+    const inherentModifier = useMemo(() => {
+        if (!ability?.name) return null;
+        const nameLower = ability.name.toLowerCase();
+        if (nameLower.includes('точный выстрел')) return 'advantage';
+        if (nameLower.includes('очередь') || nameLower.includes('снайперский выстрел в глаз')) return 'disadvantage';
+        return null;
+    }, [ability?.name]);
+    // --- Конец хуков ---
+
     if (!ability) return null;
 
-    // Определяем, изучена ли способность
-    const isLearned = character?.available_abilities?.some(ab => ab.id === ability.id);
-    // Является ли атакой оружия
-    const isWeaponAttack = ability.is_weapon_attack === true;
+    const isLearned = character?.available_abilities?.some(ab => ab?.id === ability.id);
+    const isGrantedByWeapon = weaponAbilityIds.has(ability.id); // Используем переданный Set
 
-    // Определяем, можно ли активировать
-    // Условие: передан обработчик И (способность изучена ИЛИ (это атака оружия И требования выполнены))
-    const canActivate = !!handleApiAction && (isLearned || (isWeaponAttack && requirementsMet));
+    // --- ИСПРАВЛЕНИЕ: Обновляем логику canActivate ---
+    const canActivate = !!handleApiAction && requirementsCheck.met && (isLearned || isGrantedByWeapon);
+    // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
-    // --- Формируем строку с информацией об уроне ---
-    let damageInfo = '';
-    if (ability.damage_formula) {
-        const diceMatch = ability.damage_formula.match(/(\d+к\d+)/);
-        let dicePart = diceMatch ? diceMatch[0] : null;
-        if (!dicePart && ability.damage_formula && !ability.damage_formula.includes('Мод.')) {
-            dicePart = ability.damage_formula;
-        }
-        let typePart = '';
-        if (ability.damage_type && ability.damage_type.toLowerCase() !== 'лечение' && ability.damage_type.toLowerCase() !== 'см. оружие') {
-             typePart = ` ${ability.damage_type.substring(0, 5)}.`;
-        }
-        if (dicePart) {
-            damageInfo = `(${dicePart}${typePart})`;
-        } else if (typePart) {
-            damageInfo = `(${typePart.trim()})`;
-        }
-    }
-    // --- Конец формирования строки урона ---
-
-    // Формируем мета-информацию, включая урон
-    const metaInfo = [
-        `Ур. ${ability.level_required}`,
-        ability.action_type,
-        damageInfo, // Добавляем информацию об уроне
-        ability.range ? `Дальн: ${ability.range}` : null,
-        ability.cooldown ? `КД: ${ability.cooldown}` : null,
-        ability.concentration ? '(Конц.)' : null
-    ].filter(Boolean).join(' | '); // Убираем пустые значения и соединяем
-
-    // Определяем цвет индикатора статуса
-    const indicatorColor = isLearned                           ? theme.colors.secondary // Изучено
-                           : requirementsMet                             ? theme.colors.warning // Не изучено, но доступно
-                             : theme.colors.error; // Недоступно (требования не выполнены)
-
-    // Определяем стиль карточки
-    const cardStyle = {
-        ...styles.card,
-        ...(isLearned ? styles.learnedCard : styles.unlearnedCard),
-        ...(!isLearned && !requirementsMet ? styles.unmetReqCard : {})
-    };
-
-    // Обработчик клика по кнопке "Акт."
+    // Обработчик клика по кнопке "Активировать"
     const handleActivateClick = (e) => {
         e.stopPropagation(); // Предотвращаем открытие модалки
-        if (!canActivate) return; // Проверка
-
+        if (!canActivate) return;
         const activationData = {
             activation_type: 'ability',
             target_id: ability.id
         };
-
-        // Вызываем общий обработчик API
         handleApiAction(
             apiService.activateAction(character.id, activationData),
             `Способность '${ability.name}' активирована`,
-            `Ошибка активации '${ability.name}'`
+            `Ошибка активации способности '${ability.name}'`
         );
     };
 
-    // --- Рендеринг Карточки ---
-    return (
-        // Передаем ability в onClick, чтобы гарантировать передачу не-null значения при клике на карточку
-        <div style={cardStyle} onClick={() => onClick(ability)} title={`Нажмите для деталей: ${ability.name}`}>
-            {/* Основная информация: Индикатор + Название */}
-            <div style={styles.mainInfo}>
-                <span style={{...styles.statusIndicator, background: indicatorColor}}></span>
-                <strong style={styles.name}>{ability.name}</strong>
-            </div>
-            {/* Мета-информация */}
-            <div style={styles.metaInfo}>{metaInfo}</div>
+    const cardStyle = {
+        ...styles.card,
+        ...(!isLearned && !canActivate ? styles.unmetReq : {}) // Применяем стиль, если не изучено И не активно
+    };
 
-            {/* Кнопка Активировать (маленькая) */}
-            {/* Отображаем, если можно активировать */}
+    return (
+        <div style={cardStyle} onClick={() => onClick(ability)} title={`Ур. ${ability.level_required} - Нажмите для деталей`}>
+            <div style={styles.content}>
+                <div style={styles.nameContainer}>
+                    <span style={styles.level}>Ур. {ability.level_required}</span>
+                    <h5 style={styles.name}>{ability.name}</h5>
+                    {/* Отображение тега Преим./Помехи */}
+                    {inherentModifier === 'advantage' && (
+                        <span style={{...styles.modifierTag, ...styles.advantageTag}} title="Способность дает Преимущество">
+                            <AdvantageIcon />
+                        </span>
+                    )}
+                    {inherentModifier === 'disadvantage' && (
+                        <span style={{...styles.modifierTag, ...styles.disadvantageTag}} title="Способность накладывает Помеху">
+                            <DisadvantageIcon />
+                        </span>
+                    )}
+                </div>
+                <div style={styles.meta}>
+                    <span style={styles.detailTag} title="Тип действия"> <ActionTypeIcon /> {ability.action_type} </span>
+                    {/* Можно добавить другие краткие теги при необходимости */}
+                </div>
+                 {/* Требования (если есть и не выполнены) - опционально для краткой карточки */}
+
+            </div>
+            {/* Кнопка активации */}
             {canActivate && (
                 <button
                     onClick={handleActivateClick}
-                    style={styles.activateButtonBrief}
+                    style={styles.activateButton}
                     title={`Активировать: ${ability.name}`}
-                    // disabled={!canActivate} // Можно раскомментировать для визуальной блокировки
                 >
-                   Акт. {/* Сокращенный текст кнопки */}
+                   Акт.
                 </button>
             )}
+            {/* Индикатор, если не изучено и не активно */}
+             {!isLearned && !canActivate && <span style={styles.reqNotMetIndicator} title={`Недоступно (не изучено или требования не выполнены)`}>!</span>}
         </div>
     );
 };
 
-// --- Стили ---
+// Стили
 const styles = {
     card: {
         display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        padding: '10px 15px',
-        borderRadius: '8px',
-        marginBottom: '10px',
-        cursor: 'pointer',
-        transition: 'all 0.2s ease-in-out',
-        border: `1px solid ${theme.colors.surface}cc`,
+        justifyContent: 'space-between',
+        alignItems: 'center',
         background: theme.colors.surface,
-        minHeight: '50px',
-        position: 'relative', // Для позиционирования кнопки
-        paddingRight: '50px' // Оставляем место для кнопки справа
-        // ':hover': { // Псевдокласс hover не работает в inline-стилях
-        //     borderColor: theme.colors.primary,
-        //     background: `${theme.colors.primary}11`,
-        //     transform: 'translateX(2px)'
-        // }
+        padding: '8px 12px',
+        borderRadius: '6px',
+        marginBottom: '8px',
+        cursor: 'pointer',
+        transition: 'background-color 0.2s, box-shadow 0.2s',
+        border: `1px solid ${theme.colors.surfaceVariant}`,
+        position: 'relative', // Для позиционирования индикатора
+        ':hover': {
+            backgroundColor: theme.colors.surfaceVariant,
+            boxShadow: `0 2px 5px rgba(0,0,0,0.2)`,
+        }
     },
-    learnedCard: {
-        // Можно добавить стили для изученных
+    unmetReq: { // Стиль для неактивных/неизученных
+        opacity: 0.6,
+        filter: 'grayscale(50%)',
+        cursor: 'default', // Убираем курсор pointer
     },
-    unlearnedCard: {
-        opacity: 0.85,
+    content: {
+        display: 'flex',
+        flexDirection: 'column',
+        flexGrow: 1,
+        marginRight: '10px', // Отступ до кнопки
     },
-    unmetReqCard: {
-        opacity: 0.65,
-        filter: 'grayscale(50%)'
-    },
-    mainInfo: {
+    nameContainer: {
         display: 'flex',
         alignItems: 'center',
-        gap: '10px',
-        marginBottom: '5px'
+        gap: '8px',
+        marginBottom: '4px',
     },
-    statusIndicator: {
-        width: '8px',
-        height: '8px',
-        borderRadius: '50%',
-        flexShrink: 0,
-        transition: 'background 0.3s ease'
+    level: {
+        fontSize: '0.7rem',
+        color: theme.colors.textSecondary,
+        background: theme.colors.surfaceVariant,
+        padding: '2px 5px',
+        borderRadius: '4px',
+        fontWeight: 'bold',
     },
     name: {
-        fontWeight: 'bold',
-        color: theme.colors.text,
         fontSize: '0.95rem',
-        wordBreak: 'break-word',
-        overflow: 'hidden', // Обрезаем длинные названия
-        textOverflow: 'ellipsis', // Добавляем троеточие
-        whiteSpace: 'nowrap', // Предотвращаем перенос на новую строку
-    },
-    metaInfo: {
-        fontSize: '0.75rem',
-        color: theme.colors.textSecondary,
+        fontWeight: '500',
+        color: theme.colors.text,
+        margin: 0,
         whiteSpace: 'nowrap',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
-        marginLeft: '18px' // Отступ слева, чтобы выровнять под именем
     },
-    activateButtonBrief: { // Стиль для маленькой кнопки активации
-        position: 'absolute',
-        top: '50%',
-        right: '10px',
-        transform: 'translateY(-50%)',
-        padding: '3px 6px',
+    meta: {
+        display: 'flex',
+        gap: '6px',
+        alignItems: 'center',
+    },
+    detailTag: { // Используем стиль из детальной карточки, но можно сделать еще компактнее
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
         fontSize: '0.7rem',
-        background: theme.colors.secondary + 'AA',
-        color: theme.colors.text,
-        border: `1px solid ${theme.colors.secondary}55`,
-        borderRadius: '4px',
+        background: 'rgba(255,255,255,0.08)',
+        color: theme.colors.textSecondary,
+        padding: '2px 6px',
+        borderRadius: '10px',
+        border: '1px solid rgba(255,255,255,0.1)',
+        whiteSpace: 'nowrap',
+    },
+    detailTagIcon: {
+        width: '11px',
+        height: '11px',
+        fill: 'currentColor',
+        flexShrink: 0,
+        opacity: 0.8,
+    },
+    modifierTag: {
+        display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '1px 4px', // Еще компактнее
+        borderRadius: '6px', border: '1px solid', flexShrink: 0,
+    },
+    advantageTag: { background: `${theme.colors.success || '#66BB6A'}22`, color: theme.colors.success || '#66BB6A', borderColor: `${theme.colors.success || '#66BB6A'}88`, },
+    disadvantageTag: { background: `${theme.colors.error}22`, color: theme.colors.error, borderColor: `${theme.colors.error}88`, },
+    modTagIcon: { width: '10px', height: '10px', fill: 'currentColor', },
+    activateButton: {
+        flexShrink: 0, // Не сжимать кнопку
+        padding: '5px 8px',
+        fontSize: '0.75rem',
+        background: theme.colors.primary + 'AA',
+        color: theme.colors.background,
+        border: `1px solid ${theme.colors.primary}`,
+        borderRadius: '5px',
         cursor: 'pointer',
         transition: theme.transitions.default,
         fontWeight: 'bold',
-        lineHeight: 1,
-         ':hover': { // Псевдокласс hover не работает в inline-стилях
-             background: theme.colors.secondary,
-             color: theme.colors.background,
-         },
-         ':disabled': { // Стиль для неактивной кнопки
-             opacity: 0.4,
-             cursor: 'not-allowed',
-             background: theme.colors.textSecondary + '55',
-             borderColor: theme.colors.textSecondary + '33',
-             color: theme.colors.textSecondary
-         }
-    }
+        ':hover': { background: theme.colors.primary, boxShadow: `0 0 6px ${theme.colors.primary}88` },
+        ':disabled': { opacity: 0.5, cursor: 'not-allowed', background: theme.colors.textSecondary, borderColor: theme.colors.textSecondary, }
+    },
+     req: { // Индикатор невыполненных требований (если нужно показывать)
+         fontSize: '0.7rem',
+         color: theme.colors.warning,
+         margin: '2px 0 0 0',
+         fontWeight: 'bold',
+     },
+     reqNotMetIndicator: { // Индикатор "!" для полностью недоступных
+         position: 'absolute',
+         top: '4px',
+         right: '4px',
+         background: theme.colors.error,
+         color: theme.colors.text,
+         width: '14px',
+         height: '14px',
+         borderRadius: '50%',
+         display: 'flex',
+         alignItems: 'center',
+         justifyContent: 'center',
+         fontWeight: 'bold',
+         fontSize: '0.65rem',
+         boxShadow: `0 0 3px ${theme.colors.error}88`,
+         cursor: 'help'
+     },
 };
+
 
 export default AbilityCardBrief;

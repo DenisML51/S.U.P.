@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 import re 
 import random
 import math
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any, Tuple, Literal, List
 
 # Импортируем модели напрямую, т.к. utils не должен зависеть от других crud модулей
 from .. import models, schemas # schemas нужен для VALID_BRANCH_KEYS
@@ -34,6 +34,72 @@ SKILL_MODIFIER_MAP: Dict[str, str] = {
     "Пот": "flow_mod",
     # Добавьте другие сокращения или полные имена, если используете
 }
+
+# --- НОВАЯ ФУНКЦИЯ БРОСКА d6 ---
+def roll_d6_pool(num_dice_to_roll: int, num_dice_to_keep: int, highest: bool = True) -> Tuple[int, List[int], List[int]]:
+    """
+    Бросает указанное количество к6, оставляет указанное количество лучших/худших
+    и возвращает их сумму, список оставленных костей и список всех брошенных костей.
+    """
+    if num_dice_to_roll <= 0 or num_dice_to_keep <= 0 or num_dice_to_keep > num_dice_to_roll:
+        return 0, [], [] # Некорректные параметры
+
+    rolls = [random.randint(1, 6) for _ in range(num_dice_to_roll)]
+    rolls.sort(reverse=highest) # Сортируем: największe pierwsze jeśli highest=True
+
+    kept_dice = rolls[:num_dice_to_keep]
+    result_sum = sum(kept_dice)
+
+    return result_sum, kept_dice, rolls # Возвращаем сумму, оставленные и все
+
+# --- НОВАЯ ФУНКЦИЯ БРОСКА С УЧЕТОМ МОДИФИКАТОРА (Преимущество/Помеха) ---
+RollMode = Literal['advantage', 'disadvantage', 'normal']
+
+def roll_with_advantage_disadvantage(base_roll_func: callable = lambda: roll_d6_pool(3, 3), # По умолчанию 3к6
+                                     mode: RollMode = 'normal'
+                                     ) -> Tuple[int, List[int], List[int], RollMode]:
+    """
+    Выполняет бросок костей с учетом преимущества или помехи.
+    Возвращает: (сумма, список оставленных костей, список всех костей, использованный режим)
+    """
+    if mode == 'advantage':
+        result, kept, all_rolls = roll_d6_pool(4, 3, highest=True)
+        return result, kept, all_rolls, 'advantage'
+    elif mode == 'disadvantage':
+        result, kept, all_rolls = roll_d6_pool(4, 3, highest=False)
+        return result, kept, all_rolls, 'disadvantage'
+    else: # 'normal'
+        result, kept, all_rolls = base_roll_func()
+        # Для обычного броска 3к6, kept и all_rolls будут одинаковыми
+        return result, kept, all_rolls, 'normal'
+    
+def format_roll_details(
+    kept_dice: List[int],
+    all_rolls: List[int],
+    modifier_value: int = 0,
+    modifier_source: str = "", # Напр. "Мод.Лов", "Проф."
+    mode_used: RollMode = 'normal'
+) -> str:
+    """Форматирует строку с деталями броска, включая модификаторы и режим."""
+    dice_str = "+".join(map(str, kept_dice))
+    roll_base_sum = sum(kept_dice)
+    total = roll_base_sum + modifier_value
+
+    prefix = ""
+    if mode_used == 'advantage':
+        prefix = f"4к6в3 ({'/'.join(map(str, sorted(all_rolls)))})" # Показываем все 4 броска
+    elif mode_used == 'disadvantage':
+        prefix = f"4к6н3 ({'/'.join(map(str, sorted(all_rolls)))})" # Показываем все 4 броска
+    else:
+        prefix = f"3к6 ({'/'.join(map(str, sorted(all_rolls)))})" # Для 3к6 all_rolls == kept_dice
+
+    modifier_str = ""
+    if modifier_value != 0:
+        sign = "+" if modifier_value > 0 else ""
+        source_info = f"({modifier_source})" if modifier_source else ""
+        modifier_str = f" {sign}{modifier_value}{source_info}"
+
+    return f"{prefix} = {roll_base_sum}{modifier_str} = {total}"
 
 def _parse_and_roll(formula: str, character: models.Character) -> Tuple[int, str]:
     """

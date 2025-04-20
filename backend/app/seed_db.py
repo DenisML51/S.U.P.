@@ -201,105 +201,598 @@ abilities_data = [
     { "name": "Одиночный выстрел", "branch": "weapon", "level_required": 0, "action_type": "Атака", "description": "Стандартный выстрел из дальнобойного оружия. Урон и тип зависят от оружия.", "range": "См. оружие", "target": "Одна цель", "is_weapon_attack": True, "attack_skill": "Ловкость", "damage_formula": "См. оружие", "damage_type": "См. оружие" },
     { "name": "Очередь", "branch": "weapon", "level_required": 0, "action_type": "Атака (Действие)", "description": "Трата 3-5 патронов. Атака с помехой, +1 кубик урона при попадании. Альтернативно: атака до 3 целей в 3м с помехой по каждой.", "range": "См. оружие", "target": "Одна цель / До 3 целей", "is_weapon_attack": False, "attack_skill": "Ловкость", "damage_formula": "См. оружие+1к", "damage_type": "См. оружие" },
     # --- Способности Веток Развития ---
-    # Медик (Ключевой стат: Медицина/Интеллект -> Мод.Мед)
-    { "name": "Первая Помощь", "branch": "medic", "level_required": 1, "action_type": "Действие", "range": "5 метров", "target": "Союзник", "description": "Стабилизация союзника с 0 ПЗ или восстановление 1к4 + Мод.Мед ПЗ.", "damage_formula": "1к4+Мод.Мед", "damage_type": "Лечение" },
-    { "name": "Лечение Союзника", "branch": "medic", "level_required": 2, "skill_requirements": '{"medicine": 3}', "action_type": "Действие", "range": "Касание", "target": "Одно существо", "cooldown": "1 ход", "description": "Восстанавливает цели 2к8 + Мод.Мед ПЗ. Усиление: Мед 5+ -> 3к8+Мед; Мед 7+ -> 4к8+Мед.", "damage_formula": "2к8+Мод.Мед", "damage_type": "Лечение" },
-    { "name": "Очищение", "branch": "medic", "level_required": 3, "skill_requirements": '{"medicine": 4}', "action_type": "Действие", "range": "Касание", "target": "Одно существо", "cooldown": "Короткий отдых", "description": "Снимает одну болезнь или состояние Отравлен." },
-    { "name": "Полевой Хирург", "branch": "medic", "level_required": 4, "skill_requirements": '{"medicine": 5}', "action_type": "Действие", "range": "Касание", "target": "Союзник с 0 ПЗ", "cooldown": "Короткий отдых", "description": "Союзник восстанавливает 1 ПЗ и получает преимущество на следующий спасбросок от смерти." },
-    { "name": "Массовое Лечение", "branch": "medic", "level_required": 5, "skill_requirements": '{"medicine": 6}', "action_type": "Действие", "range": "10 метров", "target": "До 6 союзников в радиусе", "cooldown": "Длительный отдых", "description": "Каждая цель восстанавливает 3к8 + Мод.Мед ПЗ.", "damage_formula": "3к8+Мод.Мед", "damage_type": "Лечение" },
-    { "name": "Реанимация", "branch": "medic", "level_required": 6, "skill_requirements": '{"medicine": 7}', "action_type": "1 минута", "range": "Касание", "target": "Существо, умершее < 1 мин", "cooldown": "Длительный отдых", "description": "Возвращает цель к жизни с 1 ПЗ. Цель получает 4 уровня Истощения." },
-    { "name": "Аура Исцеления", "branch": "medic", "level_required": 7, "skill_requirements": '{"medicine": 8}', "action_type": "Действие", "range": "Себя (аура 10м)", "target": "Союзники в ауре", "duration": "1 мин (Конц.)", "concentration": True, "cooldown": "Длительный отдых", "description": "Союзники (включая вас), начинающие ход в ауре, восстанавливают 1к6 ПЗ.", "damage_formula": "1к6", "damage_type": "Лечение"},
-    # Мутант (Ключевой стат: Адаптация/Выносливость -> Мод.Ада / Мод.Вын)
-    { "name": "Когти Мутанта", "branch": "mutant", "level_required": 1, "action_type": "Пассивно", "description": "Ваши безоружные удары наносят 1к6 рубящего урона." },
-    { "name": "Шкура Мутанта", "branch": "mutant", "level_required": 1, "action_type": "Пассивно", "description": "Вы получаете +1 к СЛ Защиты, если не носите тяжелую броню." },
-    { "name": "Чутье Мутанта", "branch": "mutant", "level_required": 1, "action_type": "Пассивно", "description": "Вы получаете преимущество на проверки Внимательности (слух/обоняние)." },
-    { "name": "Едкая Кровь", "branch": "mutant", "level_required": 2, "skill_requirements": '{"adaptation": 3}', "action_type": "Реакция", "trigger": "При получении урона от атаки ближнего боя (1.5м)", "range": "1.5м", "target": "Атакующий", "cooldown": "Короткий отдых", "description": "Атакующий получает 2к6 урона Кислотой.", "damage_formula": "2к6", "damage_type": "Кислота" },
-    { "name": "Регенерация", "branch": "mutant", "level_required": 3, "skill_requirements": '{"adaptation": 4}', "action_type": "Бонусное действие", "range": "Себя", "target": "Себя", "cooldown": "Короткий отдых", "description": "Вы восстанавливаете 1к8 + Мод.Ада ПЗ.", "damage_formula": "1к8+Мод.Ада", "damage_type": "Лечение" },
-    { "name": "Дополнительная Конечность", "branch": "mutant", "level_required": 4, "skill_requirements": '{"adaptation": 5}', "action_type": "Пассивно", "description": "Отрастает доп. конечность для взаимодействия с предметами." },
-    { "name": "Адаптация к Среде", "branch": "mutant", "level_required": 5, "skill_requirements": '{"adaptation": 6}', "action_type": "Действие", "range": "Себя", "target": "Себя", "duration": "1 час", "cooldown": "Длительный отдых", "description": "Выберите тип урона (Кислота/Холод/Огонь/Электричество/Яд). Вы получаете сопротивление к нему на 1 час." },
-    { "name": "Изменение Формы", "branch": "mutant", "level_required": 6, "skill_requirements": '{"adaptation": 7}', "action_type": "Действие", "range": "Себя", "target": "Себя", "duration": "1 час (Конц.)", "concentration": True, "cooldown": "Длительный отдых", "description": "Вы превращаетесь в зверя с CR <= Ур.Мутанта/3. Характеристики заменяются, кроме Инт/Про/Сам." },
-    { "name": "Выброс Адреналина", "branch": "mutant", "level_required": 7, "skill_requirements": '{"adaptation": 8}', "action_type": "Реакция", "trigger": "Здоровье < 1/2", "range": "Себя", "target": "Себя", "duration": "1 минута", "cooldown": "Длительный отдых", "description": "Вы получаете врем. ПЗ = УровеньМутанта x 2. На 1 мин: преим. на спасбр/проверки Силы, сопротивление физ. урону." },
-    # Снайпер (Ключевой стат: Внимательность -> Мод.Вни)
-    { "name": "Верный Глаз", "branch": "sharpshooter", "level_required": 1, "action_type": "Пассивно", "description": "Игнорируете укрытие 1/2 и 3/4. +1 к атакам дальнобойным оружием." },
-    { "name": "Прицельный Выстрел", "branch": "sharpshooter", "level_required": 2, "skill_requirements": '{"attention": 3}', "action_type": "Бонусное действие", "range": "Себя", "target": "Себя", "description": "Следующая атака дальноб. оружием в этом ходу совершается с преимуществом." },
-    { "name": "Быстрая Перезарядка", "branch": "sharpshooter", "level_required": 3, "skill_requirements": '{"attention": 4}', "action_type": "Бонусное действие", "description": "Вы можете перезарядить оружие со свойством 'Боеприпасы'." },
-    { "name": "Снайперский Выстрел", "branch": "sharpshooter", "level_required": 4, "skill_requirements": '{"attention": 5}', "action_type": "Действие", "range": "См. оружие x2", "target": "Одна цель", "description": "Атака дальноб. оружием с удвоенной дальностью. +1к8 урона при попадании. Нельзя двигаться в этот ход.", "damage_formula": "1к8", "damage_type": "Дополнительный" },
-    { "name": "Пробивающий Выстрел", "branch": "sharpshooter", "level_required": 5, "skill_requirements": '{"attention": 6}', "action_type": "Действие", "range": "См. оружие", "target": "Линия", "saving_throw_attribute": "Ловкость", "saving_throw_dc_formula": "8+Мод.Вни", "description": "Атака по основной цели. При попадании: цель и существа на линии за ней совершают спасбросок Ловкости. Провал - полный урон оружия, успех - половина." },
-    { "name": "Подавляющий Огонь", "branch": "sharpshooter", "level_required": 6, "skill_requirements": '{"attention": 7}', "action_type": "Действие", "range": "См. оружие", "target": "Зона (куб 3м)", "saving_throw_attribute": "Самообладание", "saving_throw_dc_formula": "8+Мод.Вни", "description": "Выберите точку. Существа в кубе 3м совершают спасбросок Самообладания. При провале - помеха на атаки и проверки до конца их след. хода." },
-    { "name": "Смертельный Выстрел", "branch": "sharpshooter", "level_required": 7, "skill_requirements": '{"attention": 8}', "action_type": "Действие", "range": "См. оружие", "target": "Одна цель", "cooldown": "Длительный отдых", "saving_throw_attribute": "Выносливость", "saving_throw_dc_formula": "8+Мод.Вни", "description": "Атака дальноб. оружием. При попадании цель совершает спасбросок Выносливости. Провал - ПЗ=0. Успех - доп. урон 6к10.", "damage_formula": "6к10", "damage_type": "Дополнительный" },
-    # Скаут (Ключевой стат: Реакция -> Мод.Реа)
-    { "name": "Скрытое Передвижение", "branch": "scout", "level_required": 1, "action_type": "Пассивно", "description": "Преим. на Скрытность при движении <= полскорости. Действие 'Спрятаться' - бонусным действием." },
-    { "name": "Быстрый Удар", "branch": "scout", "level_required": 2, "skill_requirements": '{"reaction": 3}', "action_type": "Бонусное действие", "trigger": "После действия 'Рывок'", "description": "После 'Рывка' можно совершить одну атаку оружием бонусным действием." },
-    { "name": "Неожиданная Атака", "branch": "scout", "level_required": 3, "skill_requirements": '{"reaction": 4}', "action_type": "Пассивно", "description": "В 1й раунд боя преим. на атаку против существ, еще не действовавших." },
-    { "name": "Мастер Засад", "branch": "scout", "level_required": 4, "skill_requirements": '{"reaction": 5}', "action_type": "Пассивно", "trigger": "При попадании атакой из скрытности", "saving_throw_attribute": "Самообладание", "saving_throw_dc_formula": "8+Мод.Реа", "description": "При попадании атакой из скрытности цель совершает спасбросок Самообладания или получает 'Страх' на 1 мин." },
-    { "name": "Ускользание", "branch": "scout", "level_required": 5, "skill_requirements": '{"reaction": 6}', "action_type": "Реакция", "trigger": "При спасброске Ловкости от AoE-эффекта с уроном в половину при успехе", "description": "При успехе спасброска Ловкости от AoE - урон 0, при провале - половина." },
-    { "name": "Слепая Зона", "branch": "scout", "level_required": 6, "skill_requirements": '{"reaction": 7}', "action_type": "Пассивно", "description": "Атаки по вам совершаются с помехой, если рядом (1.5м) нет ваших союзников." },
-    { "name": "Удар из Тени", "branch": "scout", "level_required": 7, "skill_requirements": '{"reaction": 8}', "action_type": "Бонусное действие", "trigger": "После попадания атакой из скрытности", "description": "Наносит цели доп. урон 3к6 типа оружия.", "damage_formula": "3к6", "damage_type": "Тип оружия" },
-    # Техник (Ключевой стат: Логика -> Мод.Лог)
-    { "name": "Ремонт", "branch": "technician", "level_required": 1, "action_type": "Действие", "range": "Касание", "target": "Механизм/Объект", "description": "Восстанавливает 1к8 + Мод.Тех ПЗ механизму.", "damage_formula": "1к8+Мод.Тех", "damage_type": "Ремонт" },
-    { "name": "Взлом Систем", "branch": "technician", "level_required": 2, "skill_requirements": '{"logic": 3}', "action_type": "Действие", "range": "10м / Касание", "target": "Устройство/Сеть", "description": "Попытка взлома (проверка Техники против СЛ)." },
-    { "name": "Улучшение Снаряжения", "branch": "technician", "level_required": 3, "skill_requirements": '{"logic": 4}', "action_type": "Действие (Время)", "description": "Во время простоя можно временно улучшить 1 предмет (+1 атака/урон или +1 AC)." },
-    { "name": "Создание Устройства", "branch": "technician", "level_required": 4, "skill_requirements": '{"logic": 5}', "action_type": "Действие (Время)", "description": "Во время простоя можно создать простое одноразовое устройство (ЭМИ, маячок)." },
-    { "name": "Перегрузка Систем", "branch": "technician", "level_required": 5, "skill_requirements": '{"logic": 6}', "action_type": "Действие", "range": "15 метров", "target": "Механизм/Устройство", "saving_throw_attribute": "Интеллект", "saving_throw_dc_formula": "8+Мод.Лог", "description": "Спасбросок Интеллекта цели. Провал - 'Отключение' на 1 раунд." },
-    { "name": "Дистанционное Управление", "branch": "technician", "level_required": 6, "skill_requirements": '{"logic": 7}', "action_type": "Действие", "range": "30 метров", "target": "Устройство/Механизм", "duration": "1 мин (Конц.)", "concentration": True, "description": "Получение контроля над простым устройством (дверь, камера)." },
-    { "name": "Техно-мастерство", "branch": "technician", "level_required": 7, "skill_requirements": '{"logic": 8}', "action_type": "Пассивно", "description": "Удвоенный бонус мастерства (или преимущество?) для проверок Техники." },
-    # Боец (Ключевой стат: Сила/Ловкость - зависит от стиля)
-    { "name": "Второе Дыхание", "branch": "fighter", "level_required": 1, "action_type": "Бонусное действие", "range": "Себя", "cooldown": "Короткий отдых", "description": "Восстанавливает 1к10 + Ур.Бойца ПЗ.", "damage_formula": "1к10+Уровень", "damage_type": "Лечение" },
-    { "name": "Всплеск Действий", "branch": "fighter", "level_required": 2, "action_type": "Без действия", "range": "Себя", "cooldown": "Короткий отдых", "description": "Можно совершить одно доп. Основное Действие." },
-    { "name": "Стиль Боя: Дуэлянт", "branch": "fighter", "level_required": 3, "action_type": "Пассивно", "description": "+2 к урону оружием в одной руке, если вторая свободна." },
-    { "name": "Стиль Боя: Защита", "branch": "fighter", "level_required": 3, "action_type": "Пассивно", "description": "+1 к СЛ Защиты при ношении брони." },
-    { "name": "Стиль Боя: Двуручное", "branch": "fighter", "level_required": 3, "action_type": "Пассивно", "description": "Переброс 1 или 2 на кубиках урона двуручным оружием ближ. боя (один раз)." },
-    { "name": "Стиль Боя: Стрельба", "branch": "fighter", "level_required": 3, "action_type": "Пассивно", "description": "+2 к атакам дальнобойным оружием." },
-    { "name": "Стиль Боя: Оборона", "branch": "fighter", "level_required": 3, "action_type": "Реакция", "trigger": "Существо атакует цель (не вас) в 1.5м от вас", "description": "Реакцией создать помеху на бросок атаки." },
-    { "name": "Дополнительная Атака", "branch": "fighter", "level_required": 4, "action_type": "Пассивно", "description": "Можно атаковать дважды действием Атака." },
-    { "name": "Несокрушимость", "branch": "fighter", "level_required": 5, "action_type": "Пассивно", "trigger": "ПЗ опускаются до 0, но не убит", "cooldown": "Длительный отдых", "description": "Вместо 0 ПЗ остается 1 ПЗ." },
-    { "name": "Улучшенный Критический Удар", "branch": "fighter", "level_required": 6, "action_type": "Пассивно", "description": "Атаки оружием критуют на 16-18 (3к6)." }, # Уточнил механику критов
-    { "name": "Третья Атака", "branch": "fighter", "level_required": 7, "action_type": "Пассивно", "description": "Можно атаковать трижды действием Атака." },
-    # Джаггернаут (Ключевой стат: Выносливость/Сила -> Мод.Вын / Мод.Сил)
-    { "name": "Несгибаемый", "branch": "juggernaut", "level_required": 1, "action_type": "Пассивно", "description": "Макс. ПЗ + Ур.Джаггернаута. Преим. на спасбр. от Яда/Болезней." },
-    { "name": "Провокация", "branch": "juggernaut", "level_required": 2, "skill_requirements": '{"authority": 3}', "action_type": "Бонусное действие", "range": "10 метров", "target": "Существо (видит/слышит)", "saving_throw_attribute": "Самообладание", "saving_throw_dc_formula": "8+Мод.Авт", "description": "Спасбросок Самообладания цели. Провал - помеха на атаки по другим до конца вашего след. хода." },
-    { "name": "Таран", "branch": "juggernaut", "level_required": 3, "skill_requirements": '{"strength": 4}', "action_type": "Действие", "trigger": "После перемещения >=5м по прямой к цели", "range": "1.5м", "target": "Одно существо", "description": "Атака оружием ближ. боя. При попадании: состязание Силы (Атлетика) против Силы/Ловкости цели. При победе - оттолкнуть на 3м и/или сбить с ног." },
-    { "name": "Стойкость", "branch": "juggernaut", "level_required": 4, "skill_requirements": '{"endurance": 5}', "action_type": "Пассивно", "description": "При ношении тяж. брони сопротивление физ. урону от немагич. оружия (? или уменьшение урона?)." }, # Уточнил описание
-    { "name": "Неудержимость", "branch": "juggernaut", "level_required": 5, "skill_requirements": '{"strength": 6}', "action_type": "Бонусное действие", "range": "Себя", "cooldown": "Короткий отдых", "description": "Автоматически освободиться от состояний Схвачен/Опутан/Парализован." },
-    { "name": "Контратака", "branch": "juggernaut", "level_required": 6, "skill_requirements": '{"reaction": 7}', "action_type": "Реакция", "trigger": "Существо попадает по вам атакой ближ. боя", "range": "1.5м", "target": "Атакующий", "description": "Реакцией совершить одну атаку оружием ближ. боя против атакующего." },
-    { "name": "Живой Щит", "branch": "juggernaut", "level_required": 7, "skill_requirements": '{"endurance": 8}', "action_type": "Реакция", "trigger": "Союзник в 1.5м атакован", "range": "1.5м", "target": "Вы", "description": "Вы становитесь целью этой атаки вместо союзника." },
+    # === Медик ===
+    {
+        "name": "Первая Помощь", "branch": "medic", "level_required": 1, "action_type": "Действие",
+        "range": "5 метров", "target": "Союзник",
+        "description": "Стабилизация союзника с 0 ПЗ (Без сознания) или восстановление 1к4 + Мод.Мед ПЗ.",
+        "damage_formula": "1к4+Мод.Мед", "damage_type": "Лечение", "cooldown": None,
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Лечение Союзника", "branch": "medic", "level_required": 2, "action_type": "Действие",
+        "skill_requirements": '{"skill_medicine": 4}', # Медицина > 3
+        "range": "Касание", "target": "Одно существо", "cooldown": "1 ход",
+        "description": "Восстанавливает цели 2к8 + Мод.Мед ПЗ. Усиление: Мед 5+ -> 3к8+Мед; Мед 7+ -> 4к8+Мед.",
+        "damage_formula": "2к8+Мод.Мед", "damage_type": "Лечение",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Изготовить Зелье Лечения", "branch": "medic", "level_required": 3, "action_type": "Время (вне боя)",
+        "skill_requirements": '{"skill_medicine": 3, "skill_logic": 3, "skill_adaptation": 3}',
+        "description": "Используя компоненты и проверку Медицины (СЛ зависит от компонентов), можно создать зелье (2к4+2 ПЗ) или др. препараты.",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Тактическое Отступление", "branch": "medic", "level_required": 4, "action_type": "Реакция",
+        "skill_requirements": '{"skill_medicine": 4}',
+        "trigger": "Союзник в 10м получает урон от атаки видимого врага",
+        "range": "10 метров", "target": "Союзник", "cooldown": "2 хода",
+        "description": "Реакцией позволить союзнику переместиться на полскорости без провоцирования атаки от атаковавшего.",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Спринт к Союзнику", "branch": "medic", "level_required": 5, "action_type": "Бонусное действие",
+        "skill_requirements": '{"skill_medicine": 5}',
+        "range": "20 метров", "target": "Раненый союзник (< 1/2 ПЗ)", "cooldown": "1 ход",
+        "description": "Бонусным действием переместиться на свою скорость к раненому союзнику.",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Реанимация", "branch": "medic", "level_required": 6, "action_type": "1 минута",
+        "skill_requirements": '{"skill_medicine": 6}',
+        "range": "Касание", "target": "Существо, умершее < 1 мин", "cooldown": "Длительный отдых",
+        "description": "Возвращает цель к жизни с 20% макс. ПЗ, но дает 1 ур. Истощения. Требует реанимационный комплект.",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Защита от Смерти", "branch": "medic", "level_required": 7, "action_type": "Действие",
+        "skill_requirements": '{"skill_medicine": 7}',
+        "range": "Касание", "target": "Одно существо", "duration": "1 минута", "cooldown": "3 хода",
+        "description": "Цель получает 1к10 + Мод.Мед временных ПЗ. Пока они есть, ПЗ цели не могут опуститься ниже 1 от урона.",
+        "damage_formula": "1к10+Мод.Мед", "damage_type": "Временные ПЗ",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Очищение", "branch": "medic", "level_required": 8, "action_type": "Действие",
+        "skill_requirements": '{"skill_medicine": 8, "skill_science": 4}',
+        "range": "Касание", "target": "Одно существо", "cooldown": "2 хода",
+        "description": "Снимает один эффект: Отравление, Болезнь, Оглушение, Паралич, Слепота, Глухота, Страх. Цель получает преим. на след. спасбросок против снятого эффекта (1 мин).",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Массовое Лечение", "branch": "medic", "level_required": 9, "action_type": "Действие",
+        "skill_requirements": '{"skill_medicine": 9}',
+        "range": "15 метров", "target": "До 6 существ в сфере 10м", "cooldown": "5 ходов",
+        "description": "Каждая цель восстанавливает 3к8 + Мод.Мед ПЗ.",
+        "damage_formula": "3к8+Мод.Мед", "damage_type": "Лечение",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Полевой Госпиталь", "branch": "medic", "level_required": 10, "action_type": "Действие",
+        "skill_requirements": '{"skill_medicine": 10}',
+        "range": "Себя (аура 10м)", "target": "Союзники в ауре", "duration": "1 мин (Конц.)", "concentration": True, "cooldown": "Длительный отдых",
+        "description": "В начале вашего хода союзники в ауре восстанавливают 1к6 ПЗ и могут совершить спасбросок с преим. против одного негативного эффекта (из списка Очищения).",
+        "damage_formula": "1к6", "damage_type": "Лечение",
+        "is_weapon_attack": False
+    },
+
+    # === Мутант ===
+    {
+        "name": "Психический Толчок", "branch": "mutant", "level_required": 1, "action_type": "Действие",
+        "range": "10 метров", "target": "Одно существо", "saving_throw_attribute": "Сила", "saving_throw_dc_formula": "СЛ Способности",
+        "description": "Спасбросок Силы. Провал: оттолкнуть на 3м, 1к6 дробящего урона. Провал на 5+: цель Ошеломлена до конца ее след. хода.",
+        "damage_formula": "1к6", "damage_type": "Дробящий", "effect_on_save_fail": "Отталкивание 3м, Ошеломление (при провале на 5+)",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Предчувствие Опасности", "branch": "mutant", "level_required": 2, "action_type": "Пассивно/Реакция",
+        "skill_requirements": '{"skill_flow": 3}', "cooldown": "1 ход (Реакция)",
+        "description": "+2 к СЛ Защиты против атак, о которых не подозревали. Реакция: наложить помеху на бросок атаки по вам.",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Выбить Оружие", "branch": "mutant", "level_required": 3, "action_type": "Действие",
+        "skill_requirements": '{"skill_strength": 4, "skill_flow": 4}', # Условие ИЛИ сложно представить в JSON, используем оба
+        "range": "5 метров", "target": "Существо с предметом", "saving_throw_attribute": "Сила/Ловкость", "saving_throw_dc_formula": "СЛ Способности", "cooldown": "2 хода",
+        "description": "Спасбросок Силы или Ловкости (выбор цели). Провал: роняет 1 предмет (Обезоружен).",
+        "effect_on_save_fail": "Обезоружен (1 предмет)",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Аура Исцеления", "branch": "mutant", "level_required": 4, "action_type": "Действие",
+        "skill_requirements": '{"skill_medicine": 5, "skill_flow": 5}',
+        "range": "Себя (радиус 5м)", "target": "Вы и союзники в ауре", "duration": "1 мин (Конц.)", "concentration": True, "cooldown": "3 хода",
+        "description": "При активации вы и союзники в радиусе 5м восстанавливаете 1к6 + Мод.Пот ПЗ. Пока активна, дает +1 к спасброскам от Страха и Отравления.",
+        "damage_formula": "1к6+Мод.Пот", "damage_type": "Лечение",
+        "is_weapon_attack": False
+    },
+    {
+        "name": "Воодушевление", "branch": "mutant", "level_required": 5, "action_type": "Действие",
+        "skill_requirements": '{"skill_authority": 5}',
+        "range": "15 метров", "target": "До 3 союзников", "duration": "1 минута", "cooldown": "3 хода",
+        "description": "Выбранные союзники получают +1к4 к броскам атаки и спасброскам на 1 минуту.",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Приказ: Подчинись!", "branch": "mutant", "level_required": 6, "action_type": "Действие",
+        "skill_requirements": '{"skill_suggestion": 7}',
+        "range": "10 метров", "target": "Гуманоид (слышит/понимает)", "saving_throw_attribute": "Самообладание", "saving_throw_dc_formula": "СЛ Способности", "cooldown": "4 хода",
+        "description": "Спасбросок Самообладания. Провал: подчиняется простому не-самоубийственному приказу в след. ход. Повторный спасбросок в конце хода цели.",
+        "effect_on_save_fail": "Подчиняется приказу (1 ход)",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Завербовать Противника", "branch": "mutant", "level_required": 7, "action_type": "Действие",
+        "skill_requirements": '{"skill_suggestion": 8, "skill_authority": 6}',
+        "range": "10 метров", "target": "Гуманоид (< 1/2 ПЗ, видит/слышит)", "saving_throw_attribute": "Самообладание", "saving_throw_dc_formula": "СЛ Способности", "duration": "1 час", "cooldown": "Длительный отдых",
+        "description": "Спасбросок Самообладания. Провал: цель становится Дружественной на 1 час, сражается за вас (не самоубийственно). Эффект прерывается при уроне от вас/союзников.",
+        "effect_on_save_fail": "Дружественный (1 час)",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Конвертация Жизни в Действие", "branch": "mutant", "level_required": 8, "action_type": "Бонусное действие",
+        "skill_requirements": '{"skill_endurance": 6}',
+        "range": "Себя", "target": "Себя", "cooldown": "3 хода",
+        "description": "Получить доп. Основное Действие ценой 30% текущих ПЗ (мин. 5, нельзя уменьшить).",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Ментальный Щит", "branch": "mutant", "level_required": 9, "action_type": "Реакция",
+        "skill_requirements": '{"skill_flow": 8}',
+        "trigger": "Вы или союзник в 10м цель атаки/спасбр. Инт/Сам/Пот",
+        "range": "10 метров", "target": "Вы или союзник", "cooldown": "2 хода",
+        "description": "Реакцией наложить помеху на атаку противника ИЛИ дать цели преимущество на спасбросок.",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Спрятать в Потоке", "branch": "mutant", "level_required": 10, "action_type": "Действие",
+        "skill_requirements": '{"skill_flow": 9}',
+        "range": "Касание", "target": "Себя или согласное существо", "duration": "1 мин (Конц.)", "concentration": True, "cooldown": "4 хода",
+        "description": "Цель становится Невидимой на 1 мин. Прерывается атакой, вред. способностью, ярким светом или потерей концентрации.",
+        "is_weapon_attack": False
+    },
+
+    # === Стрелок ===
+    {
+        "name": "Точный Выстрел", "branch": "sharpshooter", "level_required": 1, "action_type": "Бонусное действие",
+        "range": "Себя", "target": "Себя", "cooldown": "1 ход",
+        "description": "Следующий бросок атаки дальнобойным оружием в этот ход совершается с преимуществом.",
+        "is_weapon_attack": False, "concentration": False
+        # Примечание: само преимущество будет применено логикой determine_roll_mode
+    },
+    {
+        "name": "Подавляющий Огонь", "branch": "sharpshooter", "level_required": 2, "action_type": "Действие",
+        "skill_requirements": '{"skill_attention": 3}',
+        "range": "Дистанция оружия", "target": "Зона (куб 3м или конус 5м)", "saving_throw_attribute": "Ловкость", "saving_throw_dc_formula": "8+Мод.Лов", "cooldown": "1 ход",
+        "description": "Спасбросок Ловкости. Провал: скорость / 2 и состояние Подавлен до конца их след. хода.",
+        "effect_on_save_fail": "Скорость / 2, Подавлен (1 ход)",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Авто-Прицеливание", "branch": "sharpshooter", "level_required": 3, "action_type": "Действие",
+        "skill_requirements": '{"skill_technique": 4}',
+        "range": "Дистанция оружия", "target": "1-2 цели в 5м друг от друга", "cooldown": "2 хода",
+        "description": "Отдельная атака дальнобойным оружием по каждой цели с половиной урона.",
+        "damage_formula": "Урон оружия / 2", # Указываем модификацию урона
+        "is_weapon_attack": True, "attack_skill": "Ловкость" # Это все еще атака оружием
+    },
+    {
+        "name": "Снайперский Выстрел в Глаз", "branch": "sharpshooter", "level_required": 4, "action_type": "Действие",
+        "skill_requirements": '{"skill_attention": 6}',
+        "range": "Дистанция оружия", "target": "Одна цель", "saving_throw_attribute": "Выносливость", "saving_throw_dc_formula": "СЛ Способности", "cooldown": "3 хода",
+        "description": "Атака дальнобойным оружием с помехой. При попадании = крит. попадание. Если крит, цель спасбросок Выносливости или Ослеплена на 1 раунд.",
+        "effect_on_save_fail": "Ослеплен (1 раунд, если атака была критом)",
+        "is_weapon_attack": True, "attack_skill": "Ловкость" # Это атака, но с особыми правилами
+        # Примечание: Помеха должна быть применена в `determine_roll_mode` при активации этой способности
+    },
+    {
+        "name": "Отталкивающий Выстрел", "branch": "sharpshooter", "level_required": 5, "action_type": "Действие",
+        "skill_requirements": '{"skill_strength": 3}', # Указано требование Силы
+        "range": "Дистанция оружия", "target": "Одно существо", "saving_throw_attribute": "Сила", "saving_throw_dc_formula": "СЛ Способности", "cooldown": "1 ход",
+        "description": "Атака дальнобойным оружием. При попадании, цель спасбросок Силы или отталкивается на 3 метра.",
+        "effect_on_save_fail": "Отталкивание 3м",
+        "is_weapon_attack": True, "attack_skill": "Ловкость"
+    },
+    {
+        "name": "Плечевая Турель", "branch": "sharpshooter", "level_required": 6, "action_type": "Бонусное действие (активация/атака)",
+        "skill_requirements": '{"skill_technique": 5}',
+        "range": "20 метров (атака турели)", "target": "Цель атаки турели", "duration": "1 минута", "cooldown": "4 хода",
+        "description": "Активация (БД). В след. ходы: БД -> атака турели (3к6+УрСтр/2+Лов vs AC, урон 1к6+Лов). Турель: 10 ПЗ, 12 AC.",
+        "damage_formula": "1к6+Мод.Лов", "damage_type": "Энерг./Кинетич.", # Урон самой турели
+        "is_weapon_attack": False # Атакует турель, а не персонаж
+    },
+    {
+        "name": "Ассистирование", "branch": "sharpshooter", "level_required": 7, "action_type": "Реакция",
+        "skill_requirements": '{"skill_attention": 5}',
+        "trigger": "Союзник в 15м промахивается атакой по видимому врагу",
+        "range": "15 метров", "target": "Союзник", "cooldown": "2 хода",
+        "description": "Реакцией дать союзнику +2 к промахнувшемуся броску атаки.",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Разрывная Ракета", "branch": "sharpshooter", "level_required": 8, "action_type": "Действие",
+        "skill_requirements": '{"skill_science": 5}',
+        "range": "30 метров", "target": "Точка (взрыв 5м)", "saving_throw_attribute": "Ловкость", "saving_throw_dc_formula": "СЛ Способности", "cooldown": "5 ходов",
+        "description": "Взрыв в точке. Спасбросок Ловкости в радиусе 5м. Провал: 6к6 урона (огонь/осколки) и Горение (1к4). Успех: половина урона, без горения.",
+        "damage_formula": "6к6", "damage_type": "Огонь/Осколки", "effect_on_save_fail": "Горение (1к4)",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Скан на Уязвимости", "branch": "sharpshooter", "level_required": 9, "action_type": "Бонусное действие",
+        "skill_requirements": '{"skill_attention": 8, "skill_technique": 4}',
+        "range": "20 метров", "target": "Одно существо", "duration": "1 минута", "cooldown": "3 хода",
+        "description": "Следующая атака по цели в течение 1 мин наносит +2к6 урона и имеет увеличенный шанс крита.",
+        "damage_formula": "2к6", "damage_type": "Дополнительный", # Урон добавляется к следующей атаке
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Шквал Огня", "branch": "sharpshooter", "level_required": 10, "action_type": "Действие",
+        "skill_requirements": '{"skill_reaction": 7}',
+        "range": "Дистанция оружия", "target": "До 4 врагов в 10м от основной цели", "cooldown": "5 ходов",
+        "description": "Одна атака дальнобойным оружием с помехой по каждой выбранной цели (макс. 4).",
+        "is_weapon_attack": True, "attack_skill": "Ловкость"
+        # Примечание: Помеха должна быть применена в `determine_roll_mode`
+    },
+
+    # === Разведчик ===
+    {
+        "name": "Скрытность", "branch": "scout", "level_required": 1, "action_type": "Бонусное действие",
+        "range": "Себя", "target": "Себя",
+        "description": "Попытка спрятаться (проверка Ловкость(Скрытность) vs пассивное Внимание). Успех = Скрыт.",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Трекинг Цели", "branch": "scout", "level_required": 2, "action_type": "Действие",
+        "skill_requirements": '{"skill_attention": 4, "skill_adaptation": 3}',
+        "range": "Видимость", "target": "Одна цель", "duration": "До конца след. хода", "cooldown": "2 хода (боевой)",
+        "description": "Вне боя: выслеживание (Внимание). В бою: узнать точное местоположение цели, первая атака по ней с преимуществом.",
+        "is_weapon_attack": False, "concentration": False
+        # Примечание: Преимущество на атаку должно быть обработано в `determine_roll_mode`
+    },
+    {
+        "name": "Удар в Спину / Скрытая Атака", "branch": "scout", "level_required": 3, "action_type": "Пассивно (1 раз/ход)",
+        "description": "При попадании атакой (дальн./легк./фехт.) с преимуществом ИЛИ если союзник рядом с целью: +2к6 урона. Урон растет: +3к6 (ур.6), +4к6 (ур.9). Крит = Кровотечение (1к4).",
+        "damage_formula": "2к6 / 3к6 / 4к6", "damage_type": "Тип оружия", # Урон добавляется к атаке
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Голограмма-Приманка", "branch": "scout", "level_required": 4, "action_type": "Действие",
+        "skill_requirements": '{"skill_technique": 3}',
+        "range": "15 метров", "target": "Точка", "duration": "1 минута", "saving_throw_attribute": "Выносливость", "saving_throw_dc_formula": "СЛ Способности", "cooldown": "3 хода",
+        "description": "Создает иллюзорную копию (AC 10, 1 ПЗ). Распознается проверкой Логики (СЛ Способности). При уничтожении вспышка: спасбросок Выносливости или Ослепление (1 раунд).",
+        "effect_on_save_fail": "Ослеплен (1 раунд, при уничтожении голограммы)",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Оружейный Гоп-Стоп / Обезоруживание", "branch": "scout", "level_required": 5, "action_type": "Действие",
+        "skill_requirements": '{"skill_dexterity": 6}',
+        "range": "1.5 метра", "target": "Одно существо", "saving_throw_attribute": "Сила/Ловкость", "saving_throw_dc_formula": "СЛ Способности", "cooldown": "2 хода",
+        "description": "Атака (без урона). При попадании цель спасбросок Силы/Ловкости или роняет предмет (Обезоружен).",
+        "effect_on_save_fail": "Обезоружен (1 предмет)",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Добивающий Удар", "branch": "scout", "level_required": 6, "action_type": "Бонусное действие",
+        "trigger": "В ваш ход вы нанесли крит. удар ИЛИ снизили ПЗ врага до 0 атакой",
+        "range": "Дистанция/досягаемость оружия", "target": "Другая цель",
+        "description": "После крита или убийства атакой, можно совершить доп. атаку оружием Бонусным Действием по другой цели.",
+        "is_weapon_attack": True # Это дополнительная атака оружием
+    },
+    {
+        "name": "Удар с Вертушки / Вихрь Клинков", "branch": "scout", "level_required": 7, "action_type": "Действие",
+        "skill_requirements": '{"skill_dexterity": 7}',
+        "range": "1.5 метра", "target": "Все существа в досягаемости", "cooldown": "3 хода",
+        "description": "Одна атака оружием ближнего боя против всех выбранных существ в досягаемости (один бросок атаки).",
+        "is_weapon_attack": True # Это атака оружием
+    },
+    {
+        "name": "Неуловимость", "branch": "scout", "level_required": 8, "action_type": "Пассивно/Реакция",
+        "skill_requirements": '{"skill_dexterity": 8}', "cooldown": "1 ход (Реакция)",
+        "description": "Атаки по возможности по вам с помехой. Реакция: когда по вам попадает атака, уменьшить урон вдвое.",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Мастер Тени", "branch": "scout", "level_required": 9, "action_type": "Бонусное действие",
+        "skill_requirements": '{"skill_dexterity": 9}',
+        "range": "Себя", "target": "Себя", "duration": "Пока не атакуете/не используете способность/не выйдете на свет", "cooldown": "2 хода",
+        "description": "В тусклом свете/темноте Бонусным Действием стать Невидимым.",
+        "is_weapon_attack": False, "concentration": True # Неявная концентрация
+    },
+    {
+        "name": "Удар Смерти", "branch": "scout", "level_required": 10, "action_type": "Действие",
+        "trigger": "Атака по Застигнутому врасплох или не видящему вас врагу",
+        "range": "Дистанция/досягаемость оружия", "target": "Одна цель", "saving_throw_attribute": "Выносливость", "saving_throw_dc_formula": "СЛ Способности", "cooldown": "5 ходов",
+        "description": "Атака оружием. При попадании цель спасбросок Выносливости. Провал: урон атаки удваивается. Успех: обычный урон.",
+        "is_weapon_attack": True # Это атака оружием
+    },
+
+    # === Техник ===
+    {
+        "name": "Анализ Механизма", "branch": "technician", "level_required": 1, "action_type": "Бонусное действие",
+        "skill_requirements": '{"skill_logic": 3}',
+        "range": "10 метров", "target": "Механизм/Робот/Киборг/Тех. объект",
+        "description": "Узнать примерные ПЗ, уязвимости/сопротивления цели.",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Электронный Замок / Взлом", "branch": "technician", "level_required": 2, "action_type": "Действие",
+        "skill_requirements": '{"skill_technique": 3}',
+        "range": "5 метров (бой) / Касание (вне боя)", "target": "Устройство/Сеть/Кибернетика врага", "saving_throw_attribute": "Техника/Выносливость", "saving_throw_dc_formula": "СЛ Способности", "cooldown": "3 хода (боевой)",
+        "description": "Вне боя: взлом (Техника vs СЛ). В бою: цель спасбросок Техники/Выносливости или ее кибернетика/оружие Отключено на 1 раунд.",
+        "effect_on_save_fail": "Отключение (1 раунд, боевой эффект)",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Блокировка Систем", "branch": "technician", "level_required": 3, "action_type": "Действие",
+        "range": "15 метров", "target": "Механизм/Киборг", "saving_throw_attribute": "Техника/Интеллект", "saving_throw_dc_formula": "СЛ Способности", "cooldown": "3 хода",
+        "description": "Спасбросок Техники/Интеллекта. Провал: цель не может исп. особые способности/действия (кроме базовых) в след. ход (Немота технол.).",
+        "effect_on_save_fail": "Немота (технологическая, 1 ход)",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Улучшение Брони", "branch": "technician", "level_required": 4, "action_type": "Действие",
+        "skill_requirements": '{"skill_science": 3}',
+        "range": "Касание", "target": "Одно согласное существо", "duration": "10 минут",
+        "description": "Цель получает +1 к СЛ Защиты и сопротивление одному типу урона (физ., огонь, холод, электр.) на 10 минут.",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Установка Мины", "branch": "technician", "level_required": 5, "action_type": "Действие",
+        "range": "1.5 метра (установка)", "target": "Точка (взрыв 2м)", "saving_throw_attribute": "Ловкость", "saving_throw_dc_formula": "СЛ Способности", "cooldown": "1 ход (установка)",
+        "description": "Установка скрытой мины (Внимание vs СЛ Способности). Взрыв при контакте/дист. активации (БД). Спасбросок Ловкости в радиусе 2м. Провал: 3к6 урона. Успех: половина.",
+        "damage_formula": "3к6", "damage_type": "Осколки/Другой", "effect_on_save_success": "Половина урона",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Электромагнитный Разряд", "branch": "technician", "level_required": 6, "action_type": "Действие",
+        "skill_requirements": '{"skill_science": 5}',
+        "range": "Линия 10м x 1.5м / Конус 5м", "target": "Зона", "saving_throw_attribute": "Ловкость", "saving_throw_dc_formula": "СЛ Способности", "cooldown": "4 хода",
+        "description": "Спасбросок Ловкости в зоне. Провал: 4к8 урона электричеством, нет Реакций до конца след. хода (Шок). Механизмы: помеха на спасбросок, при провале + Отключение (1 раунд).",
+        "damage_formula": "4к8", "damage_type": "Электричество", "effect_on_save_fail": "Шок (1 ход), Отключение (1 раунд, для механизмов)",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Гравитационная Ловушка / Стяжка", "branch": "technician", "level_required": 7, "action_type": "Действие",
+        "skill_requirements": '{"skill_science": 6}',
+        "range": "20 метров", "target": "Точка (зона 5м)", "duration": "1 раунд", "saving_throw_attribute": "Сила", "saving_throw_dc_formula": "СЛ Способности", "cooldown": "4 хода",
+        "description": "Создает поле стягивания (5м) на 1 раунд. Существа в зоне/входящие в нее: спасбросок Силы. Провал: скорость=0 до начала их след. хода, притянуты на 3м к центру.",
+        "effect_on_save_fail": "Скорость=0 (1 ход), Притягивание 3м",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Стан-Граната / Импульс", "branch": "technician", "level_required": 8, "action_type": "Действие",
+        "range": "15 метров (бросок)", "target": "Точка (взрыв 5м)", "saving_throw_attribute": "Выносливость", "saving_throw_dc_formula": "СЛ Способности", "cooldown": "4 хода",
+        "description": "Взрыв в точке. Существа в радиусе 5м: спасбросок Выносливости. Провал: Оглушены до конца вашего след. хода. Механизмы: вместо Оглушения - Отключение (1 раунд) + 2к6 урона.",
+        "damage_formula": "2к6", "damage_type": "Электр./Сила (механизмам)", "effect_on_save_fail": "Оглушен (до конца вашего след. хода) / Отключение (1 раунд, механизмам)",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Завербовать Механизм", "branch": "technician", "level_required": 9, "action_type": "Действие",
+        "skill_requirements": '{"skill_technique": 9}',
+        "range": "10 метров", "target": "Механизм/Робот (Инт <= 4)", "saving_throw_attribute": "Техника", "saving_throw_dc_formula": "СЛ Способности", "duration": "1 час", "cooldown": "Длительный отдых",
+        "description": "Спасбросок Техники цели. Провал: цель Дружественна к вам и подчиняется простым командам 1 час. Можно контролировать только 1 механизм.",
+        "effect_on_save_fail": "Дружественный (1 час), Контроль",
+        "is_weapon_attack": False, "concentration": False # Неявная концентрация на контроле
+    },
+    {
+        "name": "Перегрузка Реактора / Самоуничтожение", "branch": "technician", "level_required": 10, "action_type": "Действие",
+        "skill_requirements": '{"skill_science": 8}',
+        "range": "10 метров", "target": "Механизм/Объект с источником энергии", "saving_throw_attribute": "Техника/Выносливость", "saving_throw_dc_formula": "СЛ Способности", "cooldown": "Длительный отдых",
+        "description": "Спасбросок Техники/Выносливости цели. Провал: в конце след. хода цели - взрыв (5м, 10к6 урона). Успех: 5к6 урона немедленно.",
+        "damage_formula": "10к6 (взрыв) / 5к6 (успех)", "damage_type": "Огонь/Электр./Сила/Радиация",
+        "is_weapon_attack": False, "concentration": False
+    },
+
+    # === Боец ===
+    {
+        "name": "Мощный Удар", "branch": "fighter", "level_required": 1, "action_type": "Бонусное действие",
+        "range": "Себя", "target": "Себя", "saving_throw_attribute": "Выносливость", "saving_throw_dc_formula": "8+Мод.Сил",
+        "description": "Перед атакой ближнего боя: -2 к атаке, +4 к урону. При попадании: цель спасбросок Выносливости (СЛ 8+Сил) или скорость -3м до конца ее след. хода.",
+        "effect_on_save_fail": "Скорость -3м (1 ход)",
+        "is_weapon_attack": False, "concentration": False
+        # Примечание: Штраф к атаке и бонус к урону применяются в логике активации
+    },
+    {
+        "name": "Второе Дыхание", "branch": "fighter", "level_required": 2, "action_type": "Бонусное действие",
+        "skill_requirements": '{"skill_endurance": 4}',
+        "range": "Себя", "target": "Себя", "cooldown": "3 хода", # Изменено с Короткого отдыха на 3 хода для большей динамики
+        "description": "Восстановить 1к10 + Мод.Вын ПЗ.", # Убрано Ур.Бойца, используется Мод.Вын
+        "damage_formula": "1к10+Мод.Вын", "damage_type": "Лечение",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Атака по Области / Рассекающий Удар", "branch": "fighter", "level_required": 3, "action_type": "Действие",
+        "skill_requirements": '{"skill_strength": 5}',
+        "range": "1.5 метра (досягаемость)", "target": "Все существа в досягаемости", "cooldown": "2 хода",
+        "description": "Одна атака оружием ближнего боя против всех выбранных существ в досягаемости (один бросок атаки).",
+        "is_weapon_attack": True # Это атака оружием
+    },
+    {
+        "name": "Захват", "branch": "fighter", "level_required": 4, "action_type": "Действие / Замена Атаки",
+        "skill_requirements": '{"skill_strength": 4}',
+        "range": "1.5 метра", "target": "Существо (размер <= ваш)",
+        "description": "Проверка Силы(Атлетика) против Силы(Атлетика)/Ловкости(Акробатика) цели. Успех = Схвачен.",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Жестокая Расправа", "branch": "fighter", "level_required": 4, "action_type": "Реакция / Часть Захвата", # Добавили Реакцию
+        "trigger": "ПЗ схваченной вами цели <= 20% ИЛИ цель получает урон, опускающий ПЗ <= 20%",
+        "range": "Касание", "target": "Схваченная цель (<= 20% ПЗ)", "saving_throw_attribute": "Выносливость", "saving_throw_dc_formula": "СЛ Способности",
+        "description": "Попытка убить схваченную цель с низким ПЗ. Спасбросок Выносливости. Провал = Смерть.",
+        "effect_on_save_fail": "Смерть",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Резня", "branch": "fighter", "level_required": 4, "action_type": "Пассивно (активируется) / Бонусное действие",
+        "trigger": "После убийства через Жестокую Расправу", "duration": "1 минута / пока не получите урон", "cooldown": "3 хода (для Бонусного действия)",
+        "description": "Активируется на 1 мин после Жестокой Расправы. Пока активна: Бонусным Действием можно попытаться Захватить цель с <= 20% ПЗ.",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Афтершок / Землетрясение", "branch": "fighter", "level_required": 5, "action_type": "Действие",
+        "skill_requirements": '{"skill_strength": 6}',
+        "range": "Себя (радиус 3м)", "target": "Зона", "saving_throw_attribute": "Ловкость", "saving_throw_dc_formula": "СЛ Способности", "cooldown": "3 хода",
+        "description": "Удар по земле. Существа в радиусе 3м: спасбросок Ловкости. Провал: 2к6 дробящего урона, сбиты с ног (Лежа). Зона = труднопроходимая (1 ход).",
+        "damage_formula": "2к6", "damage_type": "Дробящий", "effect_on_save_fail": "Лежа",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Сближение с Ударом / Рывок Берсерка", "branch": "fighter", "level_required": 6, "action_type": "Действие",
+        "range": "10 метров (перемещение)", "target": "Противник в конце перемещения",
+        "description": "Перемещение по прямой до 10м к врагу + 1 атака ближнего боя. При попадании: +1к6 урона за каждые 3м пробега (макс +3к6). Провоцирует атаки.",
+        "damage_formula": "+1к6/3м", "damage_type": "Дополнительный",
+        "is_weapon_attack": True # Это атака оружием
+    },
+    {
+        "name": "Оглушающий Удар", "branch": "fighter", "level_required": 7, "action_type": "Действие",
+        "skill_requirements": '{"skill_strength": 7}',
+        "range": "Досягаемость оружия", "target": "Одна цель", "saving_throw_attribute": "Выносливость", "saving_throw_dc_formula": "СЛ Способности", "cooldown": "4 хода",
+        "description": "Атака оружием ближнего боя. При попадании: цель спасбросок Выносливости или Оглушена до конца вашего след. хода.",
+        "effect_on_save_fail": "Оглушен (до конца вашего след. хода)",
+        "is_weapon_attack": True # Это атака оружием
+    },
+    {
+        "name": "Перегрев Оружия / Раскаленный Клинок", "branch": "fighter", "level_required": 8, "action_type": "Бонусное действие",
+        "skill_requirements": '{"skill_technique": 3, "skill_science": 3}', # Условие ИЛИ
+        "range": "Себя", "target": "Оружие ближнего боя", "duration": "1 минута", "cooldown": "4 хода",
+        "description": "Атаки выбранным оружием наносят +1к6 урона огнем. При попадании: цель спасбросок Ловкости (СЛ 10) или Горение (1к4).",
+        "damage_formula": "+1к6", "damage_type": "Огонь", "effect_on_save_fail": "Горение (1к4, если провален спасбросок Ловкости СЛ 10)",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Дополнительная Атака", "branch": "fighter", "level_required": 9, "action_type": "Пассивно / Бонусное действие",
+        "skill_requirements": '{"skill_reaction": 6}',
+        "trigger": "После использования Действия 'Атака' оружием ближнего боя",
+        "description": "Можно совершить одну доп. атаку этим же оружием Бонусным Действием.",
+        "is_weapon_attack": True # Это атака оружием
+    },
+    {
+        "name": "Несокрушимость", "branch": "fighter", "level_required": 10, "action_type": "Реакция",
+        "skill_requirements": '{"skill_endurance": 8}',
+        "trigger": "Урон опускает ПЗ до 0, но не убивает мгновенно",
+        "range": "Себя", "target": "Себя", "cooldown": "Длительный отдых",
+        "description": "Реакцией остаться с 1 ПЗ вместо 0.",
+        "is_weapon_attack": False, "concentration": False
+    },
+
+    # === Джаггернаут ===
+    {
+        "name": "Провокация / Вызов", "branch": "juggernaut", "level_required": 1, "action_type": "Бонусное действие",
+        "skill_requirements": '{"skill_authority": 3}',
+        "range": "10 метров", "target": "Существо (видит/слышит)", "saving_throw_attribute": "Самообладание", "saving_throw_dc_formula": "СЛ Способности",
+        "description": "Спасбросок Самообладания цели. Провал: помеха на атаки по другим (кроме вас) до конца вашего след. хода.",
+        "effect_on_save_fail": "Помеха на атаки по другим (1 ход)",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Несгибаемость", "branch": "juggernaut", "level_required": 2, "action_type": "Пассивно",
+        "skill_requirements": '{"skill_endurance": 5}',
+        "description": "Преимущество на спасброски Силы и Ловкости против сбивания с ног или насильного перемещения.",
+        "is_weapon_attack": False, "concentration": False
+        # Примечание: Преимущество будет применено логикой determine_roll_mode, если цель броска 'saving_throws.strength' или 'saving_throws.dexterity' и эффект связан с перемещением/падением (требует доработки determine_roll_mode).
+    },
+    {
+        "name": "Оглушающий Удар Щитом", "branch": "juggernaut", "level_required": 3, "action_type": "Бонусное действие",
+        "skill_requirements": '{"skill_strength": 4}', "trigger": "После атаки Действием (требует щит)",
+        "range": "1.5 метра", "target": "Одна цель", "saving_throw_attribute": "Выносливость", "saving_throw_dc_formula": "СЛ Способности", "cooldown": "1 ход",
+        "description": "Удар щитом Бонусным Действием. Цель спасбросок Выносливости. Провал: 1к4 дробящего урона, нет Реакций до начала ее след. хода (Шок).",
+        "damage_formula": "1к4", "damage_type": "Дробящий", "effect_on_save_fail": "Шок (1 ход)",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Рывок и Сбивание", "branch": "juggernaut", "level_required": 4, "action_type": "Действие",
+        "skill_requirements": '{"skill_strength": 6}',
+        "range": "10 метров (перемещение)", "target": "Существо на пути (размер <= ваш)", "saving_throw_attribute": "Сила/Ловкость", "saving_throw_dc_formula": "СЛ Способности", "cooldown": "3 хода",
+        "description": "Перемещение по прямой до 10м. Существо на пути: спасбросок Силы/Ловкости. Провал: 2к8 дробящего урона, Лежа, Ошеломлен до конца его след. хода.",
+        "damage_formula": "2к8", "damage_type": "Дробящий", "effect_on_save_fail": "Лежа, Ошеломлен (1 ход)",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Таунт / Массовый Вызов", "branch": "juggernaut", "level_required": 5, "action_type": "Действие",
+        "skill_requirements": '{"skill_authority": 6}',
+        "range": "Себя (радиус 10м)", "target": "Все враги в радиусе (видят/слышат)", "saving_throw_attribute": "Самообладание", "saving_throw_dc_formula": "СЛ Способности", "duration": "1 минута", "cooldown": "4 хода",
+        "description": "Спасбросок Самообладания целей. Провал: помеха на атаки по другим (кроме вас) на 1 мин. Повторный спасбросок в конце хода цели.",
+        "effect_on_save_fail": "Помеха на атаки по другим (1 мин, повт. спасбр.)",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Отталкивающий Удар / Волна Силы", "branch": "juggernaut", "level_required": 6, "action_type": "Действие",
+        "skill_requirements": '{"skill_strength": 7}',
+        "range": "Себя (радиус 3м)", "target": "Зона", "saving_throw_attribute": "Сила", "saving_throw_dc_formula": "СЛ Способности", "cooldown": "3 хода",
+        "description": "Ударная волна. Существа в радиусе 3м: спасбросок Силы. Провал: оттолкнуть на 3м, 2к6 урона (сила/дробящий).",
+        "damage_formula": "2к6", "damage_type": "Сила/Дробящий", "effect_on_save_fail": "Отталкивание 3м",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Хук / Притягивание", "branch": "juggernaut", "level_required": 7, "action_type": "Действие",
+        "skill_requirements": '{"skill_dexterity": 4, "skill_technique": 4}', # ИЛИ
+        "range": "10 метров", "target": "Существо (размер <= ваш)", "saving_throw_attribute": "Сила", "saving_throw_dc_formula": "СЛ Способности", "cooldown": "4 хода",
+        "description": "Дальнобойная атака (цепь/крюк/гарпун, Сил/Лов). Попадание: 1к8 урона (кол./дроб.), цель спасбросок Силы или притягивается вплотную.",
+        "damage_formula": "1к8", "damage_type": "Колющий/Дробящий", "effect_on_save_fail": "Притягивание",
+        "is_weapon_attack": True, "attack_skill": "Сила/Ловкость" # Зависит от реализации
+    },
+    {
+        "name": "Непробиваемый Щит", "branch": "juggernaut", "level_required": 8, "action_type": "Реакция",
+        "skill_requirements": '{"skill_endurance": 7}', "trigger": "Вы или союзник в 1.5м цель дальнобойной атаки",
+        "range": "1.5 метра", "target": "Вы или союзник", "cooldown": "2 хода",
+        "description": "Реакция: помеха на атаку. Если атака по союзнику и попала: принять половину урона. Если атака по вам: +5 к СЛ Защиты против этой атаки.",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Стойкость Титана", "branch": "juggernaut", "level_required": 9, "action_type": "Пассивно",
+        "skill_requirements": '{"skill_endurance": 9}',
+        "description": "В начале вашего хода в бою восстанавливаете ПЗ = Мод.Вын (мин 1), если есть >= 1 ПЗ и не Без сознания.",
+        "is_weapon_attack": False, "concentration": False
+    },
+    {
+        "name": "Арена / Дуэльная Зона", "branch": "juggernaut", "level_required": 10, "action_type": "Действие",
+        "skill_requirements": '{"skill_authority": 8}',
+        "range": "10 метров", "target": "Одно существо", "duration": "1 мин (Конц.)", "concentration": True, "saving_throw_attribute": "Сила", "saving_throw_dc_formula": "СЛ Способности", "cooldown": "Длительный отдых",
+        "description": "Создает барьер (цилиндр 5м рад.) на 1 мин. Вы и цель не можете выйти (спасбр. Силы). Внутри: преим. на атаки друг по другу. Атаки извне/вовнутрь с помехой.",
+        "is_weapon_attack": False
+    },
 ]
 # СОСТОЯНИЯ (без изменений)
 status_effects_data = [
-    { "name": "При смерти (Unconscious)", "description": "Недееспособен, не может двигаться/говорить, роняет предметы. Атаки по нему с преим., вблизи - крит. Провал спасбр. Сил/Лов. Восстанавливается при лечении >0 ПЗ или стабилизации." },
-    { "name": "Горение (Burning)", "description": "Урон огнем (1к4/1к6) в начале хода. Действие на тушение (СЛ Лов 10)." },
-    { "name": "Глухота (Deafened)", "description": "Не может слышать, провал проверок на слух." },
-    { "name": "Дружественный (Charmed/Friendly)", "description": "Считает источник другом, не атакует его. Преим. на соц. проверки у источника. Может закончиться при вреде." },
-    { "name": "Замедление (Slowed)", "description": "Скорость / 2 (или -X). Не может исп. Реакции перемещения." },
-    { "name": "Застигнут врасплох (Surprised)", "description": "Не может двигаться/действовать/реагировать в 1й ход боя." },
-    { "name": "Истощение (Exhaustion)", "description": "Уровни 1-6: 1:Помеха проверки; 2:Скор/2; 3:Помеха атаки/спасбр; 4:ПЗmax/2; 5:Скор=0; 6:Смерть. -1 за Длит. отдых." },
-    { "name": "Кровотечение (Bleeding)", "description": "Урон (1к4) в начале хода. Требует Действия и Медицины/Лечения для остановки." },
-    { "name": "Лежа (Prone)", "description": "Скор. ползком / 2. Помеха на атаки. Атаки по нему: ближ. с преим., дальн. с помехой. Встать = полскорости." },
-    { "name": "Невидимость (Invisible)", "description": "Не видно без спец. средств. Атаки по существу с помехой, его атаки с преим." },
-    { "name": "Немота (Silenced)", "description": "Не может говорить. Техно: не может исп. голосовые/звуковые комп." },
-    { "name": "Обезоружен (Disarmed)", "description": "Роняет 1 предмет (оружие)." },
-    { "name": "Оглушение (Stunned)", "description": "Недееспособен, не двиг., говорит запинаясь. Провал спасбр. Сил/Лов. Атаки по нему с преим." },
-    { "name": "Ослепление (Blinded)", "description": "Не видит, провал проверок на зрение. Атаки по нему с преим., его атаки с помехой." },
-    { "name": "Отравление (Poisoned)", "description": "Помеха на броски атаки и проверки навыков." },
-    { "name": "Отключение (Disabled)", "description": "Для техники. Недееспособен, не двиг./действ. (аналог Оглушения)." },
-    { "name": "Ошеломление (Dazed)", "description": "Может исп. либо Действие, либо Бонусное действие (не оба). Не может исп. Реакции." },
-    { "name": "Паралич (Paralyzed)", "description": "Недееспособен (не двиг./действ.). Провал спасбр. Сил/Лов. Атаки по нему с преим. Атака вблизи - крит." },
-    { "name": "Подавление (Suppressed)", "description": "Помеха на атаки и проверки Внимательности." },
-    { "name": "Схвачен (Grappled)", "description": "Скор = 0. Заканчивается, если источник недееспособен или цель вырвалась." },
-    { "name": "Страх (Frightened)", "description": "Помеха на атаки/проверки, пока виден источник. Не может двиг. к источнику." },
-    { "name": "Шок (Shocked)", "description": "Не может использовать Реакции." },
-    { "name": "ПУ: Паника", "description": "Помеха на атаки/проверки, должен бежать от опасности (1 мин)." },
-    { "name": "ПУ: Ярость", "description": "Преим. на атаки ближ. боя (Сил), -2 AC. Атакует ближайшее существо (1 мин)." },
-    { "name": "ПУ: Апатия", "description": "Помеха проверки/спасбр, скор/2, нет Бонусн.д./Реакций (1 мин)." },
-    { "name": "ПУ: Паранойя", "description": "Помеха соц. проверки. Считает всех подозрительными (10 мин)." },
-    { "name": "ПУ: Слабоумие", "description": "Действует иррационально по идее Мастера. Помеха на др. действия (10 мин)." },
-    { "name": "ПУ: Срыв", "description": "Оглушение (1 раунд), затем Ошеломление (1 мин)." },
-    { "name": "ПУ: Адреналин", "description": "Доп. Действие или Бонусн. действие в след. ход." },
-    { "name": "ПУ: Вдохновение", "description": "Преим. на атаки ИЛИ спасбр. (на выбор) до конца след. хода." },
-    { "name": "ПУ: Спокойствие", "description": "+2 AC, Преим. на спасбр. Самообл. до конца след. хода." },
-    { "name": "ПУ: Прозрение", "description": "Преим. на след. проверку Вним./Логики/Прониц." },
-    { "name": "ПУ: Эмпатия", "description": "Преим. на след. проверку Мед./неагрессив. Внуш./Прониц." },
-    { "name": "ПУ: Воля", "description": "Автоуспех след. спасбр. от Страха/Внуш. + 1к6 временных ПЗ." },
+    # Состояния без прямого влияния на броски (roll_modifier_type = None)
+    { "name": "При смерти (Unconscious)", "description": "Недееспособен, не может двигаться/говорить, роняет предметы. Атаки по нему с преим., вблизи - крит. Провал спасбр. Сил/Лов. Восстанавливается при лечении >0 ПЗ или стабилизации.", "roll_modifier_type": None, "roll_modifier_targets": None },
+    { "name": "Горение (Burning)", "description": "Урон огнем (1к4/1к6) в начале хода. Действие на тушение (СЛ Лов 10).", "roll_modifier_type": None, "roll_modifier_targets": None },
+    { "name": "Глухота (Deafened)", "description": "Не может слышать, провал проверок на слух.", "roll_modifier_type": "disadvantage", "roll_modifier_targets": {"skill_checks": ["attention"]} }, # Пример: Помеха на проверки Внимания (слух)
+    { "name": "Дружественный (Charmed/Friendly)", "description": "Считает источник другом, не атакует его. Преим. на соц. проверки у источника. Может закончиться при вреде.", "roll_modifier_type": None, "roll_modifier_targets": None }, # Преимущество у источника, а не у цели
+    { "name": "Замедление (Slowed)", "description": "Скорость / 2 (или -X). Не может исп. Реакции перемещения.", "roll_modifier_type": None, "roll_modifier_targets": None }, # Влияет на скорость, не на броски
+    { "name": "Застигнут врасплох (Surprised)", "description": "Не может двигаться/действовать/реагировать в 1й ход боя.", "roll_modifier_type": None, "roll_modifier_targets": None }, # Ограничивает действия
+    { "name": "Истощение (Exhaustion)", "description": "Уровни 1-6: 1:Помеха проверки; 2:Скор/2; 3:Помеха атаки/спасбр; 4:ПЗmax/2; 5:Скор=0; 6:Смерть. -1 за Длит. отдых.", "roll_modifier_type": None, "roll_modifier_targets": None }, # Сложная логика, лучше обрабатывать отдельно, а не через модификатор
+    { "name": "Кровотечение (Bleeding)", "description": "Урон (1к4) в начале хода. Требует Действия и Медицины/Лечения для остановки.", "roll_modifier_type": None, "roll_modifier_targets": None },
+    { "name": "Лежа (Prone)", "description": "Скор. ползком / 2. Помеха на атаки. Атаки по нему: ближ. с преим., дальн. с помехой. Встать = полскорости.", "roll_modifier_type": "disadvantage", "roll_modifier_targets": {"attack_rolls": True} }, # Помеха на свои атаки
+    { "name": "Невидимость (Invisible)", "description": "Не видно без спец. средств. Атаки по существу с помехой, его атаки с преим.", "roll_modifier_type": "advantage", "roll_modifier_targets": {"attack_rolls": True} }, # Преимущество на свои атаки
+    { "name": "Немота (Silenced)", "description": "Не может говорить. Техно: не может исп. голосовые/звуковые комп.", "roll_modifier_type": None, "roll_modifier_targets": None },
+    { "name": "Обезоружен (Disarmed)", "description": "Роняет 1 предмет (оружие).", "roll_modifier_type": None, "roll_modifier_targets": None },
+    { "name": "Оглушение (Stunned)", "description": "Недееспособен, не двиг., говорит запинаясь. Провал спасбр. Сил/Лов. Атаки по нему с преим.", "roll_modifier_type": None, "roll_modifier_targets": None }, # Провал спасбросков - отдельная логика
+    { "name": "Ослепление (Blinded)", "description": "Не видит, провал проверок на зрение. Атаки по нему с преим., его атаки с помехой.", "roll_modifier_type": "disadvantage", "roll_modifier_targets": {"attack_rolls": True, "skill_checks": ["attention"]} }, # Помеха на атаки и проверки Внимания (зрение)
+    { "name": "Отравление (Poisoned)", "description": "Помеха на броски атаки и проверки навыков.", "roll_modifier_type": "disadvantage", "roll_modifier_targets": {"attack_rolls": True, "skill_checks": "all"} },
+    { "name": "Отключение (Disabled)", "description": "Для техники. Недееспособен, не двиг./действ. (аналог Оглушения).", "roll_modifier_type": None, "roll_modifier_targets": None },
+    { "name": "Ошеломление (Dazed)", "description": "Может исп. либо Действие, либо Бонусное действие (не оба). Не может исп. Реакции.", "roll_modifier_type": None, "roll_modifier_targets": None }, # Ограничивает действия
+    { "name": "Паралич (Paralyzed)", "description": "Недееспособен (не двиг./действ.). Провал спасбр. Сил/Лов. Атаки по нему с преим. Атака вблизи - крит.", "roll_modifier_type": None, "roll_modifier_targets": None }, # Провал спасбросков - отдельная логика
+    { "name": "Подавление (Suppressed)", "description": "Помеха на атаки и проверки Внимательности.", "roll_modifier_type": "disadvantage", "roll_modifier_targets": {"attack_rolls": True, "skill_checks": ["attention"]} },
+    { "name": "Схвачен (Grappled)", "description": "Скор = 0. Заканчивается, если источник недееспособен или цель вырвалась.", "roll_modifier_type": None, "roll_modifier_targets": None }, # Влияет на скорость
+    { "name": "Страх (Frightened)", "description": "Помеха на атаки/проверки, пока виден источник. Не может двиг. к источнику.", "roll_modifier_type": "disadvantage", "roll_modifier_targets": {"attack_rolls": True, "skill_checks": "all"} }, # Помеха на все проверки, пока виден источник
+    { "name": "Шок (Shocked)", "description": "Не может использовать Реакции.", "roll_modifier_type": None, "roll_modifier_targets": None }, # Ограничивает реакции
+
+    # Эмоции ПУ с модификаторами
+    { "name": "ПУ: Паника", "description": "Помеха на атаки/проверки, должен бежать от опасности (1 мин).", "roll_modifier_type": "disadvantage", "roll_modifier_targets": {"attack_rolls": True, "skill_checks": "all"} },
+    { "name": "ПУ: Ярость", "description": "Преим. на атаки ближ. боя (Сил), -2 AC. Атакует ближайшее существо (1 мин).", "roll_modifier_type": "advantage", "roll_modifier_targets": {"attack_rolls.melee.strength": True} }, # Пример специфичной цели
+    { "name": "ПУ: Апатия", "description": "Помеха проверки/спасбр, скор/2, нет Бонусн.д./Реакций (1 мин).", "roll_modifier_type": "disadvantage", "roll_modifier_targets": {"skill_checks": "all", "saving_throws": "all"} },
+    { "name": "ПУ: Паранойя", "description": "Помеха соц. проверки. Считает всех подозрительными (10 мин).", "roll_modifier_type": "disadvantage", "roll_modifier_targets": {"skill_checks": ["suggestion", "insight", "authority"]} }, # Пример целей соц. навыков
+    { "name": "ПУ: Слабоумие", "description": "Действует иррационально по идее Мастера. Помеха на др. действия (10 мин).", "roll_modifier_type": "disadvantage", "roll_modifier_targets": {"skill_checks": "all", "attack_rolls": True} }, # Помеха на многое
+    { "name": "ПУ: Срыв", "description": "Оглушение (1 раунд), затем Ошеломление (1 мин).", "roll_modifier_type": None, "roll_modifier_targets": None }, # Эффекты Оглушения/Ошеломления обрабатываются отдельно
+
+    { "name": "ПУ: Адреналин", "description": "Доп. Действие или Бонусн. действие в след. ход.", "roll_modifier_type": None, "roll_modifier_targets": None }, # Дает действие, не влияет на броски
+    { "name": "ПУ: Вдохновение", "description": "Преим. на атаки ИЛИ спасбр. (на выбор) до конца след. хода.", "roll_modifier_type": "advantage", "roll_modifier_targets": {"attack_rolls": True, "saving_throws": True} }, # Дает преимущество на оба типа, игрок выбирает при броске? Или нужен более сложный механизм? Пока так.
+    { "name": "ПУ: Спокойствие", "description": "+2 AC, Преим. на спасбр. Самообл. до конца след. хода.", "roll_modifier_type": "advantage", "roll_modifier_targets": {"saving_throws": ["self_control"]} },
+    { "name": "ПУ: Прозрение", "description": "Преим. на след. проверку Вним./Логики/Прониц.", "roll_modifier_type": "advantage", "roll_modifier_targets": {"skill_checks": ["attention", "logic", "insight"]} }, # Преимущество на конкретные проверки
+    { "name": "ПУ: Эмпатия", "description": "Преим. на след. проверку Мед./неагрессив. Внуш./Прониц.", "roll_modifier_type": "advantage", "roll_modifier_targets": {"skill_checks": ["medicine", "suggestion", "insight"]} }, # Преимущество на конкретные проверки
+    { "name": "ПУ: Воля", "description": "Автоуспех след. спасбр. от Страха/Внуш. + 1к6 временных ПЗ.", "roll_modifier_type": None, "roll_modifier_targets": None }, # Автоуспех - не модификатор броска
 ]
 # -------------------------------------------------------
 
@@ -354,41 +847,35 @@ def seed_data():
         ability_map = {} # Словарь для хранения созданных объектов Ability по имени
         logger.info("Seeding Abilities...")
         for data in abilities_data:
+            # ... (логика добавления способностей остается прежней, но с новыми данными) ...
             names_to_add = split_names(data["name"])
             for name in names_to_add:
                 data_copy = data.copy()
                 data_copy["name"] = name
                 exists = db.query(Ability.id).filter(Ability.name == name).first()
                 if not exists:
-                    # Проверка JSON требований
                     reqs = data_copy.get("skill_requirements")
                     if isinstance(reqs, str):
-                        try:
-                            json.loads(reqs)
+                        try: json.loads(reqs)
                         except json.JSONDecodeError:
                             logger.warning(f"Invalid JSON in skill_reqs for '{name}'")
                             data_copy["skill_requirements"] = None
-                    # Очистка полей и установка дефолтов
                     ability_fields_cleaned = {k: v for k, v in data_copy.items() if hasattr(Ability, k)}
                     ability_fields_cleaned.setdefault('is_weapon_attack', False)
                     ability_fields_cleaned.setdefault('concentration', False)
                     ability_fields_cleaned.setdefault('action_type', 'Действие')
-                    # Создание объекта
                     try:
                         ability = Ability(**ability_fields_cleaned)
                         db.add(ability)
-                        db.flush() # Получаем ID
-                        ability_map[name] = ability # Сохраняем объект в карту
-                        # logger.info(f"  Added Ability template: {name} (ID: {ability.id})")
+                        db.flush()
+                        ability_map[name] = ability
                     except Exception as e:
                         logger.error(f"  ERROR creating Ability '{name}': {e}", exc_info=True)
                         logger.error(f"    Data: {ability_fields_cleaned}")
                 else:
-                    # Добавляем существующую способность в карту, если её там еще нет
                     if name not in ability_map:
                         existing_ability = db.query(Ability).filter(Ability.name == name).first()
-                        if existing_ability:
-                            ability_map[name] = existing_ability
+                        if existing_ability: ability_map[name] = existing_ability
         logger.info(f"Total abilities prepared in map: {len(ability_map)}")
 
         logger.info("Seeding Status Effects...")
@@ -398,12 +885,14 @@ def seed_data():
                  data_copy = data.copy()
                  data_copy["name"] = name
                  if not db.query(StatusEffect.id).filter(StatusEffect.name == name).first():
-                     status_fields_cleaned = {k: v for k, v in data_copy.items() if hasattr(StatusEffect, k)}
-                     try:
-                         db.add(StatusEffect(**status_fields_cleaned))
-                         # logger.info(f"  Added Status Effect: {name}")
-                     except Exception as e:
-                         logger.error(f"  ERROR creating StatusEffect '{name}': {e}")
+                    status_fields_cleaned = {k: v for k, v in data_copy.items() if hasattr(StatusEffect, k)}
+                    status_fields_cleaned.setdefault('roll_modifier_type', None)
+                    status_fields_cleaned.setdefault('roll_modifier_targets', None)
+                    try:
+                        db.add(StatusEffect(**status_fields_cleaned))
+                        # logger.info(f"  Added Status Effect: {name}")
+                    except Exception as e:
+                        logger.error(f"  ERROR creating StatusEffect '{name}': {e}")
 
         # --- Коммит способностей и эффектов ПЕРЕД предметами ---
         db.commit()
