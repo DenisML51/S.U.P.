@@ -1,4 +1,4 @@
-# ✨ Осознание: Приложение-помощник ✨
+# ✨ S.U.P.: Система Управления Персонажем ✨
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="Python Version">
@@ -16,7 +16,7 @@
 
 <p align="center">
   <em>Интерфейс приложения в действии:</em><br><br>
-  <img src="assets/img.png" alt="Скриншот Интерфейса Приложения Осознание" width="80%">
+  <img src="assets/img.png" alt="Скриншот Интерфейса Приложения S.U.P." width="80%">
 </p>
 
 ---
