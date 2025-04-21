@@ -204,7 +204,7 @@ def create_character(db: Session, user_id: int, character_in: CharacterCreate) -
     # Рассчитываем начальные ПЗ, ПУ на основе характеристик и навыков
     # (Используем ваши функции из utils, предполагая, что они корректны)
     endurance_mod = _get_skill_modifier(skills_data.get('skill_endurance', 1))
-    self_control_mod = _get_skill_modifier(skills_data.get('skill_self_control', 1))
+    self_control_mod = skills_data.get('skill_self_control', 1)
     initial_max_hp = _calculate_initial_hp(endurance_mod) # Функция из utils
     initial_base_pu = _calculate_base_pu(self_control_mod) # Функция из utils
 
@@ -374,8 +374,8 @@ def level_up_character(db: Session, character_id: int, user_id: int, level_up_da
     db_char.stamina_points += 1
 
     # Пересчитываем базовую ПУ (если Самообладание изменилось)
-    new_self_control_mod = _get_skill_modifier(db_char.skill_self_control)
-    db_char.base_pu = _calculate_base_pu(new_self_control_mod)
+    new_self_control_mod = db_char.skill_self_control
+    db_char.base_pu = min(new_self_control_mod, 8)
 
     # Обновляем доступные способности веток (после изменения уровня ветки)
     # Делаем это перед commit, чтобы изменения были атомарны
