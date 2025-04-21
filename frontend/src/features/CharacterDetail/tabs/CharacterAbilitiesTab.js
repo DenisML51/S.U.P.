@@ -106,7 +106,18 @@ const styles = {
     subTabButtons: { display: 'flex', gap: '8px', order: 1 }, // Кнопки слева
     subTabButton: { padding: '6px 12px', background: 'transparent', color: theme.colors.textSecondary, border: `1px solid ${theme.colors.surface}66`, borderRadius: '6px', cursor: 'pointer', transition: theme.transitions.default, fontSize: '0.85rem', ':hover': { background: `${theme.colors.secondary}33`, color: theme.colors.secondary, borderColor: `${theme.colors.secondary}66` } },
     subTabButtonActive: { padding: '6px 12px', background: theme.colors.secondary, color: theme.colors.background, border: `1px solid ${theme.colors.secondary}`, borderRadius: '6px', cursor: 'pointer', transition: theme.transitions.default, fontSize: '0.85rem', fontWeight: 'bold' },
-    abilitiesGrid: { gap: '15px', marginTop: '10px' },
+    abilitiesGrid: {
+        marginTop: '10px',
+        // Задаем максимальную высоту. Подбери значение под свой интерфейс!
+        // Можно использовать vh (проценты от высоты окна) или фиксированные px.
+        maxHeight: '850px', // Пример: высота окна минус ~300px на шапку, табы и отступы
+        overflowY: 'auto',   // Включаем вертикальную прокрутку при необходимости
+        overflowX: 'hidden', // Выключаем горизонтальную прокрутку
+        paddingRight: '10px', // Отступ справа, чтобы контент не лез под скроллбар
+        paddingLeft: '5px',   // Небольшой отступ слева для выравнивания
+        // Дополнительно можно добавить небольшой отступ снизу
+        paddingBottom: '10px',
+    },
     placeholderText: { color: theme.colors.textSecondary, fontStyle: 'italic', textAlign: 'center', marginTop: '30px' },
     apiActionErrorStyle: { background: `${theme.colors.error}22`, color: theme.colors.error, padding: '8px 12px', borderRadius: '6px', border: `1px solid ${theme.colors.error}55`, textAlign: 'center', marginBottom: '15px', fontSize: '0.9rem' },
     // Стили для AbilityCardDetailed находятся в его файле
