@@ -1,14 +1,22 @@
 // src/features/CharacterDetail/sections/CharacterStatusSection.js
 import React, { useState, useMemo } from 'react';
 import StatDisplay from '../../../components/UI/StatDisplay';
-import { theme } from '../../../styles/theme';
+import { theme } from '../../../styles/theme'; // Предполагается, что тема импортируется
 import * as apiService from '../../../api/apiService';
 import AddStatusModal from '../modals/AddStatusModal';
 import StatusEffectDetailModal from '../modals/StatusEffectDetailModal';
 import SelectMedkitModal from '../modals/SelectMedkitModal';
 import ShortRestModal from '../modals/ShortRestModal';
+// --- НОВЫЙ ИМПОРТ ---
+// Убедись, что путь к компоненту фона правильный
+import AnimatedFluidBackground from '../components/AnimatedFluidBackground';
 
 // --- Вспомогательные функции для ПУ ---
+/**
+ * Определяет цвет для шкалы ПУ в зависимости от текущего значения.
+ * @param {number} currentPu - Текущее значение ПУ (0-10).
+ * @returns {string} - Цвет в HEX или CSS формате.
+ */
 const getPuBarColor = (currentPu) => {
     if (currentPu <= 1) return theme.colors.error || '#CF6679'; // Красный при 0-1
     if (currentPu <= 3) return theme.colors.warning || '#FFA726'; // Оранжевый при 2-3
@@ -18,64 +26,79 @@ const getPuBarColor = (currentPu) => {
 
 // --- Основной Компонент ---
 const CharacterStatusSection = ({
-    character,
-    handleApiAction,
-    onLevelUpClick,
-    refreshCharacterData,
+    character, // Данные персонажа
+    handleApiAction, // Функция для обработки вызовов API с уведомлениями
+    onLevelUpClick, // Функция для открытия модалки повышения уровня
+    refreshCharacterData, // Функция для обновления данных персонажа после действия
 }) => {
-    // --- Состояния ---
-    const [xpToAdd, setXpToAdd] = useState('');
-    const [xpToRemove, setXpToRemove] = useState('');
-    const [showAddStatusModal, setShowAddStatusModal] = useState(false);
-    const [showStatusEffectModal, setShowStatusEffectModal] = useState(false);
-    const [selectedStatusEffectForModal, setSelectedStatusEffectForModal] = useState(null);
-    const [showSelectMedkitModal, setShowSelectMedkitModal] = useState(false);
-    const [damageInput, setDamageInput] = useState('');
-    const [showShortRestModal, setShowShortRestModal] = useState(false);
+    // --- Состояния Компонента ---
+    const [xpToAdd, setXpToAdd] = useState(''); // Для инпута добавления XP
+    const [xpToRemove, setXpToRemove] = useState(''); // Для инпута вычитания XP
+    const [showAddStatusModal, setShowAddStatusModal] = useState(false); // Показать/скрыть модалку добавления статуса
+    const [showStatusEffectModal, setShowStatusEffectModal] = useState(false); // Показать/скрыть модалку деталей статуса
+    const [selectedStatusEffectForModal, setSelectedStatusEffectForModal] = useState(null); // Выбранный статус для модалки
+    const [showSelectMedkitModal, setShowSelectMedkitModal] = useState(false); // Показать/скрыть модалку выбора аптечки
+    const [damageInput, setDamageInput] = useState(''); // Для инпута урона
+    const [showShortRestModal, setShowShortRestModal] = useState(false); // Показать/скрыть модалку короткого отдыха
 
-    // --- Мемоизированные вычисления ---
+    // --- Мемоизированные вычисления для оптимизации ---
+    // Доступные аптечки в инвентаре
     const availableMedkits = useMemo(() => {
         if (!character?.inventory || !Array.isArray(character.inventory)) { return []; }
         return character.inventory.filter(invItem => invItem.item?.category === 'Медицина');
     }, [character?.inventory]);
 
+    // Максимальное количество Очков Стойкости (ОС)
     const maxStaminaPoints = useMemo(() => {
          if (!character) return 1;
+         // Макс ОС = Уровень персонажа (минимум 1)
          return Math.max(1, (character.level ?? 1));
     }, [character?.level]);
 
+    // Процент текущего здоровья
     const hpPercentage = useMemo(() => {
         if (!character || !character.max_hp || character.max_hp <= 0) return 0;
         return Math.max(0, Math.min(100, (character.current_hp / character.max_hp) * 100));
     }, [character?.current_hp, character?.max_hp]);
 
+    // Прогресс опыта до следующего уровня
     const xpProgress = useMemo(() => {
         if (!character || !character.xp_needed_for_next_level || character.xp_needed_for_next_level <= 0) {
+             // Если порог не задан (макс уровень?), показываем 100%
              return (character?.level ?? 0) > 0 ? 100 : 0;
         }
         return Math.min(100, Math.floor((character.experience_points / character.xp_needed_for_next_level) * 100));
     }, [character?.experience_points, character?.xp_needed_for_next_level, character?.level]);
 
-    // Расчеты для Шкалы ПУ
+    // Расчеты для Психологической Устойчивости (ПУ)
     const currentPu = character?.current_pu ?? 0;
     const basePu = character?.base_pu ?? 1;
     const puPercentage = Math.max(0, Math.min(100, (currentPu / 10) * 100)); // Шкала 0-10
-    const puBarColor = useMemo(() => getPuBarColor(currentPu), [currentPu]);
-    const basePuPercentage = Math.max(0, Math.min(100, (basePu / 10) * 100));
+    const puBarColor = useMemo(() => getPuBarColor(currentPu), [currentPu]); // Цвет шкалы ПУ
+    const basePuPercentage = Math.max(0, Math.min(100, (basePu / 10) * 100)); // Позиция метки базового ПУ
 
-    // Ранний выход
+    // Определение активного ПУ-эффекта (для двухфазного отображения)
+    const activePuEffect = useMemo(() => {
+        if (!character?.active_status_effects) return null;
+        // Ищем первый эффект, имя которого начинается с "ПУ:"
+        return character.active_status_effects.find(effect => effect.name?.startsWith('ПУ:'));
+    }, [character?.active_status_effects]);
+
+    // Ранний выход, если нет данных персонажа
     if (!character) return null;
 
-    // Определяем состояния для UI
+    // Определяем состояния для UI (доступность кнопок и т.д.)
     const canLevelUp = character.experience_points >= (character.xp_needed_for_next_level || Infinity);
     const hasMedkit = availableMedkits.length > 0;
     const isHpFull = character.current_hp >= character.max_hp;
     const isHpZero = character.current_hp <= 0;
     const hasStamina = character.stamina_points > 0;
-    const canFailPu = currentPu > 0;
-    const canSucceedPu = currentPu < 10;
+    const canFailPu = currentPu > 0; // Можно провалить проверку, если ПУ > 0
+    const canSucceedPu = currentPu < 10; // Можно успешно пройти проверку, если ПУ < 10
 
     // --- Обработчики Действий ---
+
+    // Добавление опыта
     const handleAddExperience = () => {
         const amount = parseInt(xpToAdd, 10);
         if (!isNaN(amount) && amount > 0) {
@@ -85,6 +108,7 @@ const CharacterStatusSection = ({
         } else { alert("Введите положительное число XP."); }
     };
 
+    // Вычитание опыта
     const handleRemoveExperience = () => {
         const amount = parseInt(xpToRemove, 10);
         if (!isNaN(amount) && amount > 0) {
@@ -94,43 +118,52 @@ const CharacterStatusSection = ({
         } else { alert("Введите положительное число XP для вычитания."); }
     };
 
+    // Изменение ПУ (вручную или через проверку)
     const handlePuChange = (delta, result = null) => {
         const currentPuValue = character.current_pu ?? 0;
-        const targetPu = currentPuValue + delta;
+        const targetPu = currentPuValue + delta; // Не ограничиваем здесь, бэкэнд обработает 0 и 10
         handleApiAction(
-            apiService.updateCharacterStats(character.id, { current_pu: targetPu }, result),
+            apiService.updateCharacterStats(character.id, { current_pu: targetPu }, result), // Передаем результат (success/failure)
             `ПУ изменено`,
             `Ошибка изменения ПУ`
         );
     };
 
+    // Снятие статус-эффекта
     const handleRemoveStatus = (effectId) => {
-        if (window.confirm(`Снять состояние "${character.active_status_effects.find(e=>e.id===effectId)?.name || 'это'}"?`)) {
+        const effectToRemove = character.active_status_effects.find(e => e.id === effectId);
+        // Используем window.confirm для подтверждения
+        if (window.confirm(`Снять состояние "${effectToRemove?.name || 'это'}"?`)) {
             handleApiAction(
                 apiService.removeStatusEffect(character.id, effectId),
-                `Статус снят`,
+                `Статус "${effectToRemove?.name || ''}" снят`,
                 `Ошибка снятия состояния`
             );
         }
     };
 
+    // Открытие модалки с деталями статус-эффекта
     const handleStatusEffectClick = (effect) => {
         setSelectedStatusEffectForModal(effect);
         setShowStatusEffectModal(true);
     };
 
+    // Использование аптечки
     const handleHealMedkitClick = () => {
         if (!hasMedkit || isHpFull) return;
+        // Если аптечка одна, используем сразу
         if (availableMedkits.length === 1) {
             handleApiAction(
                 apiService.activateAction(character.id, { activation_type: 'item', target_id: availableMedkits[0].id }),
                 "Аптечка использована", "Ошибка лечения аптечкой"
             );
         } else {
+            // Если аптечек несколько, открываем модалку выбора
             setShowSelectMedkitModal(true);
         }
     };
 
+    // Обработка выбора аптечки из модалки
     const handleMedkitSelected = (selectedInventoryItemId) => {
         setShowSelectMedkitModal(false);
         handleApiAction(
@@ -139,6 +172,7 @@ const CharacterStatusSection = ({
         );
     };
 
+    // Применение урона
     const handleApplyDamage = () => {
         const damageAmount = parseInt(damageInput, 10);
         if (!isNaN(damageAmount) && damageAmount > 0 && !isHpZero) {
@@ -152,16 +186,19 @@ const CharacterStatusSection = ({
         } else { alert("Введите положительное число урона."); }
     };
 
+    // Открытие модалки короткого отдыха
     const handleOpenShortRestModal = () => {
         if (hasStamina) setShowShortRestModal(true);
         else alert("Нет Очков Стойкости.");
     };
 
+    // Выполнение короткого отдыха
     const handlePerformShortRest = (diceCount) => {
         setShowShortRestModal(false);
         handleApiAction(apiService.performShortRest(character.id, diceCount), `Короткий отдых (${diceCount} ОС) завершен`, "Ошибка короткого отдыха");
     };
 
+    // Выполнение длительного отдыха
     const handlePerformLongRest = () => {
         if (window.confirm("Начать длительный отдых? Это восстановит ПЗ, ОС, ПУ и снизит Истощение.")) {
             handleApiAction(apiService.performLongRest(character.id), "Длительный отдых завершен", "Ошибка длительного отдыха");
@@ -186,16 +223,16 @@ const CharacterStatusSection = ({
 
             {/* --- Секция Статус --- */}
             <div style={styles.section}>
-                <h2 style={styles.sectionTitle}>Статус</h2>
-                <StatDisplay label="Уровень" value={character.level} />
-                <StatDisplay label="Опыт" value={`${character.experience_points} / ${character.xp_needed_for_next_level ?? 'МАКС'}`} />
-                <div style={styles.xpBarContainer} title={`${xpProgress}% до следующего уровня`}> <div style={{ ...styles.xpBarProgress, width: `${xpProgress}%` }}></div> </div>
-                <div style={styles.xpControlContainer}>
-                    <div style={styles.xpActionGroup}> <input type="number" min="1" value={xpToAdd} onChange={(e) => setXpToAdd(e.target.value)} placeholder="Добавить XP" style={{...styles.xpInput, ...styles.xpInputAdd}} onKeyPress={(e) => e.key === 'Enter' && handleAddExperience()} /> <button onClick={handleAddExperience} style={{...styles.xpButton, ...styles.xpButtonAdd}} title="Добавить опыт">+</button> </div>
-                    <div style={styles.xpActionGroup}> <input type="number" min="1" value={xpToRemove} onChange={(e) => setXpToRemove(e.target.value)} placeholder="Отнять XP" style={{...styles.xpInput, ...styles.xpInputRemove}} onKeyPress={(e) => e.key === 'Enter' && !isRemoveXpDisabled && handleRemoveExperience()} disabled={character.experience_points === 0}/> <button onClick={handleRemoveExperience} style={{...styles.xpButton, ...styles.xpButtonRemove}} title="Отнять опыт" disabled={isRemoveXpDisabled}>-</button> </div>
-                </div>
-                {canLevelUp && ( <button onClick={onLevelUpClick} style={styles.levelUpButton}>Повысить Уровень!</button> )}
-                <div style={styles.coreStatsGrid}>
+                 <h2 style={styles.sectionTitle}>Статус</h2>
+                 <StatDisplay label="Уровень" value={character.level} />
+                 <StatDisplay label="Опыт" value={`${character.experience_points} / ${character.xp_needed_for_next_level ?? 'МАКС'}`} />
+                 <div style={styles.xpBarContainer} title={`${xpProgress}% до следующего уровня`}> <div style={{ ...styles.xpBarProgress, width: `${xpProgress}%` }}></div> </div>
+                 <div style={styles.xpControlContainer}>
+                     <div style={styles.xpActionGroup}> <input type="number" min="1" value={xpToAdd} onChange={(e) => setXpToAdd(e.target.value)} placeholder="Добавить XP" style={{...styles.xpInput, ...styles.xpInputAdd}} onKeyPress={(e) => e.key === 'Enter' && handleAddExperience()} /> <button onClick={handleAddExperience} style={{...styles.xpButton, ...styles.xpButtonAdd}} title="Добавить опыт">+</button> </div>
+                     <div style={styles.xpActionGroup}> <input type="number" min="1" value={xpToRemove} onChange={(e) => setXpToRemove(e.target.value)} placeholder="Отнять XP" style={{...styles.xpInput, ...styles.xpInputRemove}} onKeyPress={(e) => e.key === 'Enter' && !isRemoveXpDisabled && handleRemoveExperience()} disabled={character.experience_points === 0}/> <button onClick={handleRemoveExperience} style={{...styles.xpButton, ...styles.xpButtonRemove}} title="Отнять опыт" disabled={isRemoveXpDisabled}>-</button> </div>
+                 </div>
+                 {canLevelUp && ( <button onClick={onLevelUpClick} style={styles.levelUpButton}>Повысить Уровень!</button> )}
+                 <div style={styles.coreStatsGrid}>
                     <div style={styles.hpBarOuterContainer}>
                         <span style={styles.statLabelHp}>ПЗ:</span>
                         <div style={styles.hpBarContainer} title={`${character.current_hp} / ${character.max_hp} (${hpPercentage.toFixed(0)}%)`}>
@@ -209,7 +246,7 @@ const CharacterStatusSection = ({
                     <StatDisplay label="Иниц." value={character.initiative_bonus >= 0 ? `+${character.initiative_bonus}` : character.initiative_bonus} />
                     <StatDisplay label="Скор." value={`${character.speed} м.`} />
                     <StatDisplay label="Пасс.Вним." value={character.passive_attention} />
-                </div>
+                 </div>
                  <div style={styles.damageInputContainer}>
                      <input type="number" min="1" value={damageInput} onChange={(e) => setDamageInput(e.target.value)} placeholder="Полученный урон" style={styles.damageInput} onKeyPress={(e) => e.key === 'Enter' && !isApplyDamageDisabled && handleApplyDamage()} disabled={isHpZero} />
                      <button onClick={handleApplyDamage} style={{...styles.applyDamageButton, ...(isApplyDamageDisabled ? styles.actionButtonDisabled : {})}} disabled={isApplyDamageDisabled} title={isHpZero ? "Персонаж уже при смерти" : "Применить урон"}> Применить урон </button>
@@ -221,39 +258,95 @@ const CharacterStatusSection = ({
                  </div>
             </div>
 
-            {/* === Секция Псих. Устойчивость (Редизайн со Шкалой и 2+2 Кнопками) === */}
-            <div style={{ ...styles.section, ...styles.puSection, borderTopColor: puBarColor }}>
-                 <h3 style={{ ...styles.sectionTitle}}>
-                    Псих. Устойчивость
-                 </h3>
-                 <div style={styles.puValueDisplay}>
-                     <span style={styles.puCurrentValueLabel}>Текущее:</span>
-                     <div style={styles.puManualAdjust}>
-                         <button onClick={() => handlePuChange(-1)} style={styles.puManualButton} disabled={currentPu <= 0} title="Корректировка -1 ПУ">-</button>
-                         <span style={styles.puCurrentValueNumber}>{currentPu}</span>
-                         <button onClick={() => handlePuChange(1)} style={styles.puManualButton} disabled={currentPu >= 10} title="Корректировка +1 ПУ">+</button>
-                     </div>
-                     <span style={styles.puBaseValueLabel}>Базовое: {basePu}</span>
-                 </div>
-                 <div style={styles.puBarContainer} title={`Текущее ПУ: ${currentPu}, Базовое: ${basePu}`}>
-                    <div style={{ ...styles.puBaseMark, left: `${basePuPercentage}%` }}></div>
-                    <div style={{ ...styles.puBarFill, width: `${puPercentage}%`, backgroundColor: puBarColor }}></div>
-                 </div>
-                <div style={styles.puControlContainer}>
-                    <label style={styles.puLabel}>Результат Проверки:</label>
-                    <div style={styles.puButtons}>
-                        <button onClick={() => handlePuChange(-1, 'failure')} style={{ ...styles.puButton, ...styles.puButtonFailure }} disabled={!canFailPu} title={canFailPu ? "Провал проверки (-1 ПУ, возможна НЭ)" : "ПУ уже на нуле"}> Провал </button>
-                        <button onClick={() => handlePuChange(1, 'success')} style={{ ...styles.puButton, ...styles.puButtonSuccess }} disabled={!canSucceedPu} title={canSucceedPu ? "Успех проверки (+1 ПУ, возможна ПЭ)" : "ПУ уже на максимуме"}> Успех </button>
+            {/* === Секция Псих. Устойчивость (v5 - с Компонентом Фона) === */}
+            {/* Используем базовый стиль секции, но переопределяем фон и рамку в Фазе 2 */}
+            <div style={{
+                ...styles.section, // Базовые стили (padding, margin, borderRadius...)
+                // Условные стили для ФАЗЫ 2 (переопределяем фон и рамку)
+                ...(activePuEffect ? {
+                    position: 'relative', // Для позиционирования фона и контента
+                    overflow: 'hidden' // Обрезаем фон
+                } : {
+                })
+             }}>
+                {/* Рендерим компонент фона ТОЛЬКО в Фазе 2 */}
+                {activePuEffect && <AnimatedFluidBackground />}
+
+                <h3 style={styles.sectionTitlePu}>
+                   Псих. Устойчивость
+                </h3>
+
+                {/* --- Фаза 2: Активный Эффект ПУ --- */}
+                {activePuEffect ? (
+                    // Добавляем position: relative и zIndex, чтобы контент был НАД фоном
+                    <div style={{...styles.puPhase2Container, position: 'relative', zIndex: 1}}>
+                        <div style={styles.activePuEffectWrapper}>
+                             <div
+                                style={styles.activePuEffectName}
+                                onClick={() => handleStatusEffectClick(activePuEffect)}
+                                title={activePuEffect.description || "Нажмите для деталей"}
+                            >
+                                {activePuEffect.name}
+                            </div>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemoveStatus(activePuEffect.id);
+                                }}
+                                style={styles.removePuEffectButton}
+                                title="Снять состояние"
+                            >
+                                ×
+                            </button>
+                        </div>
                     </div>
-                </div>
+                ) : (
+                /* --- Фаза 1: Обычное Состояние ПУ --- */
+                <>
+                     <div style={styles.puValueDisplay}>
+                        <span style={styles.puCurrentValueLabel}>Текущее:</span>
+                        <div style={styles.puManualAdjust}>
+                            <button onClick={() => handlePuChange(-1)} style={styles.puManualButton} disabled={currentPu <= 0} title="Корректировка -1 ПУ">-</button>
+                            <span style={styles.puCurrentValueNumber}>{currentPu}</span>
+                            <button onClick={() => handlePuChange(1)} style={styles.puManualButton} disabled={currentPu >= 10} title="Корректировка +1 ПУ">+</button>
+                        </div>
+                        <span style={styles.puBaseValueLabel}>Базовое: {basePu}</span>
+                    </div>
+                     <div style={styles.puBarContainer} title={`Текущее ПУ: ${currentPu}, Базовое: ${basePu}`}>
+                        <div style={{ ...styles.puBaseMark, left: `${basePuPercentage}%` }}></div>
+                        <div style={{ ...styles.puBarFill, width: `${puPercentage}%`, backgroundColor: puBarColor }}></div>
+                    </div>
+                     <div style={styles.puControlContainer}>
+                        <label style={styles.puLabel}>Результат Проверки:</label>
+                        <div style={styles.puButtons}>
+                            <button onClick={() => handlePuChange(-1, 'failure')} style={{ ...styles.puButton, ...styles.puButtonFailure }} disabled={!canFailPu} title={canFailPu ? "Провал проверки (-1 ПУ, возможна НЭ)" : "ПУ уже на нуле"}> Провал </button>
+                            <button onClick={() => handlePuChange(1, 'success')} style={{ ...styles.puButton, ...styles.puButtonSuccess }} disabled={!canSucceedPu} title={canSucceedPu ? "Успех проверки (+1 ПУ, возможна ПЭ)" : "ПУ уже на максимуме"}> Успех </button>
+                        </div>
+                    </div>
+                </>
+                )}
             </div>
 
             {/* --- Секция Активные Состояния --- */}
             <div style={styles.section}>
                  <div style={{ ...styles.tabHeader, marginBottom: '10px', paddingBottom: '5px' }}> <h2 style={{ ...styles.sectionTitle, borderBottom: 'none', marginBottom: 0, paddingBottom: 0 }}>Активные Состояния</h2> <button onClick={() => setShowAddStatusModal(true)} style={{ ...styles.addItemButton, padding: '4px 8px' }} title="Добавить состояние">+</button> </div>
                  {character.active_status_effects && character.active_status_effects.length > 0 ? (
-                     <div style={styles.statusTagContainer}> {character.active_status_effects.map(effect => ( <div key={effect.id} style={{ ...styles.statusTag, ...(effect.name.startsWith('ПУ:') ? styles.statusTagPu : {}) }} title={effect.description || "Нажмите для описания"}> <span onClick={() => handleStatusEffectClick(effect)} style={styles.statusTagName}> {effect.name} </span> <button onClick={() => handleRemoveStatus(effect.id)} style={styles.removeStatusButtonTag} title="Снять состояние">×</button> </div> ))} </div>
+                     <div style={styles.statusTagContainer}>
+                        {/* Фильтруем ПУ эффекты, чтобы не дублировать */}
+                        {character.active_status_effects.filter(effect => !effect.name?.startsWith('ПУ:')).map(effect => (
+                            <div key={effect.id} style={styles.statusTag} title={effect.description || "Нажмите для описания"}>
+                                <span onClick={() => handleStatusEffectClick(effect)} style={styles.statusTagName}> {effect.name} </span>
+                                <button onClick={() => handleRemoveStatus(effect.id)} style={styles.removeStatusButtonTag} title="Снять состояние">×</button>
+                            </div>
+                        ))}
+                     </div>
                  ) : ( <p style={styles.placeholderText}>Нет активных состояний.</p> )}
+                 {/* Сообщение, если есть только ПУ эффект */}
+                 {character.active_status_effects &&
+                  character.active_status_effects.length > 0 &&
+                  character.active_status_effects.every(effect => effect.name?.startsWith('ПУ:')) &&
+                  <p style={styles.placeholderText}>Нет других активных состояний.</p>
+                 }
             </div>
         </>
     );
@@ -270,40 +363,90 @@ const applyDamageButton = { padding: '10px 20px', borderRadius: '8px', border: `
 
 // Основной объект стилей
 const styles = {
-    section: { background: theme.effects.glass, backdropFilter: 'blur(10px)', borderRadius: '12px', padding: '20px', boxShadow: theme.effects.shadow, marginBottom: '25px' },
-    sectionTitle: { margin: '0 0 15px 0', color: theme.colors.secondary, borderBottom: `1px solid ${theme.colors.secondary}`, paddingBottom: '8px', fontSize: '1.2rem' },
-    coreStatsGrid: { marginTop: '15px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '5px 15px', alignItems: 'center' },
-    xpBarContainer: { height: '8px', background: theme.colors.surface, borderRadius: '4px', overflow: 'hidden', margin: '8px 0' },
-    xpBarProgress: { height: '100%', background: theme.colors.primary, borderRadius: '4px', transition: 'width 0.5s ease-in-out' },
-    xpControlContainer: { display: 'flex', gap: '15px', marginTop: '10px', marginBottom: '5px', flexWrap: 'wrap' },
-    xpActionGroup: { display: 'flex', gap: '8px', flex: '1 1 180px' },
-    xpInput: { flexGrow: 1, padding: '8px 10px', borderRadius: '6px', border: `1px solid ${theme.colors.textSecondary}`, background: 'rgba(255, 255, 255, 0.1)', color: theme.colors.text, fontSize: '0.9rem', boxSizing: 'border-box', textAlign: 'center', appearance: 'textfield', '::-webkit-outer-spin-button': { appearance: 'none', margin: 0 }, '::-webkit-inner-spin-button': { appearance: 'none', margin: 0 } },
-    xpInputAdd: { borderColor: theme.colors.secondary },
-    xpInputRemove: { borderColor: theme.colors.error },
-    xpButton: { padding: '8px 12px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem', lineHeight: 1, transition: theme.transitions.default, minWidth: '40px', ':disabled': { opacity: 0.5, cursor: 'not-allowed' } },
-    xpButtonAdd: { background: theme.colors.secondary, color: theme.colors.background, ':hover:not(:disabled)': { opacity: 0.9 } },
-    xpButtonRemove: { background: theme.colors.error, color: theme.colors.text, ':hover:not(:disabled)': { opacity: 0.9 } },
-    levelUpButton: { display: 'block', width: '100%', padding: '10px', marginTop: '15px', background: `linear-gradient(45deg, ${theme.colors.primary}, ${theme.colors.secondary})`, color: theme.colors.background, border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', transition: theme.transitions.default, ':hover': { boxShadow: `0 0 15px ${theme.colors.primary}99`, transform: 'translateY(-1px)' } },
-    hpBarOuterContainer: { display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 0', borderBottom: `1px solid ${theme.colors.surface}33`, gridColumn: '1 / -1' },
-    statLabelHp: { color: theme.colors.textSecondary, whiteSpace: 'nowrap', fontSize: '0.95rem', flexShrink: 0 },
-    hpBarContainer: { flexGrow: 1, height: '20px', background: theme.colors.surface, borderRadius: '10px', overflow: 'hidden', position: 'relative', border: `1px solid ${theme.colors.surface}88` },
-    hpBarFill: { height: '100%', borderRadius: '10px', transition: 'width 0.5s ease-out, background-color 0.5s ease-out', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.3)' },
-    hpBarText: { position: 'absolute', top: '0', left: '0', right: '0', bottom: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 'bold', color: theme.colors.text, textShadow: '1px 1px 1px rgba(0,0,0,0.7)' },
-    damageInputContainer: { display: 'flex', gap: '10px', marginTop: '20px', paddingTop: '15px', borderTop: `1px solid ${theme.colors.surface}55` },
-    damageInput: { flexGrow: 1, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.colors.error}88`, background: `${theme.colors.error}11`, color: theme.colors.text, fontSize: '1rem', boxSizing: 'border-box', textAlign: 'center', appearance: 'textfield', '::-webkit-outer-spin-button': { appearance: 'none', margin: 0 }, '::-webkit-inner-spin-button': { appearance: 'none', margin: 0 }, ':disabled': { background: `${theme.colors.surface}55`, borderColor: `${theme.colors.textSecondary}44`, cursor: 'not-allowed', opacity: 0.6 } },
-    applyDamageButton: applyDamageButton,
-    actionButtonsContainer: { display: 'flex', justifyContent: 'space-between', gap: '10px', marginTop: '15px', paddingTop: '15px', borderTop: `1px solid ${theme.colors.surface}55` },
-    actionButton: actionButton,
-    actionButtonDisabled: actionButtonDisabled,
-    healButtonMedkitActive: healButtonMedkitActive,
-    restButtonShortActive: restButtonShortActive,
-    restButtonLongActive: restButtonLongActive,
-    // puSection: { borderTop: `4px solid ${theme.colors.primary}`, background: `${theme.colors.surface}66` },
+    // Возвращаем стили section к варианту, который был до попыток убрать фон
+    section: {
+        background: theme.effects.glass, // Используем тему
+        backdropFilter: 'blur(10px)',
+        borderRadius: '12px',
+        padding: '20px',
+        boxShadow: theme.effects.shadow,
+        marginBottom: '25px',
+        transition: 'background-color 0.5s ease-in-out, border-color 0.5s ease-in-out',
+         borderTop: `4px solid transparent`, // По умолчанию прозрачная рамка
+    },
+     sectionTitle: { margin: '0 0 15px 0', color: theme.colors.secondary, borderBottom: `1px solid ${theme.colors.secondary}`, paddingBottom: '8px', fontSize: '1.2rem' },
+     coreStatsGrid: { marginTop: '15px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '5px 15px', alignItems: 'center' },
+     xpBarContainer: { height: '8px', background: theme.colors.surface, borderRadius: '4px', overflow: 'hidden', margin: '8px 0' },
+     xpBarProgress: { height: '100%', background: theme.colors.primary, borderRadius: '4px', transition: 'width 0.5s ease-in-out' },
+     xpControlContainer: { display: 'flex', gap: '15px', marginTop: '10px', marginBottom: '5px', flexWrap: 'wrap' },
+     xpActionGroup: { display: 'flex', gap: '8px', flex: '1 1 180px' },
+     xpInput: { flexGrow: 1, padding: '8px 10px', borderRadius: '6px', border: `1px solid ${theme.colors.textSecondary}`, background: 'rgba(255, 255, 255, 0.1)', color: theme.colors.text, fontSize: '0.9rem', boxSizing: 'border-box', textAlign: 'center', appearance: 'textfield', '::-webkit-outer-spin-button': { appearance: 'none', margin: 0 }, '::-webkit-inner-spin-button': { appearance: 'none', margin: 0 } },
+     xpInputAdd: { borderColor: theme.colors.secondary },
+     xpInputRemove: { borderColor: theme.colors.error },
+     xpButton: { padding: '8px 12px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem', lineHeight: 1, transition: theme.transitions.default, minWidth: '40px', ':disabled': { opacity: 0.5, cursor: 'not-allowed' } },
+     xpButtonAdd: { background: theme.colors.secondary, color: theme.colors.background, ':hover:not(:disabled)': { opacity: 0.9 } },
+     xpButtonRemove: { background: theme.colors.error, color: theme.colors.text, ':hover:not(:disabled)': { opacity: 0.9 } },
+     levelUpButton: { display: 'block', width: '100%', padding: '10px', marginTop: '15px', background: `linear-gradient(45deg, ${theme.colors.primary}, ${theme.colors.secondary})`, color: theme.colors.background, border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', transition: theme.transitions.default, ':hover': { boxShadow: `0 0 15px ${theme.colors.primary}99`, transform: 'translateY(-1px)' } },
+     hpBarOuterContainer: { display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 0', borderBottom: `1px solid ${theme.colors.surface}33`, gridColumn: '1 / -1' },
+     statLabelHp: { color: theme.colors.textSecondary, whiteSpace: 'nowrap', fontSize: '0.95rem', flexShrink: 0 },
+     hpBarContainer: { flexGrow: 1, height: '20px', background: theme.colors.surface, borderRadius: '10px', overflow: 'hidden', position: 'relative', border: `1px solid ${theme.colors.surface}88` },
+     hpBarFill: { height: '100%', borderRadius: '10px', transition: 'width 0.5s ease-out, background-color 0.5s ease-out', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.3)' },
+     hpBarText: { position: 'absolute', top: '0', left: '0', right: '0', bottom: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 'bold', color: theme.colors.text, textShadow: '1px 1px 1px rgba(0,0,0,0.7)' },
+     damageInputContainer: { display: 'flex', gap: '10px', marginTop: '20px', paddingTop: '15px', borderTop: `1px solid ${theme.colors.surface}55` },
+     damageInput: { flexGrow: 1, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.colors.error}88`, background: `${theme.colors.error}11`, color: theme.colors.text, fontSize: '1rem', boxSizing: 'border-box', textAlign: 'center', appearance: 'textfield', '::-webkit-outer-spin-button': { appearance: 'none', margin: 0 }, '::-webkit-inner-spin-button': { appearance: 'none', margin: 0 }, ':disabled': { background: `${theme.colors.surface}55`, borderColor: `${theme.colors.textSecondary}44`, cursor: 'not-allowed', opacity: 0.6 } },
+     applyDamageButton: applyDamageButton,
+     actionButtonsContainer: { display: 'flex', justifyContent: 'space-between', gap: '10px', marginTop: '15px', paddingTop: '15px', borderTop: `1px solid ${theme.colors.surface}55` },
+     actionButton: actionButton,
+     actionButtonDisabled: actionButtonDisabled,
+     healButtonMedkitActive: healButtonMedkitActive,
+     restButtonShortActive: restButtonShortActive,
+     restButtonLongActive: restButtonLongActive,
+
+    // Стили для ПУ
+    sectionTitlePu: {
+        margin: '0 0 15px 0',
+        color: theme.colors.secondary,
+        fontSize: '1.2rem',
+        textAlign: 'center',
+        borderBottom: `1px solid ${theme.colors.secondary}44`,
+        paddingBottom: '8px',
+        position: 'relative',
+        zIndex: 1, // Над фоном
+    },
+    // Фаза 1
     puValueDisplay: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', padding: '0 5px' },
     puCurrentValueLabel: { fontSize: '0.9rem', color: theme.colors.textSecondary, marginRight: '10px' },
     puManualAdjust: { display: 'flex', alignItems: 'center', gap: '8px' },
-    puManualButton: { padding: '0', width: '26px', height: '26px', fontSize: '1.2rem', fontWeight: 'bold', lineHeight: 1, background: theme.colors.surface + '99', color: theme.colors.textSecondary, border: `1px solid ${theme.colors.textSecondary}55`, borderRadius: '10%', cursor: 'pointer', transition: theme.transitions.default, ':hover:not(:disabled)': { background: theme.colors.primary + '33', color: theme.colors.primary, borderColor: theme.colors.primary + '88' }, ':disabled': { opacity: 0.4, cursor: 'not-allowed', filter: 'grayscale(1)' } },
-    puCurrentValueNumber: { fontSize: '1.8rem', fontWeight: 'bold', color: theme.colors.primary, lineHeight: 1, minWidth: '30px', textAlign: 'center' },
+puManualButton: {
+        padding: '0',
+        width: '28px', // Немного больше
+        height: '28px',
+        fontSize: '1.4rem', // Шрифт чуть крупнее
+        fontWeight: 'bold',
+        lineHeight: '28px', // Центрируем символ по вертикали
+        textAlign: 'center', // Центрируем символ по горизонтали
+        background: `${theme.colors.primary}1a`, // Полупрозрачный фон основного цвета
+        color: theme.colors.primary, // Основной цвет для символа
+        border: `1px solid ${theme.colors.primary}88`, // Полупрозрачная рамка основного цвета
+        borderRadius: '50%', // Круглая форма
+        cursor: 'pointer',
+        transition: theme.transitions.default + ', transform 0.1s ease', // Добавляем transform в transition
+        ':hover:not(:disabled)': {
+            background: `${theme.colors.primary}33`, // Более насыщенный фон при наведении
+            borderColor: theme.colors.primary, // Сплошная рамка при наведении
+            color: theme.colors.text, // Белый символ при наведении
+            transform: 'scale(1.05)', // Легкое увеличение
+        },
+        ':active:not(:disabled)': {
+             transform: 'scale(0.95)', // Легкое уменьшение при нажатии
+        },
+        ':disabled': {
+            opacity: 0.4,
+            cursor: 'not-allowed',
+            filter: 'grayscale(80%)',
+            transform: 'scale(1)', // Убираем transform для disabled
+        }
+    },    puCurrentValueNumber: { fontSize: '1.8rem', fontWeight: 'bold', color: theme.colors.primary, lineHeight: 1, minWidth: '30px', textAlign: 'center' },
     puBaseValueLabel: { fontSize: '0.9rem', color: theme.colors.textSecondary, marginLeft: '10px' },
     puBarContainer: { height: '12px', background: theme.colors.surface, borderRadius: '8px', overflow: 'hidden', position: 'relative', border: `1px solid ${theme.colors.surface}cc`, marginBottom: '15px' },
     puBarFill: { height: '100%', borderRadius: '8px', transition: 'width 0.5s ease-in-out, background-color 0.5s ease-in-out', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.3)' },
@@ -311,19 +454,74 @@ const styles = {
     puControlContainer: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', paddingTop:'15px', borderTop: `1px dashed ${theme.colors.surface}55`, marginTop:'15px' },
     puLabel: { color: theme.colors.textSecondary, fontSize: '0.9rem', marginRight: 'auto', fontWeight:'bold' },
     puButtons: { display: 'flex', gap: '15px' },
-    puButton: { padding: '8px 18px', fontSize: '0.95rem', fontWeight: '600', borderRadius: '8px', cursor: 'pointer', transition: theme.transitions.default, border: '1px solid', ':disabled': { ...actionButtonDisabled } }, // Добавили общие стили disabled
+    puButton: { padding: '8px 18px', fontSize: '0.95rem', fontWeight: '600', borderRadius: '8px', cursor: 'pointer', transition: theme.transitions.default, border: '1px solid', ':disabled': { ...actionButtonDisabled } },
     puButtonFailure: { borderColor: theme.colors.error, color: theme.colors.error, background: `${theme.colors.error}11`, ':hover:not(:disabled)': { background: `${theme.colors.error}33` } },
     puButtonSuccess: { borderColor: theme.colors.secondary, color: theme.colors.secondary, background: `${theme.colors.secondary}11`, ':hover:not(:disabled)': { background: `${theme.colors.secondary}33` } },
-    puButtonManual: { // Переопределяем стиль, если нужно
-        padding: '0', width: '26px', height: '26px', fontSize: '1.2rem', fontWeight: 'bold', lineHeight: 1, background: theme.colors.surface + '99', color: theme.colors.textSecondary, border: `1px solid ${theme.colors.textSecondary}55`, borderRadius: '50%', cursor: 'pointer', transition: theme.transitions.default,
-        ':hover:not(:disabled)': { background: theme.colors.primary + '33', color: theme.colors.primary, borderColor: theme.colors.primary + '88' },
-        ':disabled': { opacity: 0.4, cursor: 'not-allowed', filter: 'grayscale(1)' }
+
+    // Фаза 2
+    puPhase2Container: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        // padding: '3px 10px',
+        textAlign: 'center',
+        minHeight: '10px',
+        position: 'relative', // Для z-index
+        zIndex: 1, // Над фоном
     },
+    activePuEffectWrapper: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '10px',
+        position: 'relative',
+    },
+
+    activePuEffectName: {
+        fontSize: '1.8rem',
+        fontWeight: 'bold',
+        color: theme.colors.secondary,
+        cursor: 'pointer',
+        textShadow: `0 0 15px ${theme.colors.secondary}, 0 0 25px ${theme.colors.secondary}aa`,
+        padding: '10px 20px',
+        border: `1px solid ${theme.colors.secondary}`,
+        borderRadius: '12px',
+        // background: theme.colors.background ? `${theme.colors.background}99` : 'rgba(30, 30, 40, 0.6)',
+        backdropFilter: 'blur(3px)',
+        transition: 'all 0.7s ease',
+        ':hover': {
+            color: theme.colors.secondary,
+            borderColor: `${theme.colors.secondary}`,
+            background: theme.colors.background ? `${theme.colors.background}aa` : 'rgba(30, 30, 40, 0.7)',
+            textShadow: `0 0 20px ${theme.colors.secondary}, 0 0 30px ${theme.colors.secondary}cc`,
+            transform: 'scale(1.05)',
+        }
+    },
+    removePuEffectButton: {
+        background: 'transparent',
+        color: theme.colors.error,
+        border: 'none',
+        padding: '0',
+        marginLeft: '8px',
+        fontSize: '2rem',
+        lineHeight: '1',
+        cursor: 'pointer',
+        opacity: 0.7,
+        transition: 'all 0.2s ease',
+        textShadow: `0 0 8px ${theme.colors.error}88`,
+        ':hover': {
+            opacity: 1,
+            color: theme.colors.error,
+            transform: 'scale(1.1)',
+        }
+    },
+
+    // Стили для секции Активные Состояния
     tabHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${theme.colors.surface}66`, paddingBottom: '5px'},
     addItemButton: { padding: '6px 12px', background: theme.colors.primary, color: theme.colors.background, border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', transition: theme.transitions.default, ':hover': {opacity: 0.9} },
     statusTagContainer: { display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px', justifyContent: 'flex-start' },
     statusTag: { display: 'inline-flex', alignItems: 'center', background: theme.colors.surface, border: `1px solid ${theme.colors.textSecondary}55`, borderRadius: '15px', padding: '5px 10px 5px 12px', fontSize: '0.9rem', cursor: 'default', transition: 'all 0.2s ease', ':hover': { borderColor: `${theme.colors.primary}88`, background: `${theme.colors.primary}11` } },
-    statusTagPu: { borderColor: theme.colors.primary, background: `${theme.colors.primary}15` },
+    statusTagPu: { borderColor: theme.colors.primary, background: `${theme.colors.primary}15` }, // Оставим на всякий случай
     statusTagName: { cursor: 'pointer', marginRight: '5px', color: theme.colors.text, ':hover': { color: theme.colors.primary, textDecoration: 'underline' } },
     removeStatusButtonTag: { background: 'transparent', color: theme.colors.error, border: 'none', padding: '0', marginLeft: '4px', fontSize: '1.1rem', lineHeight: '1', cursor: 'pointer', opacity: 0.6, ':hover': { opacity: 1 } },
     placeholderText: { color: theme.colors.textSecondary, fontStyle: 'italic', textAlign: 'center', marginTop: '20px' },
