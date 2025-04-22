@@ -10,6 +10,7 @@ from .ability import Ability
 from .status_effect import StatusEffect
 from .character import Character, CharacterInventoryItem
 from .association_tables import character_abilities, character_status_effects, weapon_granted_abilities
+from .custom_item import CharacterCustomItem
 
 # Константа XP_THRESHOLDS может остаться в character.py или быть вынесена сюда
 from .character import XP_THRESHOLDS

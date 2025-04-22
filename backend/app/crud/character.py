@@ -32,6 +32,8 @@ from .utils import (
     NEGATIVE_EMOTIONS, # Импортируем списки эмоций
     POSITIVE_EMOTIONS
 )
+
+from ..schemas import CustomItemOut
 # Импортируем item CRUD для проверки экипировки при удалении
 from . import item as item_crud
 # Импортируем статус эффект CRUD для добавления эмоций
@@ -75,7 +77,8 @@ def get_character_details(db: Session, character_id: int, user_id: int) -> Optio
             .selectinload(Weapon.granted_abilities),
         # Изученные способности и активные состояния
         selectinload(Character.available_abilities),
-        selectinload(Character.active_status_effects)
+        selectinload(Character.active_status_effects),
+        selectinload(Character.custom_items)
     ).filter(
         Character.id == character_id,
         Character.owner_id == user_id # Проверка владельца
@@ -159,6 +162,8 @@ def get_character_details_for_output(db: Session, character_id: int, user_id: in
     inventory_list = [get_inventory_item_schema(inv_item) for inv_item in db_char.inventory if inv_item]
     inventory_list = [item for item in inventory_list if item is not None] # Убираем возможные None
 
+    custom_items_list = [CustomItemOut.from_orm(ci) for ci in db_char.custom_items]
+
     character_data.update({
         "inventory": inventory_list,
         "equipped_armor": get_inventory_item_schema(db_char.equipped_armor),
@@ -167,6 +172,7 @@ def get_character_details_for_output(db: Session, character_id: int, user_id: in
         "equipped_weapon2": get_inventory_item_schema(db_char.equipped_weapon2),
         "available_abilities": [AbilityOut.from_orm(ab) for ab in db_char.available_abilities],
         "active_status_effects": [StatusEffectOut.from_orm(se) for se in db_char.active_status_effects],
+        "custom_items": custom_items_list
     })
 
     # Создаем Pydantic модель из словаря

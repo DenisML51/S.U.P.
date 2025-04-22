@@ -12,6 +12,14 @@ from ..crud import action as action_crud
 from ..db.database import get_db
 from ..core.auth import get_current_user
 
+try:
+    from ..crud import custom_item as custom_item_crud
+    from ..schemas import CustomItemCreate, CustomItemOut # Импорт схем
+except ImportError:
+    # Обработка, если custom_item_crud не создан как отдельный файл
+    custom_item_crud = item_crud # Пример, если функции в item_crud
+    from ..schemas import CustomItemCreate, CustomItemOut
+
 router = APIRouter(
     prefix="/characters",
     tags=["Characters"],
@@ -339,3 +347,43 @@ async def activate_character_action_endpoint(
         )
     print(f"Activation successful for character {character_id}: {result.message}") # Лог успеха
     return result
+
+
+@router.post(
+    "/{character_id}/custom_items",
+    response_model=schemas.CustomItemOut,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Inventory"], # Можно добавить тег "Custom Items"
+    summary="Добавить произвольный предмет в инвентарь"
+)
+async def add_character_custom_item(
+    character_id: int,
+    item_in: schemas.CustomItemCreate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Добавляет новый произвольный предмет или увеличивает количество существующего с тем же именем."""
+    db_item = custom_item_crud.add_custom_item(db, character_id, current_user.id, item_in)
+    if db_item is None:
+        # Ошибка могла быть из-за ненахождения персонажа или ошибки БД
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Не удалось добавить предмет")
+    return db_item
+
+@router.delete(
+    "/{character_id}/custom_items/{custom_item_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    tags=["Inventory"],
+    summary="Удалить произвольный предмет из инвентаря"
+)
+async def delete_character_custom_item(
+    character_id: int,
+    custom_item_id: int,
+    quantity: int = Query(1, ge=1, description="Количество удаляемых предметов"),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Удаляет указанное количество произвольного предмета или всю запись, если количество >= текущему."""
+    success = custom_item_crud.remove_custom_item(db, custom_item_id, character_id, current_user.id, quantity)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Произвольный предмет не найден или не принадлежит вам")
+    return None # Возвращаем пустой ответ 204

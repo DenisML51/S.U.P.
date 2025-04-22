@@ -12,6 +12,7 @@ from .association_tables import character_abilities, character_status_effects
 # Импортируем зависимые модели (или используем строки)
 from .user import User
 from .item import Item # Нужен для связи с CharacterInventoryItem
+from .custom_item import CharacterCustomItem
 # Не импортируем Ability, StatusEffect напрямую
 
 # Таблица опыта (удобно хранить рядом с моделью персонажа)
@@ -183,6 +184,14 @@ class Character(Base):
         "StatusEffect", # Используем строку
         secondary=character_status_effects,
         back_populates="characters"
+    )
+
+    custom_items: Mapped[List["CharacterCustomItem"]] = relationship(
+        "CharacterCustomItem",
+        cascade="all, delete-orphan", # Удалять кастомные предметы при удалении персонажа
+        # backref="character", # Можно добавить, если нужен доступ к Character из CustomItem
+        lazy="selectin", # Загружать вместе с персонажем
+        order_by="CharacterCustomItem.name" # Сортировать по имени по умолчанию
     )
 
     # --- Заметки ---

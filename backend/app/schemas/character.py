@@ -6,6 +6,7 @@ from typing import List, Optional, Dict, Any, Literal
 from .item import CharacterInventoryItemOut, AnyItemOut # AnyItemOut для типа экипировки
 from .ability import AbilityOut
 from .status_effect import StatusEffectOut
+from .custom_item import CustomItemOut
 
 # Импортируем константы (если они нужны для валидации)
 # Предполагаем, что XP_THRESHOLDS и VALID_BRANCH_KEYS доступны через models или config
@@ -226,6 +227,8 @@ class CharacterDetailedOut(
     equipped_weapon2: Optional[CharacterInventoryItemOut] = None
     available_abilities: List[AbilityOut] = []
     active_status_effects: List[StatusEffectOut] = []
+
+    custom_items: List[CustomItemOut] = []
 
     model_config = ConfigDict(from_attributes=True)
 

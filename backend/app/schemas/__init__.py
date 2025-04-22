@@ -8,6 +8,7 @@ from .item import (
     ItemBase, WeaponOut, ArmorOut, ShieldOut, GeneralItemOut, AmmoOut, AnyItemOut,
     CharacterInventoryItemOut, AddItemToInventory, EquipItem
 )
+from .custom_item import CustomItemBase, CustomItemCreate, CustomItemOut
 from .character import (
     CharacterBase, InitialSkillDistribution, CharacterCreate, CharacterBriefOut,
     CharacterSkillModifiers, CharacterDerivedStats, CharacterClassBranchLevels,
