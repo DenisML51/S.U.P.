@@ -9,7 +9,7 @@ import SelectMedkitModal from '../modals/SelectMedkitModal';
 import ShortRestModal from '../modals/ShortRestModal';
 // --- НОВЫЙ ИМПОРТ ---
 // Убедись, что путь к компоненту фона правильный
-import AnimatedFluidBackground from '../components/AnimatedFluidBackground';
+import AnimatedFluidBackground from '../components/AnimatedFluidBackground'; // Предполагаем, что этот компонент существует по указанному пути
 
 // --- Вспомогательные функции для ПУ ---
 /**
@@ -29,30 +29,28 @@ const DebuffIcon = () => <svg style={styles.statusEffectIcon} viewBox="0 0 24 24
 const MentalIcon = () => <svg style={styles.statusEffectIcon} viewBox="0 0 24 24"><path fill="currentColor" d="M12 3a9 9 0 00-9 9a9 9 0 009 9a9 9 0 009-9a9 9 0 00-9-9M9 17.25A3.25 3.25 0 015.75 14A3.25 3.25 0 019 10.75A3.25 3.25 0 0112.25 14A3.25 3.25 0 019 17.25m6 0A3.25 3.25 0 0111.75 14A3.25 3.25 0 0115 10.75A3.25 3.25 0 0118.25 14A3.25 3.25 0 0115 17.25z"/></svg>; // Мозг
 const NeutralIcon = () => <svg style={styles.statusEffectIcon} viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 18a8 8 0 110-16 8 8 0 010 16zm-1-5h2v2h-2zm0-8h2v6h-2z"/></svg>; // Инфо
 
-// --- НОВОЕ: Функция для определения стиля и иконки эффекта ---
+// --- Функция для определения стиля и иконки эффекта ---
 const getStatusEffectStyleAndIcon = (effect) => {
     const nameLower = effect.name?.toLowerCase() || '';
-    let borderColor = theme.colors.textSecondary + '88'; // Default: серый
+    let color = theme.colors.textSecondary + '88'; // Default: серый
     let IconComponent = NeutralIcon;
-    let iconColor = theme.colors.textSecondary;
+    let type = 'neutral'; // Тип для стилизации карточки
 
-    // Определяем по ключевым словам или префиксу
     if (nameLower.startsWith('пу:')) {
-        borderColor = theme.colors.primary;
+        color = theme.colors.primary;
         IconComponent = MentalIcon;
-        iconColor = theme.colors.primary;
+        type = 'mental';
     } else if (nameLower.includes('замедление') || nameLower.includes('ослабление') || nameLower.includes('уязвимость') || nameLower.includes('горение') || nameLower.includes('отравление') || nameLower.includes('ослепление')) {
-        borderColor = theme.colors.error;
+        color = theme.colors.error;
         IconComponent = DebuffIcon;
-        iconColor = theme.colors.error;
+        type = 'debuff';
     } else if (nameLower.includes('ускорение') || nameLower.includes('усиление') || nameLower.includes('защита') || nameLower.includes('регенерация') || nameLower.includes('невидимость')) {
-        borderColor = theme.colors.success || '#66BB6A'; // Используем success или fallback
+        color = theme.colors.success || '#66BB6A'; // Используем success или fallback
         IconComponent = BuffIcon;
-        iconColor = theme.colors.success || '#66BB6A';
+        type = 'buff';
     }
-    // Добавить другие ключевые слова или логику определения типа
 
-    return { borderColor, IconComponent, iconColor };
+    return { color, IconComponent, type }; // Возвращаем цвет, компонент иконки и тип
 };
 
 // --- Основной Компонент ---
@@ -70,6 +68,7 @@ const CharacterStatusSection = ({
     const [selectedStatusEffectForModal, setSelectedStatusEffectForModal] = useState(null); // Выбранный статус для модалки
     const [showSelectMedkitModal, setShowSelectMedkitModal] = useState(false); // Показать/скрыть модалку выбора аптечки
     const [damageInput, setDamageInput] = useState(''); // Для инпута урона
+    const [healInput, setHealInput] = useState(''); // --- НОВОЕ: Для инпута лечения ---
     const [showShortRestModal, setShowShortRestModal] = useState(false); // Показать/скрыть модалку короткого отдыха
 
     // --- Мемоизированные вычисления для оптимизации ---
@@ -142,10 +141,13 @@ const CharacterStatusSection = ({
     // Вычитание опыта
     const handleRemoveExperience = () => {
         const amount = parseInt(xpToRemove, 10);
-        if (!isNaN(amount) && amount > 0) {
+        // Проверяем, что amount > 0 и у персонажа есть опыт
+        if (!isNaN(amount) && amount > 0 && character.experience_points > 0) {
             const newTotalXp = Math.max(0, (character.experience_points || 0) - amount);
             handleApiAction(apiService.updateCharacterStats(character.id, { experience_points: newTotalXp }), `${amount} XP вычтено`, `Ошибка вычитания XP`);
             setXpToRemove('');
+        } else if (character.experience_points === 0) {
+             alert("У персонажа нет опыта для вычитания."); // Сообщение, если опыта 0
         } else { alert("Введите положительное число XP для вычитания."); }
     };
 
@@ -217,6 +219,20 @@ const CharacterStatusSection = ({
         } else { alert("Введите положительное число урона."); }
     };
 
+    // --- НОВОЕ: Применение лечения ---
+    const handleApplyHeal = () => {
+        const healAmount = parseInt(healInput, 10);
+        if (!isNaN(healAmount) && healAmount > 0 && !isHpFull) {
+            const newHp = Math.min(character.max_hp, character.current_hp + healAmount);
+            handleApiAction(
+                apiService.updateCharacterStats(character.id, { current_hp: newHp }),
+                `${healAmount} ПЗ восстановлено`, "Ошибка лечения"
+            );
+            setHealInput('');
+        } else if (isHpFull) { alert("Здоровье персонажа уже полное.");
+        } else { alert("Введите положительное число лечения."); }
+    };
+
     // Открытие модалки короткого отдыха
     const handleOpenShortRestModal = () => {
         if (hasStamina) setShowShortRestModal(true);
@@ -240,7 +256,11 @@ const CharacterStatusSection = ({
     const isHealMedkitDisabled = isHpFull || !hasMedkit;
     const isShortRestDisabled = !hasStamina;
     const isApplyDamageDisabled = !damageInput || parseInt(damageInput, 10) <= 0 || isHpZero;
-    const isRemoveXpDisabled = !xpToRemove || parseInt(xpToRemove, 10) <= 0;
+    const isApplyHealDisabled = !healInput || parseInt(healInput, 10) <= 0 || isHpFull;
+    // --- ИЗМЕНЕНИЕ: Логика отключения кнопки вычитания XP ---
+    const isRemoveXpButtonDisabled = !xpToRemove || parseInt(xpToRemove, 10) <= 0 || character.experience_points === 0;
+    // --- ИЗМЕНЕНИЕ: Логика отключения поля ввода вычитания XP ---
+    const isRemoveXpInputDisabled = character.experience_points === 0;
     const hpBarColor = hpPercentage <= 25 ? theme.colors.error : hpPercentage <= 50 ? (theme.colors.warning || '#FFA726') : (theme.colors.success || '#66BB6A');
 
     // --- Рендеринг ---
@@ -284,14 +304,18 @@ const CharacterStatusSection = ({
                                 title="Добавить опыт">+
                         </button>
                     </div>
-                    <div style={styles.xpActionGroup}><input type="number" min="1" value={xpToRemove}
-                                                             onChange={(e) => setXpToRemove(e.target.value)}
-                                                             placeholder="Отнять XP"
-                                                             style={{...styles.xpInput, ...styles.xpInputRemove}}
-                                                             onKeyPress={(e) => e.key === 'Enter' && !isRemoveXpDisabled && handleRemoveExperience()}
-                                                             disabled={character.experience_points === 0}/>
+                    <div style={styles.xpActionGroup}>
+                        {/* --- ИЗМЕНЕНИЕ: Применяем isRemoveXpInputDisabled к input --- */}
+                        <input type="number" min="1" value={xpToRemove}
+                               onChange={(e) => setXpToRemove(e.target.value)}
+                               placeholder="Отнять XP"
+                               style={{...styles.xpInput, ...styles.xpInputRemove}}
+                               onKeyPress={(e) => e.key === 'Enter' && !isRemoveXpButtonDisabled && handleRemoveExperience()}
+                               disabled={isRemoveXpInputDisabled}/> {/* Используем новое условие */}
+                        {/* --- ИЗМЕНЕНИЕ: Применяем isRemoveXpButtonDisabled к button --- */}
                         <button onClick={handleRemoveExperience} style={{...styles.xpButton, ...styles.xpButtonRemove}}
-                                title="Отнять опыт" disabled={isRemoveXpDisabled}>-
+                                title={isRemoveXpInputDisabled ? "Опыт уже на нуле" : "Отнять опыт"}
+                                disabled={isRemoveXpButtonDisabled}>- {/* Используем старое условие для кнопки */}
                         </button>
                     </div>
                 </div>
@@ -318,17 +342,54 @@ const CharacterStatusSection = ({
                     <StatDisplay label="Скор." value={`${character.speed} м.`}/>
                     <StatDisplay label="Пасс.Вним." value={character.passive_attention}/>
                 </div>
-                <div style={styles.damageInputContainer}>
-                    <input type="number" min="1" value={damageInput} onChange={(e) => setDamageInput(e.target.value)}
-                           placeholder="Полученный урон" style={styles.damageInput}
-                           onKeyPress={(e) => e.key === 'Enter' && !isApplyDamageDisabled && handleApplyDamage()}
-                           disabled={isHpZero}/>
-                    <button onClick={handleApplyDamage}
-                            style={{...styles.applyDamageButton, ...(isApplyDamageDisabled ? styles.actionButtonDisabled : {})}}
+
+                {/* --- Разделенный контейнер для урона и лечения --- */}
+                <div style={styles.damageHealContainer}>
+                    {/* Группа Урона (слева) */}
+                    <div style={styles.damageHealGroup}>
+                        <input
+                            type="number"
+                            min="1"
+                            value={damageInput}
+                            onChange={(e) => setDamageInput(e.target.value)}
+                            placeholder="Урон"
+                            style={{...styles.damageHealInput, ...styles.damageInput}}
+                            onKeyPress={(e) => e.key === 'Enter' && !isApplyDamageDisabled && handleApplyDamage()}
+                            disabled={isHpZero}
+                        />
+                        <button
+                            onClick={handleApplyDamage}
+                            style={{...styles.damageHealButton, ...styles.applyDamageButton}}
                             disabled={isApplyDamageDisabled}
-                            title={isHpZero ? "Персонаж уже при смерти" : "Применить урон"}> Применить урон
-                    </button>
+                            title={isHpZero ? "Персонаж уже при смерти" : "Применить урон"}
+                        >
+                           Урон
+                        </button>
+                    </div>
+                    {/* Группа Лечения (справа) */}
+                    <div style={styles.damageHealGroup}>
+                        <input
+                            type="number"
+                            min="1"
+                            value={healInput}
+                            onChange={(e) => setHealInput(e.target.value)}
+                            placeholder="Лечение"
+                            style={{...styles.damageHealInput, ...styles.healInput}}
+                            onKeyPress={(e) => e.key === 'Enter' && !isApplyHealDisabled && handleApplyHeal()}
+                            disabled={isHpFull}
+                        />
+                        <button
+                            onClick={handleApplyHeal}
+                            style={{...styles.damageHealButton, ...styles.applyHealButton}}
+                            disabled={isApplyHealDisabled}
+                            title={isHpFull ? "Здоровье полное" : "Применить лечение"}
+                        >
+                            Лечение
+                        </button>
+                    </div>
                 </div>
+                {/* --- КОНЕЦ ИЗМЕНЕНИЯ --- */}
+
                 <div style={styles.actionButtonsContainer}>
                     <button onClick={handleHealMedkitClick}
                             style={{...styles.actionButton, ...(isHealMedkitDisabled ? styles.actionButtonDisabled : styles.healButtonMedkitActive)}}
@@ -348,25 +409,18 @@ const CharacterStatusSection = ({
             </div>
 
             {/* === Секция Псих. Устойчивость (v5 - с Компонентом Фона) === */}
-            {/* Используем базовый стиль секции, но переопределяем фон и рамку в Фазе 2 */}
             <div style={{
-                ...styles.section, // Базовые стили (padding, margin, borderRadius...)
-                // Условные стили для ФАЗЫ 2 (переопределяем фон и рамку)
+                ...styles.section,
                 ...(activePuEffect ? {
-                    position: 'relative', // Для позиционирования фона и контента
-                    overflow: 'hidden' // Обрезаем фон
+                    position: 'relative',
+                    overflow: 'hidden'
                 } : {})
             }}>
-                {/* Рендерим компонент фона ТОЛЬКО в Фазе 2 */}
                 {activePuEffect && <AnimatedFluidBackground/>}
-
                 <h3 style={styles.sectionTitlePu}>
                     Псих. Устойчивость
                 </h3>
-
-                {/* --- Фаза 2: Активный Эффект ПУ --- */}
                 {activePuEffect ? (
-                    // Добавляем position: relative и zIndex, чтобы контент был НАД фоном
                     <div style={{...styles.puPhase2Container, position: 'relative', zIndex: 1}}>
                         <div style={styles.activePuEffectWrapper}>
                             <div
@@ -389,7 +443,6 @@ const CharacterStatusSection = ({
                         </div>
                     </div>
                 ) : (
-                    /* --- Фаза 1: Обычное Состояние ПУ --- */
                     <>
                         <div style={styles.puValueDisplay}>
                             <span style={styles.puCurrentValueLabel}>Текущее:</span>
@@ -442,61 +495,50 @@ const CharacterStatusSection = ({
                             title="Добавить состояние">+
                     </button>
                 </div>
-                {/* --- ИЗМЕНЕНИЕ: Контейнер для новых карточек --- */}
-                <div style={styles.section}>
-                    {/* --- НОВЫЙ КОНТЕЙНЕР: CSS Grid для карточек --- */}
-                    <div style={styles.statusEffectGridContainer}>
-                        {(character.active_status_effects && character.active_status_effects.length > 0) ? (
-                            character.active_status_effects
-                                .filter(effect => !effect.name?.startsWith('ПУ:')) // Фильтруем ПУ эффекты
-                                .map(effect => {
-                                    // Получаем стиль и иконку для эффекта
-                                    const {color, IconComponent, type} = getStatusEffectStyleAndIcon(effect);
-                                    // Определяем стиль карточки на основе типа
-                                    const cardSpecificStyle = styles[`statusEffectCard_${type}`] || {};
-                                    return (
-                                        // Обертка для hover-эффекта и позиционирования кнопки
-                                        <div key={effect.id} style={{...styles.statusEffectCard, ...cardSpecificStyle}}
-                                             className="status-card-hover">
-                                            {/* Иконка слева */}
-                                            <div style={{
-                                                ...styles.statusEffectIconContainer,
-                                                backgroundColor: `${color}22`
-                                            }}>
-                                                <IconComponent/>
-                                            </div>
-                                            {/* Название эффекта (кликабельное) */}
-                                            <span
-                                                onClick={() => handleStatusEffectClick(effect)}
-                                                style={styles.statusEffectName}
-                                                title={effect.description || "Нажмите для описания"}
-                                            >
-                                             {effect.name}
-                                         </span>
-                                            {/* Кнопка удаления справа */}
-                                            <button
-                                                onClick={() => handleRemoveStatus(effect.id)}
-                                                style={styles.removeStatusEffectButton}
-                                                title="Снять состояние"
-                                            >
-                                                ×
-                                            </button>
+                 {/* --- Контейнер для карточек состояний --- */}
+                <div style={styles.statusEffectGridContainer}>
+                    {(character.active_status_effects && character.active_status_effects.length > 0) ? (
+                        character.active_status_effects
+                            .filter(effect => !effect.name?.startsWith('ПУ:')) // Фильтруем ПУ эффекты
+                            .map(effect => {
+                                const {color, IconComponent, type} = getStatusEffectStyleAndIcon(effect);
+                                const cardSpecificStyle = { borderLeftColor: color }; // Динамически задаем цвет левой рамки
+
+                                return (
+                                    <div key={effect.id} style={{...styles.statusEffectCard, ...cardSpecificStyle}}
+                                         className="status-card-hover">
+                                        <div style={{...styles.statusEffectIconContainer, backgroundColor: `${color}22`, color: color }}>
+                                            <IconComponent/>
                                         </div>
-                                    );
-                                })
-                        ) : (
-                            <p style={styles.placeholderText}>Нет активных состояний.</p>
-                        )}
-                        {/* Сообщение, если есть только ПУ эффект */}
-                        {character.active_status_effects &&
-                            character.active_status_effects.length > 0 &&
-                            character.active_status_effects.every(effect => effect.name?.startsWith('ПУ:')) &&
-                            !activePuEffect &&
-                            <p style={styles.placeholderText}>Нет других активных состояний.</p>
-                        }
-                    </div>
-                    {/* --- КОНЕЦ ИЗМЕНЕНИЯ --- */}
+                                        <span
+                                            onClick={() => handleStatusEffectClick(effect)}
+                                            style={styles.statusEffectName}
+                                            title={effect.description || "Нажмите для описания"}
+                                        >
+                                         {effect.name}
+                                     </span>
+                                        <button
+                                            onClick={() => handleRemoveStatus(effect.id)}
+                                            style={styles.removeStatusEffectButton}
+                                            title="Снять состояние"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                );
+                            })
+                    ) : (
+                        <p style={styles.placeholderText}>Нет активных состояний.</p>
+                    )}
+                    {/* Сообщение, если есть только ПУ эффект */}
+                    {character.active_status_effects &&
+                        character.active_status_effects.length > 0 &&
+                        character.active_status_effects.every(effect => effect.name?.startsWith('ПУ:')) &&
+                        !activePuEffect && // Убедимся, что ПУ-эффект не активен в фазе 2
+                        <p style={styles.placeholderText}>Нет других активных состояний.</p>
+                    }
                 </div>
+                {/* --- КОНЕЦ ИЗМЕНЕНИЯ --- */}
                 {/* Добавляем стили для hover-эффектов карточек статусов */}
                 <style>{`
                 .status-card-hover {
@@ -515,51 +557,119 @@ const CharacterStatusSection = ({
             // --- Стили ---
             // Базовые стили кнопок действий
             const actionButton = {
-            padding: '8px 12px',
-            borderRadius: '8px',
-            border: `1px solid ${theme.colors.textSecondary}88`,
-            background: `${theme.colors.surface}cc`,
-            color: theme.colors.textSecondary,
-            cursor: 'pointer',
-            transition: theme.transitions.default,
-            fontSize: '0.85rem',
-            fontWeight: '500',
-            flex: '1',
-            textAlign: 'center',
-            whiteSpace: 'nowrap'
-        };
-            const actionButtonDisabled = {opacity: 0.6, cursor: 'not-allowed', filter: 'grayscale(50%)'};
+                padding: '8px 12px',
+                borderRadius: '8px',
+                border: `1px solid ${theme.colors.textSecondary}88`,
+                background: `${theme.colors.surface}cc`,
+                color: theme.colors.textSecondary,
+                cursor: 'pointer',
+                transition: theme.transitions.default,
+                fontSize: '0.85rem',
+                fontWeight: '500',
+                flex: '1',
+                textAlign: 'center',
+                whiteSpace: 'nowrap',
+                '&:hover:not(:disabled)': { background: `${theme.colors.surface}e6` },
+                '&:disabled': { opacity: 0.6, cursor: 'not-allowed', filter: 'grayscale(50%)' } // Объединяем disabled стиль
+            };
+            // const actionButtonDisabled = {opacity: 0.6, cursor: 'not-allowed', filter: 'grayscale(50%)'}; // Удалено
             const healButtonMedkitActive = {
-            borderColor: theme.colors.success || '#66BB6A',
-            color: theme.colors.success || '#66BB6A',
-            background: `${theme.colors.success || '#66BB6A'}22`,
-            '&:hover': {background: `${theme.colors.success || '#66BB6A'}33`}
-        };
+                borderColor: theme.colors.success || '#66BB6A',
+                color: theme.colors.success || '#66BB6A',
+                background: `${theme.colors.success || '#66BB6A'}22`,
+                '&:hover:not(:disabled)': {background: `${theme.colors.success || '#66BB6A'}33`}
+            };
             const restButtonShortActive = {
-            borderColor: theme.colors.secondary,
-            color: theme.colors.secondary,
-            background: `${theme.colors.secondary}22`,
-            '&:hover': {background: `${theme.colors.secondary}33`}
-        };
+                borderColor: theme.colors.secondary,
+                color: theme.colors.secondary,
+                background: `${theme.colors.secondary}22`,
+                '&:hover:not(:disabled)': {background: `${theme.colors.secondary}33`}
+            };
             const restButtonLongActive = {
-            borderColor: theme.colors.primary,
-            color: theme.colors.primary,
-            background: `${theme.colors.primary}22`,
-            '&:hover': {background: `${theme.colors.primary}33`}
-        };
-            const applyDamageButton = {
-            padding: '10px 20px',
-            borderRadius: '8px',
-            border: `1px solid ${theme.colors.error}`,
-            background: `${theme.colors.error}cc`,
-            color: theme.colors.text,
-            cursor: 'pointer',
-            transition: theme.transitions.default,
-            fontSize: '0.9rem',
-            fontWeight: 'bold',
-            whiteSpace: 'nowrap',
-            '&:hover:not(:disabled)': {background: `${theme.colors.error}ee`}
-        };
+                borderColor: theme.colors.primary,
+                color: theme.colors.primary,
+                background: `${theme.colors.primary}22`,
+                '&:hover:not(:disabled)': {background: `${theme.colors.primary}33`}
+            };
+
+            // --- НОВЫЕ/ИЗМЕНЕННЫЕ СТИЛИ для урона/лечения ---
+            const damageHealContainer = { // Контейнер для двух групп
+                display: 'flex',
+                gap: '15px', // Расстояние между группами урона и лечения
+                marginTop: '20px',
+                paddingTop: '15px',
+                borderTop: `1px solid ${theme.colors.surface}55`,
+                flexWrap: 'wrap' // Перенос на новую строку на маленьких экранах
+            };
+            const damageHealGroup = { // Группа (инпут + кнопка)
+                display: 'flex',
+                gap: '8px', // Расстояние между инпутом и кнопкой
+                flex: '1 1 180px', // Адаптивная ширина, как у XP
+                alignItems: 'stretch' // Растягиваем элементы по высоте
+            };
+            const damageHealInput = { // Общий стиль для инпутов урона/лечения
+                flexGrow: 1,
+                padding: '10px 12px',
+                borderRadius: '8px',
+                border: '1px solid', // Цвет рамки будет разный
+                background: 'rgba(255, 255, 255, 0.1)', // Полупрозрачный фон
+                color: theme.colors.text,
+                fontSize: '1rem',
+                boxSizing: 'border-box',
+                textAlign: 'center',
+                appearance: 'textfield', // Убираем стрелки в number input
+                '::-webkit-outer-spin-button': { appearance: 'none', margin: 0 },
+                '::-webkit-inner-spin-button': { appearance: 'none', margin: 0 },
+                '&:disabled': {
+                    background: `${theme.colors.surface}55`,
+                    borderColor: `${theme.colors.textSecondary}44`,
+                    cursor: 'not-allowed',
+                    opacity: 0.6
+                }
+            };
+            const damageInput = { // Специфичный стиль для инпута урона
+                borderColor: `${theme.colors.error}88`,
+                background: `${theme.colors.error}11`,
+            };
+            const healInput = { // Специфичный стиль для инпута лечения
+                borderColor: `${theme.colors.success || '#66BB6A'}88`,
+                background: `${theme.colors.success || '#66BB6A'}11`,
+            };
+            const damageHealButton = { // Общий стиль для кнопок урона/лечения
+                padding: '10px 15px', // Немного меньше горизонтальный паддинг
+                borderRadius: '8px',
+                border: '1px solid', // Цвет будет разный
+                background: 'transparent', // Прозрачный фон
+                color: theme.colors.text, // Цвет будет разный
+                cursor: 'pointer',
+                transition: theme.transitions.default,
+                fontSize: '0.9rem',
+                fontWeight: 'bold',
+                whiteSpace: 'nowrap',
+                '&:disabled': { // Стили для отключенной кнопки
+                    opacity: 0.5,
+                    cursor: 'not-allowed',
+                    filter: 'grayscale(60%)',
+                    background: 'transparent' // Убедимся, что фон не меняется
+                }
+            };
+            const applyDamageButton = { // Специфичный стиль для кнопки урона
+                borderColor: theme.colors.error,
+                color: theme.colors.error,
+                '&:hover:not(:disabled)': {
+                    background: `${theme.colors.error}33`, // Полупрозрачный фон при наведении
+                    color: theme.colors.text // Белый текст при наведении (опционально)
+                }
+            };
+            const applyHealButton = { // Специфичный стиль для кнопки лечения
+                borderColor: theme.colors.success || '#66BB6A',
+                color: theme.colors.success || '#66BB6A',
+                '&:hover:not(:disabled)': {
+                    background: `${theme.colors.success || '#66BB6A'}33`, // Полупрозрачный фон при наведении
+                    color: theme.colors.text // Белый текст при наведении (опционально)
+                }
+            };
+            // --- КОНЕЦ НОВЫХ/ИЗМЕНЕННЫХ СТИЛЕЙ ---
 
             // Основной объект стилей
             const styles = {
@@ -603,7 +713,7 @@ const CharacterStatusSection = ({
         },
             xpControlContainer: {display: 'flex', gap: '15px', marginTop: '10px', marginBottom: '5px', flexWrap: 'wrap'},
             xpActionGroup: {display: 'flex', gap: '8px', flex: '1 1 180px'},
-            xpInput: {flexGrow: 1, padding: '8px 10px', borderRadius: '6px', border: `1px solid ${theme.colors.textSecondary}`, background: 'rgba(255, 255, 255, 0.1)', color: theme.colors.text, fontSize: '0.9rem', boxSizing: 'border-box', textAlign: 'center', appearance: 'textfield', '::-webkit-outer-spin-button': {appearance: 'none', margin: 0}, '::-webkit-inner-spin-button': {appearance: 'none', margin: 0}},
+            xpInput: {flexGrow: 1, padding: '8px 10px', borderRadius: '6px', border: `1px solid ${theme.colors.textSecondary}`, background: 'rgba(255, 255, 255, 0.1)', color: theme.colors.text, fontSize: '0.9rem', boxSizing: 'border-box', textAlign: 'center', appearance: 'textfield', '::-webkit-outer-spin-button': {appearance: 'none', margin: 0}, '::-webkit-inner-spin-button': {appearance: 'none', margin: 0}, '&:disabled': { background: `${theme.colors.surface}55`, borderColor: `${theme.colors.textSecondary}44`, cursor: 'not-allowed', opacity: 0.6 }}, // Добавлен стиль для disabled input
             xpInputAdd: {borderColor: theme.colors.secondary},
             xpInputRemove: {borderColor: theme.colors.error},
             xpButton: {padding: '8px 12px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.1rem', lineHeight: 1, transition: theme.transitions.default, minWidth: '40px', ':disabled': {opacity: 0.5, cursor: 'not-allowed'}},
@@ -615,12 +725,21 @@ const CharacterStatusSection = ({
             hpBarContainer: {flexGrow: 1, height: '20px', background: theme.colors.surface, borderRadius: '10px', overflow: 'hidden', position: 'relative', border: `1px solid ${theme.colors.surface}88`},
             hpBarFill: {height: '100%', borderRadius: '10px', transition: 'width 0.5s ease-out, background-color 0.5s ease-out', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.3)'},
             hpBarText: {position: 'absolute', top: '0', left: '0', right: '0', bottom: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 'bold', color: theme.colors.text, textShadow: '1px 1px 1px rgba(0,0,0,0.7)'},
-            damageInputContainer: {display: 'flex', gap: '10px', marginTop: '20px', paddingTop: '15px', borderTop: `1px solid ${theme.colors.surface}55`},
-            damageInput: {flexGrow: 1, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.colors.error}88`, background: `${theme.colors.error}11`, color: theme.colors.text, fontSize: '1rem', boxSizing: 'border-box', textAlign: 'center', appearance: 'textfield', '::-webkit-outer-spin-button': {appearance: 'none', margin: 0}, '::-webkit-inner-spin-button': {appearance: 'none', margin: 0}, ':disabled': {background: `${theme.colors.surface}55`, borderColor: `${theme.colors.textSecondary}44`, cursor: 'not-allowed', opacity: 0.6}},
-            applyDamageButton: applyDamageButton,
+
+            // --- Используем новые стили ---
+            damageHealContainer: damageHealContainer,
+            damageHealGroup: damageHealGroup,
+            damageHealInput: damageHealInput,
+            damageInput: damageInput, // Специфичный для урона
+            healInput: healInput,     // Специфичный для лечения
+            damageHealButton: damageHealButton,
+            applyDamageButton: applyDamageButton, // Специфичный для урона
+            applyHealButton: applyHealButton,     // Специфичный для лечения
+            // --- Конец использования новых стилей ---
+
             actionButtonsContainer: {display: 'flex', justifyContent: 'space-between', gap: '10px', marginTop: '15px', paddingTop: '15px', borderTop: `1px solid ${theme.colors.surface}55`},
             actionButton: actionButton,
-            actionButtonDisabled: actionButtonDisabled,
+            // actionButtonDisabled: actionButtonDisabled, // Удалено
             healButtonMedkitActive: healButtonMedkitActive,
             restButtonShortActive: restButtonShortActive,
             restButtonLongActive: restButtonLongActive,
@@ -677,7 +796,7 @@ const CharacterStatusSection = ({
             puControlContainer: {display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', paddingTop:'15px', borderTop: `1px dashed ${theme.colors.surface}55`, marginTop:'15px'},
             puLabel: {color: theme.colors.textSecondary, fontSize: '0.9rem', marginRight: 'auto', fontWeight:'bold'},
             puButtons: {display: 'flex', gap: '15px'},
-            puButton: {padding: '8px 18px', fontSize: '0.95rem', fontWeight: '600', borderRadius: '8px', cursor: 'pointer', transition: theme.transitions.default, border: '1px solid', ':disabled': {...actionButtonDisabled}},
+            puButton: {padding: '8px 18px', fontSize: '0.95rem', fontWeight: '600', borderRadius: '8px', cursor: 'pointer', transition: theme.transitions.default, border: '1px solid', ':disabled': { opacity: 0.6, cursor: 'not-allowed', filter: 'grayscale(50%)' } }, // Используем общий стиль disabled из actionButton
             puButtonFailure: {borderColor: theme.colors.error, color: theme.colors.error, background: `${theme.colors.error}11`, ':hover:not(:disabled)': {background: `${theme.colors.error}33`}},
             puButtonSuccess: {borderColor: theme.colors.secondary, color: theme.colors.secondary, background: `${theme.colors.secondary}11`, ':hover:not(:disabled)': {background: `${theme.colors.secondary}33`}},
 
@@ -687,7 +806,6 @@ const CharacterStatusSection = ({
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            // padding: '3px 10px',
             textAlign: 'center',
             minHeight: '10px',
             position: 'relative', // Для z-index
@@ -709,7 +827,6 @@ const CharacterStatusSection = ({
             padding: '10px 20px',
             border: `1px solid ${theme.colors.secondary}`,
             borderRadius: '12px',
-            // background: theme.colors.background ? `${theme.colors.background}99` : 'rgba(30, 30, 40, 0.6)',
             backdropFilter: 'blur(3px)',
             transition: 'all 0.7s ease',
             ':hover': {
@@ -753,61 +870,42 @@ const CharacterStatusSection = ({
         transition: theme.transitions.default,
         ':hover': { background: theme.colors.primary + '44', borderColor: theme.colors.primary }
     },
-    // --- НОВЫЕ СТИЛИ для карточек состояний ---
+    // --- Стили для карточек состояний ---
     statusEffectGridContainer: { // Контейнер теперь Grid
         display: 'grid',
-        // Адаптивные колонки: минимум 160px, максимум 1fr (равномерно)
-        // gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', // Увеличил минимальную ширину
         gap: '12px', // Отступ между карточками
-        // marginTop: '15px', // Отступ сверху
     },
     statusEffectCard: { // Базовый стиль карточки
         display: 'flex',
         alignItems: 'center',
-        gap: '8px',
+        gap: '10px', // Немного увеличил отступ
         background: theme.colors.surface, // Более плотный фон
         border: `1px solid ${theme.colors.surface}cc`, // Рамка
         borderLeftWidth: '5px', // Толстая левая рамка для цвета
         borderRadius: '8px',
-        padding: '10px', // Внутренние отступы
+        padding: '10px 12px', // Внутренние отступы
         fontSize: '0.9rem',
         boxShadow: theme.effects.shadowSmall, // Небольшая тень
-        position: 'relative', // Для позиционирования кнопки удаления (если нужно)
+        position: 'relative', // Для позиционирования кнопки удаления
         overflow: 'hidden', // Обрезаем контент, если не влезает
         // transition добавляется через CSS класс .status-card-hover
     },
-    // Стили для разных типов эффектов (добавляются к базовому)
-    statusEffectCard_buff: {
-        // borderLeftColor: theme.colors.success || '#66BB6A', // Устанавливается динамически
-        // Можно добавить легкое свечение
-        // boxShadow: `0 0 8px ${theme.colors.success || '#66BB6A'}33`,
-    },
-    statusEffectCard_debuff: {
-        // borderLeftColor: theme.colors.error,
-        // boxShadow: `0 0 8px ${theme.colors.error}33`,
-    },
-    statusEffectCard_mental: {
-        // borderLeftColor: theme.colors.primary,
-        // boxShadow: `0 0 8px ${theme.colors.primary}33`,
-    },
-    statusEffectCard_neutral: {
-        // borderLeftColor: theme.colors.textSecondary,
-    },
     statusEffectIconContainer: { // Контейнер для иконки
-        width: '30px', // Чуть больше
-        height: '30px',
+        width: '32px', // Чуть больше
+        height: '32px',
         borderRadius: '6px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         flexShrink: 0,
         // Фон и цвет текста/иконки будут зависеть от типа эффекта
-        background: 'rgba(255, 255, 255, 0.1)', // Полупрозрачный фон по умолчанию
-        color: theme.colors.textSecondary, // Цвет иконки по умолчанию
+        // background: 'rgba(255, 255, 255, 0.1)', // Устанавливается динамически
+        // color: theme.colors.textSecondary, // Устанавливается динамически
     },
     statusEffectIcon: { // Сама иконка
-        width: '18px', // Больше
-        height: '18px',
+        width: '20px', // Больше
+        height: '20px',
         fill: 'currentColor',
     },
     statusEffectName: { // Имя эффекта
@@ -829,7 +927,6 @@ const CharacterStatusSection = ({
         color: theme.colors.textSecondary,
         border: 'none',
         padding: '0 4px',
-        // marginLeft: 'auto', // Убрали, т.к. имя занимает все место
         fontSize: '1.4rem', // Крупнее крестик
         lineHeight: '1',
         cursor: 'pointer',
@@ -842,14 +939,6 @@ const CharacterStatusSection = ({
             background: `${theme.colors.error}22`,
         }
     },
-
-            // Стили для секции Активные Состояния
-            addItemButton: {padding: '6px 12px', background: theme.colors.primary, color: theme.colors.background, border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', transition: theme.transitions.default, ':hover': {opacity: 0.9}},
-            statusTagContainer: {display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px', justifyContent: 'flex-start'},
-            statusTag: {display: 'inline-flex', alignItems: 'center', background: theme.colors.surface, border: `1px solid ${theme.colors.textSecondary}55`, borderRadius: '15px', padding: '5px 10px 5px 12px', fontSize: '0.9rem', cursor: 'default', transition: 'all 0.2s ease', ':hover': {borderColor: `${theme.colors.primary}88`, background: `${theme.colors.primary}11`}},
-            statusTagPu: {borderColor: theme.colors.primary, background: `${theme.colors.primary}15`}, // Оставим на всякий случай
-            statusTagName: {cursor: 'pointer', marginRight: '5px', color: theme.colors.text, ':hover': {color: theme.colors.primary, textDecoration: 'underline'}},
-            removeStatusButtonTag: {background: 'transparent', color: theme.colors.error, border: 'none', padding: '0', marginLeft: '4px', fontSize: '1.1rem', lineHeight: '1', cursor: 'pointer', opacity: 0.6, ':hover': {opacity: 1}},
             placeholderText: {color: theme.colors.textSecondary, fontStyle: 'italic', textAlign: 'center', marginTop: '20px'},
         };
 

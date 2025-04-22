@@ -327,6 +327,7 @@ def level_up_character(db: Session, character_id: int, user_id: int, level_up_da
     # Убедимся, что используем актуальный модификатор Выносливости
     current_endurance_mod = _get_skill_modifier(db_char.skill_endurance)
     db_char.max_hp += level_up_data.hp_roll + current_endurance_mod
+    db_char.current_hp = db_char.max_hp
 
     # Повышаем уровень ветки
     branch_attr = f"{level_up_data.branch_point_spent}_branch_level"
