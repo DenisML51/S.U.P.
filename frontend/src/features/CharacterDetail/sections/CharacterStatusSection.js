@@ -363,7 +363,7 @@ const CharacterStatusSection = ({
                             disabled={isApplyDamageDisabled}
                             title={isHpZero ? "Персонаж уже при смерти" : "Применить урон"}
                         >
-                           Урон
+                           –
                         </button>
                     </div>
                     {/* Группа Лечения (справа) */}
@@ -384,7 +384,7 @@ const CharacterStatusSection = ({
                             disabled={isApplyHealDisabled}
                             title={isHpFull ? "Здоровье полное" : "Применить лечение"}
                         >
-                            Лечение
+                            +
                         </button>
                     </div>
                 </div>
