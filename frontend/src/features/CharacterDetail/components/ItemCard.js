@@ -21,7 +21,6 @@ const getRarityColor = (rarity) => {
 
 // Иконки для тегов
 const WeightIcon = () => ( <svg style={styles.detailTagIcon} viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C7.03 3 3 7.03 3 12s4.03 9 9 9 9-4.03 9-9-4.03-9-9-9zm0 16c-3.86 0-7-3.14-7-7s3.14-7 7-7 7 3.14 7 7-3.14 7-7 7zm-1-8h2v3h-2zm0-4h2v2h-2z"/></svg> );
-const AmmoIcon = () => ( <svg style={styles.detailTagIcon} viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 8c0-1.93-1.57-3.5-3.5-3.5S9.5 6.07 9.5 8H5.75C5.34 8 5 8.34 5 8.75V10c0 .41.34.75.75.75h12.5c.41 0 .75-.34.75-.75V8.75c0-.41-.34-.75-.75-.75H16.5zm0 2H7.5V9.5h9V10zm-5.5 2h-1v1h1v-1zm2 0h-1v1h1v-1zm2 0h-1v1h1v-1zm2 0h-1v1h1v-1zm-1.25 3H8.75C8.34 15 8 15.34 8 15.75v.5C8 16.66 8.34 17 8.75 17h6.5c.41 0 .75-.34.75-.75v-.5c0-.41-.34-.75-.75-.75z"/></svg> );
 const RangeIcon = () => ( <svg style={styles.detailTagIcon} viewBox="0 0 24 24" fill="currentColor"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/></svg> );
 const StrengthReqIcon = () => ( <svg style={styles.detailTagIcon} viewBox="0 0 24 24" fill="currentColor"><path d="M19.5 12.5c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5zM12 19c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm-7.5-7C3.12 12 2 13.12 2 14.5S3.12 17 4.5 17s2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5zM12 1C8.13 1 5 4.13 5 8c0 1.44.48 2.77 1.29 3.88L12 20l5.71-8.12C18.52 10.77 19 9.44 19 8c0-3.87-3.13-7-7-7z"/></svg> );
 const StealthDisIcon = () => ( <svg style={styles.detailTagIcon} viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3 3z"/></svg> );
@@ -48,11 +47,7 @@ const EquippedStatusIcon = () => (
     </svg>
 );
 
-// Карта для отображения русских названий типов
-const ITEM_TYPES_MAP = {
-    weapon: 'Оружие', armor: 'Броня', shield: 'Щиты',
-    general: 'Общее', ammo: 'Патроны'
-};
+
 
 // --- Основной Компонент ---
 const ItemCard = ({
@@ -93,8 +88,8 @@ const ItemCard = ({
     // Динамические стили карточки
     const cardStyle = {
         ...styles.itemCardBase,
-        borderLeftColor: rarityColor, // Рамка редкости
-        ...(isEquipped ? styles.itemCardEquipped : {}), // Стиль для экипированного
+        borderLeftColor: isEquipped ? theme.colors.secondary : rarityColor,
+        ...(isEquipped ? styles.itemCardEquipped : {}),
     };
 
     // Обработчики действий (без изменений в логике)
