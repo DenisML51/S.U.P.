@@ -158,6 +158,13 @@ export const activateAction = (characterId, activationData) => {
     return axios.post(`${API_URL}/characters/${characterId}/activate`, activationData, { headers: getAuthHeaders() });
 };
 
+// --- НОВАЯ ФУНКЦИЯ: Проверка Навыка ---
+export const performSkillCheck = (characterId, skillName) => {
+    console.log(`API Call: performSkillCheck for char ID: ${characterId}, skill: ${skillName}`);
+    const payload = { skill_name: skillName };
+    return axios.post(`${API_URL}/characters/${characterId}/skill_check`, payload, { headers: getAuthHeaders() });
+};
+
 // --- Reference Data ---
 export const getAllWeapons = () => axios.get(`${API_URL}/data/weapons`);
 export const getAllArmor = () => axios.get(`${API_URL}/data/armor`);

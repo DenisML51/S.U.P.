@@ -12,8 +12,9 @@ class StatusEffectOut(BaseModel):
     roll_modifier_targets: Optional[Dict[str, Any]] = None
 
     ac_modifier: Optional[int] = None
-    attack_roll_modifier: Optional[int] = None
     duration_type: Optional[str] = None # Добавлено для информации
+
+    numeric_modifiers: Optional[Dict[str, Any]] = Field(None, description='Численные модификаторы (+/-) (JSON)')
 
     action_restrictions: Optional[Dict[str, Any]] = None
     saving_throw_modifiers: Optional[Dict[str, Any]] = None
@@ -34,9 +35,9 @@ class StatusEffectBase(BaseModel):
     roll_modifier_targets: Optional[Dict[str, Union[bool, str, List[str]]]] = Field(None, description="Цели модификатора")
 
     ac_modifier: Optional[int] = None
-    attack_roll_modifier: Optional[int] = None
     duration_type: Optional[str] = None # Добавлено для информации
 
+    numeric_modifiers: Optional[Dict[str, Any]] = None
     action_restrictions: Optional[Dict[str, Any]] = None
     saving_throw_modifiers: Optional[Dict[str, Any]] = None
 

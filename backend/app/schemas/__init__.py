@@ -15,5 +15,5 @@ from .character import (
     CharacterNotes, CharacterDetailedOut, CharacterUpdateSkills, LevelUpInfo, HealRequest, ShortRestRequest, StatusEffectOut,
     UpdateCharacterStats, VALID_BRANCH_KEYS # Экспортируем константу
 )
-
+from .skill_check import SkillCheckRequest, SkillCheckResultOut
 from .action import ActivationRequest, ActionResultOut

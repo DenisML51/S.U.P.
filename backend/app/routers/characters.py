@@ -20,6 +20,16 @@ except ImportError:
     custom_item_crud = item_crud # Пример, если функции в item_crud
     from ..schemas import CustomItemCreate, CustomItemOut
 
+try:
+    # Пытаемся импортировать новую функцию из нового файла
+    from ..crud.skill_check import perform_skill_check
+    from ..schemas.skill_check import SkillCheckRequest, SkillCheckResultOut
+except ImportError:
+    # Если вдруг оставили логику в action.py (не рекомендуется)
+    from ..crud.action import perform_skill_check
+    from ..schemas.action import SkillCheckRequest, SkillCheckResultOut
+    print("Warning: Using perform_skill_check from action.py instead of skill_check.py")
+
 router = APIRouter(
     prefix="/characters",
     tags=["Characters"],
@@ -387,3 +397,47 @@ async def delete_character_custom_item(
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Произвольный предмет не найден или не принадлежит вам")
     return None # Возвращаем пустой ответ 204
+
+
+@router.post("/{character_id}/skill_check",
+             response_model=SkillCheckResultOut, # Используем новую схему ответа
+             tags=["Skill Checks"], # Опциональный тег для группировки в Swagger
+             summary="Выполнить проверку навыка")
+async def perform_character_skill_check(
+    character_id: int,
+    request: SkillCheckRequest, # Используем новую схему запроса
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Выполняет проверку указанного навыка для персонажа.
+    Учитывает модификаторы характеристик и статус-эффекты (числовые и преим./помеха).
+    """
+    # Загружаем персонажа (убедимся, что эффекты загружены)
+    character = db.query(models.Character).options(
+         selectinload(models.Character.active_status_effects) # Важно для получения эффектов
+    ).filter(
+        models.Character.id == character_id,
+        models.Character.owner_id == current_user.id
+    ).first()
+
+    if not character:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Персонаж не найден")
+
+    # Вызываем функцию логики из crud/skill_check.py
+    result = perform_skill_check(
+        db=db,
+        character=character,
+        skill_name=request.skill_name
+        # situational_modifier=request.situational_modifier # Если добавили
+    )
+
+    # Обработка возможных ошибок из CRUD функции
+    if not result.success:
+        if "Неизвестный навык" in result.message:
+             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.message)
+        else: # Другие возможные ошибки внутри функции
+             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=result.message)
+
+    # Возвращаем успешный результат
+    return result

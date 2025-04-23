@@ -1101,162 +1101,164 @@ status_effects_data = [
         "name": "При смерти (Unconscious)",
         "description": "Недееспособен, не может двигаться/говорить, роняет предметы. Атаки по нему с преим., вблизи - крит. Провал спасбр. Сил/Лов. Восстанавливается при лечении >0 ПЗ или стабилизации.",
         "roll_modifier_type": None, "roll_modifier_targets": None,
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": None,
-        "action_restrictions": {"block_action": True, "block_bonus": True, "block_reaction": True, "block_move": True}, # Добавлено: Не может действовать/двигаться
-        "saving_throw_modifiers": {"strength": "fail", "dexterity": "fail"} # Добавлено: Провал Сил/Лов
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": None, # numeric_modifiers вместо attack/skill
+        "action_restrictions": {"block_action": True, "block_bonus": True, "block_reaction": True, "block_move": True},
+        "saving_throw_modifiers": {"strength": "fail", "dexterity": "fail"}
     },
     {
         "name": "Горение (Burning)",
         "description": "Урон огнем (1к4/1к6) в начале хода. Действие на тушение (СЛ Лов 10).",
         "roll_modifier_type": None, "roll_modifier_targets": None,
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": "save_ends",
-        "action_restrictions": None, "saving_throw_modifiers": None # Новые поля по умолчанию None
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": "save_ends",
+        "action_restrictions": None, "saving_throw_modifiers": None
     },
     {
         "name": "Глухота (Deafened)",
         "description": "Не может слышать, провал проверок на слух.",
         "roll_modifier_type": "disadvantage", "roll_modifier_targets": {"skill_checks": ["attention"]},
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": None,
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": None,
         "action_restrictions": None, "saving_throw_modifiers": None
     },
     {
         "name": "Дружественный (Charmed/Friendly)",
         "description": "Считает источник другом, не атакует его. Преим. на соц. проверки у источника. Может закончиться при вреде.",
         "roll_modifier_type": None, "roll_modifier_targets": None,
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": None,
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": None,
         "action_restrictions": None, "saving_throw_modifiers": None
     },
     {
         "name": "Замедление (Slowed)",
         "description": "Скорость / 2 (или -X). Не может исп. Реакции перемещения.",
         "roll_modifier_type": None, "roll_modifier_targets": None,
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": None,
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": None,
         "action_restrictions": None, "saving_throw_modifiers": None # Влияние на скорость пока не обрабатывается
     },
     {
         "name": "Застигнут врасплох (Surprised)",
         "description": "Не может двигаться/действовать/реагировать в 1й ход боя.",
         "roll_modifier_type": None, "roll_modifier_targets": None,
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": "end_of_first_turn",
-        "action_restrictions": {"block_action": True, "block_bonus": True, "block_reaction": True, "block_move": True}, # Добавлено
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": "end_of_first_turn",
+        "action_restrictions": {"block_action": True, "block_bonus": True, "block_reaction": True, "block_move": True},
         "saving_throw_modifiers": None
     },
     {
         "name": "Истощение (Exhaustion)",
         "description": "Уровни 1-6: 1:Помеха проверки; 2:Скор/2; 3:Помеха атаки/спасбр; 4:ПЗmax/2; 5:Скор=0; 6:Смерть. -1 за Длит. отдых.",
-        "roll_modifier_type": None, "roll_modifier_targets": None, # Обрабатывается отдельно
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": None,
-        "action_restrictions": None, "saving_throw_modifiers": None # Сложные эффекты, пока не здесь
+        # Уровень 1: Помеха проверки навыков -> roll_modifier_targets
+        # Уровень 3: Помеха атаки/спасбросков -> roll_modifier_targets
+        "roll_modifier_type": None, "roll_modifier_targets": None, # Уровни обрабатываются спец. логикой
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": None,
+        "action_restrictions": None, "saving_throw_modifiers": None
     },
     {
         "name": "Кровотечение (Bleeding)",
         "description": "Урон (1к4) в начале хода. Требует Действия и Медицины/Лечения для остановки.",
         "roll_modifier_type": None, "roll_modifier_targets": None,
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": "action_ends",
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": "action_ends",
         "action_restrictions": None, "saving_throw_modifiers": None # Постоянный урон пока не здесь
     },
     {
         "name": "Лежа (Prone)",
         "description": "Скор. ползком / 2. Помеха на атаки. Атаки по нему: ближ. с преим., дальн. с помехой. Встать = полскорости.",
-        "roll_modifier_type": "disadvantage", "roll_modifier_targets": {"attack_rolls": True},
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": None,
-        "action_restrictions": None, "saving_throw_modifiers": None # Влияние на AC от атак других - пока нет
+        "roll_modifier_type": "disadvantage", "roll_modifier_targets": {"attack_rolls": True}, # Помеха на СВОИ атаки
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": None,
+        "action_restrictions": None, "saving_throw_modifiers": None
     },
     {
         "name": "Невидимость (Invisible)",
         "description": "Не видно без спец. средств. Атаки по существу с помехой, его атаки с преим.",
-        "roll_modifier_type": "advantage", "roll_modifier_targets": {"attack_rolls": True},
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": None,
+        "roll_modifier_type": "advantage", "roll_modifier_targets": {"attack_rolls": True}, # Преимущество на СВОИ атаки
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": None,
         "action_restrictions": None, "saving_throw_modifiers": None
     },
     {
         "name": "Немота (Silenced)",
         "description": "Не может говорить. Техно: не может исп. голосовые/звуковые комп.",
         "roll_modifier_type": None, "roll_modifier_targets": None,
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": None,
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": None,
         "action_restrictions": None, "saving_throw_modifiers": None
     },
     {
         "name": "Обезоружен (Disarmed)",
         "description": "Роняет 1 предмет (оружие).",
         "roll_modifier_type": None, "roll_modifier_targets": None,
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": None,
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": None,
         "action_restrictions": None, "saving_throw_modifiers": None
     },
     {
         "name": "Оглушение (Stunned)",
         "description": "Недееспособен, не двиг., говорит запинаясь. Провал спасбр. Сил/Лов. Атаки по нему с преим.",
-        "roll_modifier_type": None, "roll_modifier_targets": None,
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": "save_ends",
-        "action_restrictions": {"block_action": True, "block_bonus": True, "block_reaction": True, "block_move": True}, # <-- Добавлено
-        "saving_throw_modifiers": {"strength": "fail", "dexterity": "fail"} # <-- Добавлено
+        "roll_modifier_type": None, "roll_modifier_targets": None, # Преимущество на атаки ПО НЕМУ - пока не моделируем
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": "save_ends",
+        "action_restrictions": {"block_action": True, "block_bonus": True, "block_reaction": True, "block_move": True},
+        "saving_throw_modifiers": {"strength": "fail", "dexterity": "fail"}
     },
     {
         "name": "Ослепление (Blinded)",
         "description": "Не видит, провал проверок на зрение. Атаки по нему с преим., его атаки с помехой.",
-        "roll_modifier_type": "disadvantage", "roll_modifier_targets": {"attack_rolls": True, "skill_checks": ["attention"]},
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": None,
+        "roll_modifier_type": "disadvantage", "roll_modifier_targets": {"attack_rolls": True, "skill_checks": ["attention"]}, # Помеха на атаки и Внимание (зрение)
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": None,
         "action_restrictions": None, "saving_throw_modifiers": None
     },
     {
         "name": "Отравление (Poisoned)",
         "description": "Помеха на броски атаки и проверки навыков.",
         "roll_modifier_type": "disadvantage", "roll_modifier_targets": {"attack_rolls": True, "skill_checks": "all"},
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": None,
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": None,
         "action_restrictions": None, "saving_throw_modifiers": None
     },
     {
         "name": "Отключение (Disabled)",
         "description": "Для техники. Недееспособен, не двиг./действ. (аналог Оглушения).",
         "roll_modifier_type": None, "roll_modifier_targets": None,
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": None,
-        "action_restrictions": {"block_action": True, "block_bonus": True, "block_reaction": True, "block_move": True}, # Аналогично Оглушению
-        "saving_throw_modifiers": None # У техники обычно нет Str/Dex спасбросков
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": None,
+        "action_restrictions": {"block_action": True, "block_bonus": True, "block_reaction": True, "block_move": True},
+        "saving_throw_modifiers": None
     },
     {
         "name": "Ошеломление (Dazed)",
         "description": "Может исп. либо Действие, либо Бонусное действие (не оба). Не может исп. Реакции.",
         "roll_modifier_type": None, "roll_modifier_targets": None,
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": None,
-        "action_restrictions": {"block_bonus": True, "block_reaction": True}, # <-- Добавлено (упрощение)
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": None,
+        "action_restrictions": {"block_bonus": True, "block_reaction": True},
         "saving_throw_modifiers": None
     },
     {
         "name": "Паралич (Paralyzed)",
         "description": "Недееспособен (не двиг./действ.). Провал спасбр. Сил/Лов. Атаки по нему с преим. Атака вблизи - крит.",
-        "roll_modifier_type": None, "roll_modifier_targets": None,
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": "save_ends",
-        "action_restrictions": {"block_action": True, "block_bonus": True, "block_reaction": True, "block_move": True}, # <-- Добавлено
-        "saving_throw_modifiers": {"strength": "fail", "dexterity": "fail"} # <-- Добавлено
+        "roll_modifier_type": None, "roll_modifier_targets": None, # Преимущество на атаки ПО НЕМУ - пока не моделируем
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": "save_ends",
+        "action_restrictions": {"block_action": True, "block_bonus": True, "block_reaction": True, "block_move": True},
+        "saving_throw_modifiers": {"strength": "fail", "dexterity": "fail"}
     },
     {
         "name": "Подавление (Suppressed)",
         "description": "Помеха на атаки и проверки Внимательности.",
         "roll_modifier_type": "disadvantage", "roll_modifier_targets": {"attack_rolls": True, "skill_checks": ["attention"]},
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": None,
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": None,
         "action_restrictions": None, "saving_throw_modifiers": None
     },
     {
         "name": "Схвачен (Grappled)",
         "description": "Скор = 0. Заканчивается, если источник недееспособен или цель вырвалась.",
         "roll_modifier_type": None, "roll_modifier_targets": None,
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": None,
-        "action_restrictions": {"block_move": True}, # <-- Добавлено (скорость = 0)
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": None,
+        "action_restrictions": {"block_move": True},
         "saving_throw_modifiers": None
     },
     {
         "name": "Страх (Frightened)",
         "description": "Помеха на атаки/проверки, пока виден источник. Не может двиг. к источнику.",
         "roll_modifier_type": "disadvantage", "roll_modifier_targets": {"attack_rolls": True, "skill_checks": "all"},
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": None,
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": None,
         "action_restrictions": None, "saving_throw_modifiers": None # Запрет движения к источнику - пока нет
     },
     {
         "name": "Шок (Shocked)",
         "description": "Не может использовать Реакции.",
         "roll_modifier_type": None, "roll_modifier_targets": None,
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": None,
-        "action_restrictions": {"block_reaction": True}, # <-- Добавлено
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": None,
+        "action_restrictions": {"block_reaction": True},
         "saving_throw_modifiers": None
     },
 
@@ -1265,85 +1267,85 @@ status_effects_data = [
         "name": "ПУ: Паника",
         "description": "Помеха на атаки/проверки, должен бежать от опасности (1 мин).",
         "roll_modifier_type": "disadvantage", "roll_modifier_targets": {"attack_rolls": True, "skill_checks": "all"},
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": "minutes",
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": "minutes",
         "action_restrictions": None, "saving_throw_modifiers": None
     },
     {
         "name": "ПУ: Ярость",
         "description": "Преим. на атаки ближ. боя (Сил), -2 AC. Атакует ближайшее существо (1 мин).",
         "roll_modifier_type": "advantage", "roll_modifier_targets": {"attack_rolls.melee.strength": True},
-        "ac_modifier": -2, "attack_roll_modifier": None, "duration_type": "minutes",
+        "ac_modifier": -2, "numeric_modifiers": None, "duration_type": "minutes", # AC мод остался отдельным
         "action_restrictions": None, "saving_throw_modifiers": None
     },
     {
         "name": "ПУ: Апатия",
         "description": "Помеха проверки/спасбр, скор/2, нет Бонусн.д./Реакций (1 мин).",
         "roll_modifier_type": "disadvantage", "roll_modifier_targets": {"skill_checks": "all", "saving_throws": "all"},
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": "minutes",
-        "action_restrictions": {"block_bonus": True, "block_reaction": True}, # <-- Добавлено
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": "minutes",
+        "action_restrictions": {"block_bonus": True, "block_reaction": True},
         "saving_throw_modifiers": None
     },
     {
         "name": "ПУ: Паранойя",
         "description": "Помеха соц. проверки. Считает всех подозрительными (10 мин).",
         "roll_modifier_type": "disadvantage", "roll_modifier_targets": {"skill_checks": ["suggestion", "insight", "authority"]},
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": "minutes",
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": "minutes",
         "action_restrictions": None, "saving_throw_modifiers": None
     },
     {
         "name": "ПУ: Слабоумие",
         "description": "Действует иррационально по идее Мастера. Помеха на др. действия (10 мин).",
         "roll_modifier_type": "disadvantage", "roll_modifier_targets": {"skill_checks": "all", "attack_rolls": True},
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": "minutes",
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": "minutes",
         "action_restrictions": None, "saving_throw_modifiers": None
     },
     {
         "name": "ПУ: Срыв",
-        "description": "Оглушение (1 раунд), затем Ошеломление (1 мин).", # Комбинация эффектов
+        "description": "Оглушение (1 раунд), затем Ошеломление (1 мин).", # Комбинация
         "roll_modifier_type": None, "roll_modifier_targets": None,
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": "rounds/minutes",
-        "action_restrictions": None, "saving_throw_modifiers": None # Будет наследоваться от Оглушения/Ошеломления
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": "rounds/minutes",
+        "action_restrictions": None, "saving_throw_modifiers": None # Наследуются
     },
     {
         "name": "ПУ: Адреналин",
         "description": "Доп. Действие или Бонусн. действие в след. ход.",
         "roll_modifier_type": None, "roll_modifier_targets": None,
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": "next_turn",
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": "next_turn",
         "action_restrictions": None, "saving_throw_modifiers": None
     },
     {
         "name": "ПУ: Вдохновение",
         "description": "Преим. на атаки ИЛИ спасбр. (на выбор) до конца след. хода.",
         "roll_modifier_type": "advantage", "roll_modifier_targets": {"attack_rolls": True, "saving_throws": True},
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": "end_of_next_turn",
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": "end_of_next_turn",
         "action_restrictions": None, "saving_throw_modifiers": None
     },
     {
         "name": "ПУ: Спокойствие",
         "description": "+2 AC, Преим. на спасбр. Самообл. до конца след. хода.",
         "roll_modifier_type": "advantage", "roll_modifier_targets": {"saving_throws": ["self_control"]},
-        "ac_modifier": 2, "attack_roll_modifier": None, "duration_type": "end_of_next_turn",
+        "ac_modifier": 2, "numeric_modifiers": None, "duration_type": "end_of_next_turn",
         "action_restrictions": None, "saving_throw_modifiers": None
     },
     {
         "name": "ПУ: Прозрение",
         "description": "Преим. на след. проверку Вним./Логики/Прониц.",
         "roll_modifier_type": "advantage", "roll_modifier_targets": {"skill_checks": ["attention", "logic", "insight"]},
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": "next_check",
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": "next_check",
         "action_restrictions": None, "saving_throw_modifiers": None
     },
     {
         "name": "ПУ: Эмпатия",
         "description": "Преим. на след. проверку Мед./неагрессив. Внуш./Прониц.",
         "roll_modifier_type": "advantage", "roll_modifier_targets": {"skill_checks": ["medicine", "suggestion", "insight"]},
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": "next_check",
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": "next_check",
         "action_restrictions": None, "saving_throw_modifiers": None
     },
     {
         "name": "ПУ: Воля",
         "description": "Автоуспех след. спасбр. от Страха/Внуш. + 1к6 временных ПЗ.",
         "roll_modifier_type": None, "roll_modifier_targets": None,
-        "ac_modifier": None, "attack_roll_modifier": None, "duration_type": "next_save",
+        "ac_modifier": None, "numeric_modifiers": None, "duration_type": "next_save",
         "action_restrictions": None, "saving_throw_modifiers": None # Автоуспех - пока не здесь
     },
 
@@ -1351,11 +1353,10 @@ status_effects_data = [
     {
         "name": "_Temp: Precise Aim",
         "description": "Преимущество на следующую дальнюю атаку.",
-        "roll_modifier_type": "advantage",
-        "roll_modifier_targets": { "attack_rolls": ["ranged"] },
+        "roll_modifier_type": "advantage", "roll_modifier_targets": { "attack_rolls": ["ranged"] },
         "duration_type": "next_ranged_attack",
-        "ac_modifier": None, "attack_roll_modifier": None,
-        "action_restrictions": None, "saving_throw_modifiers": None # Новые поля
+        "ac_modifier": None, "numeric_modifiers": None,
+        "action_restrictions": None, "saving_throw_modifiers": None
     },
 ]
 
@@ -1458,11 +1459,9 @@ def seed_data():
                     status_fields_cleaned = {k: v for k, v in data_copy.items() if hasattr(StatusEffect, k)}
                     status_fields_cleaned.setdefault('roll_modifier_type', None)
                     status_fields_cleaned.setdefault('roll_modifier_targets', None)
-
                     status_fields_cleaned.setdefault('ac_modifier', None)
-                    status_fields_cleaned.setdefault('attack_roll_modifier', None)
+                    status_fields_cleaned.setdefault('numeric_modifiers', None) # Новое поле
                     status_fields_cleaned.setdefault('duration_type', None)
-
                     status_fields_cleaned.setdefault('action_restrictions', None)
                     status_fields_cleaned.setdefault('saving_throw_modifiers', None)
                     try:

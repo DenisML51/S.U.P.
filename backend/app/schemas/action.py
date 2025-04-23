@@ -12,23 +12,18 @@ class ActivationRequest(BaseModel):
     target_entities: Optional[List[int]] = Field(None, description="Список ID целей действия")
 
 class ActionResultOut(BaseModel):
-    success: bool = Field(..., description="Успешно ли выполнено действие (прошли проверки)?")
-    message: str = Field(..., description="Текстовое описание результата")
-    details: Optional[Dict[str, Any]] = Field(None, description="Дополнительные структурированные данные (урон, лечение, детали броска, режим броска и т.д.)") # <-- Обновлено описание
-    consumed_resources: Optional[Dict[str, Any]] = Field(None, description="Потраченные ресурсы (заряды, ОС, патроны)")
-    character_update_needed: bool = Field(True, description="Нужно ли фронтенду обновить данные персонажа?")
-    targets_update_needed: Optional[List[int]] = Field(None, description="ID целей, чьи данные нужно обновить")
+    """ Результат активации действия (способности или предмета) """
+    success: bool
+    message: str
+    details: Optional[Dict[str, Any]] = None # Детали (урон, попадание, исцеление и т.д.)
+    consumed_resources: Optional[Dict[str, Any]] = None # Потраченные ресурсы (патроны, заряды)
+    character_update_needed: bool = False # Флаг для фронтенда, нужно ли обновить данные персонажа
 
-    # Пример возможной структуры details для атаки:
-    # {
-    #     "attack_roll": 15,
-    #     "attack_roll_detail": "4к6в3 (4+5+6)=15 +2(Мод.Лов) = 17",
-    #     "roll_mode": "advantage", # <--- ДОБАВЛЕНО
-    #     "hit": true,
-    #     "damage_dealt": 8,
-    #     "damage_roll_detail": "1к10(5) +3(Мод.Лов) = 8",
-    #     "damage_type": "Колющий"
-    # }
+    # --- ДОБАВЛЕНО (Для атак) ---
+    # Возвращаем суммарный числ. мод от эффектов, примененный к этому броску атаки (если был)
+    numeric_mod_from_effects: Optional[int] = Field(None, description="Сумма числовых модификаторов к броску от эффектов")
+    # --- КОНЕЦ ---
+    # Примечание: roll_mode для атаки теперь будет внутри поля details
 
     class Config:
         from_attributes = True

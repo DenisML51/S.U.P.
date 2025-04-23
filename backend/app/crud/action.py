@@ -6,78 +6,80 @@ import random
 import re
 import logging
 
-# Импортируем character_crud и модели/схемы
-from . import character as character_crud
+# Импортируем модели, схемы, зависимости
 from .. import models, schemas
-# Импортируем утилиты, включая обновленные determine_roll_mode и format_roll_details
+from . import character as character_crud
+from .item import get_inventory_item
+# Импортируем утилиты, включая обновленную determine_roll_mode
 from .utils import (
     _parse_and_roll, SKILL_MODIFIER_MAP,
     roll_with_advantage_disadvantage, format_roll_details, RollMode,
-    determine_roll_mode # Убедимся, что импортирована обновленная версия
+    determine_roll_mode
 )
-from .item import get_inventory_item
 
 logger = logging.getLogger(__name__)
+# Импортируем хелпер парсинга числовых модов
+try:
+    from .skill_check import _get_numeric_modifier_for_context
+except ImportError:
+    try:
+        from .utils import _get_numeric_modifier_for_context
+        logger.warning("Could not import '_get_numeric_modifier_for_context' from 'skill_check', using 'utils'.")
+    except ImportError:
+         # Определяем заглушку, если импорт не удался ниоткуда
+         logger.error("Failed to import '_get_numeric_modifier_for_context' from both 'skill_check' and 'utils'. Using fallback.")
+         def _get_numeric_modifier_for_context(active_effects, target_context): return 0
 
-# --- Вспомогательная функция расхода патронов ---
+
+
+
+# --- Вспомогательная функция расхода патронов (_consume_ammo) ---
 def _consume_ammo(
     db: Session,
     character: models.Character,
     weapon: models.Weapon,
     amount: int = 1) -> Tuple[bool, Optional[Dict[str, Any]]]:
-    # ... (код _consume_ammo без изменений, как в предыдущем ответе) ...
+    """Расходует указанное количество патронов нужного типа."""
     if not weapon.required_ammo_type:
-        logger.debug(f"Weapon '{weapon.name}' does not require ammo type. Skipping consumption.")
+        logger.debug(f"Weapon '{weapon.name}' does not require ammo type.")
         return True, None
 
     required_type = weapon.required_ammo_type
     ammo_item_entry: Optional[models.CharacterInventoryItem] = None
-    found_in_loaded = False
 
+    # Ищем патроны сначала в загруженном инвентаре
     if character.inventory:
          for inv_item in character.inventory:
              if inv_item.item and isinstance(inv_item.item, models.Ammo) and inv_item.item.ammo_type == required_type:
                  ammo_item_entry = inv_item
-                 found_in_loaded = True
                  break
 
-    if not found_in_loaded:
-        logger.warning(f"Ammo type '{required_type}' not found in preloaded inventory for char {character.id}. Querying DB again.")
-        character_inventory = db.query(models.CharacterInventoryItem).filter(
-            models.CharacterInventoryItem.character_id == character.id
-        ).options(selectinload(models.CharacterInventoryItem.item)).all()
-
+    if not ammo_item_entry:
+        # Запрос к БД если не нашли в загруженном
+        logger.warning(f"Ammo type '{required_type}' not found in preloaded inventory for char {character.id}. Querying DB.")
+        character_inventory = db.query(models.CharacterInventoryItem).join(models.Item).filter(
+            models.CharacterInventoryItem.character_id == character.id,
+            models.Item.item_type == 'ammo'
+        ).options(selectinload(models.CharacterInventoryItem.item.of_type(models.Ammo))).all()
         for inv_item in character_inventory:
             if inv_item.item and isinstance(inv_item.item, models.Ammo) and inv_item.item.ammo_type == required_type:
                 ammo_item_entry = inv_item
                 break
 
-    if not ammo_item_entry:
-        logger.warning(f"Ammo type '{required_type}' not found in inventory for character {character.id}.")
-        return False, None
-
-    if ammo_item_entry.quantity < amount:
-        logger.warning(f"Not enough ammo type '{required_type}' for character {character.id}. Needed: {amount}, Has: {ammo_item_entry.quantity}.")
-        return False, None
+    if not ammo_item_entry: logger.warning(f"Ammo type '{required_type}' not found."); return False, None
+    if ammo_item_entry.quantity < amount: logger.warning(f"Not enough ammo '{required_type}'."); return False, None
 
     ammo_item_entry.quantity -= amount
     remaining_ammo = ammo_item_entry.quantity
-
-    ammo_info = {
-        "ammo_item_id": ammo_item_entry.item.id,
-        "ammo_name": ammo_item_entry.item.name,
-        "consumed": amount,
-        "remaining": remaining_ammo
-    }
-    logger.info(f"Consumed {amount} of ammo '{required_type}'. Remaining: {remaining_ammo} (InvItemID: {ammo_item_entry.id})")
-
-    # Помечаем объект как измененный для сессии SQLAlchemy
-    db.add(ammo_item_entry)
-
+    item_name = ammo_item_entry.item.name if ammo_item_entry.item else "??"; item_id = ammo_item_entry.item.id if ammo_item_entry.item else None
+    ammo_info = {"ammo_item_id": item_id, "ammo_name": item_name, "consumed": amount, "remaining": remaining_ammo}
+    logger.info(f"Consumed {amount} of ammo '{required_type}'. Remaining: {remaining_ammo}")
+    db.add(ammo_item_entry) # Помечаем для сохранения
     return True, ammo_info
 
-# Функция для броска 3к6 (без изменений)
+# --- Функция броска 3к6 (roll_3d6) ---
 def roll_3d6():
+    """Бросает 3 шестигранных кубика."""
     return random.randint(1, 6) + random.randint(1, 6) + random.randint(1, 6)
 
 
@@ -89,9 +91,9 @@ def activate_action(
     activation_data: schemas.ActivationRequest) -> Optional[schemas.ActionResultOut]:
     """
     Обрабатывает активацию способности или использование предмета.
-    Включает логику расхода патронов, преимущество/помеху, числовые модификаторы, временные эффекты и ограничения действий.
+    Использует numeric_modifiers для числовых модификаторов.
     """
-    # Загрузка персонажа со всеми нужными связями
+    # Загрузка персонажа
     character = db.query(models.Character).options(
         selectinload(models.Character.inventory).selectinload(models.CharacterInventoryItem.item),
         selectinload(models.Character.equipped_weapon1).selectinload(models.CharacterInventoryItem.item.of_type(models.Weapon)).selectinload(models.Weapon.granted_abilities),
@@ -101,71 +103,47 @@ def activate_action(
         selectinload(models.Character.active_status_effects) # Эффекты загружены
     ).filter(models.Character.id == character_id, models.Character.owner_id == user_id).first()
 
-    if not character:
-        logger.warning(f"--- ACTION FAILED: Character not found (ID: {character_id}, UserID: {user_id})")
-        return schemas.ActionResultOut(success=False, message="Персонаж не найден", character_update_needed=False)
+    if not character: logger.warning(f"FAIL: Char not found"); return schemas.ActionResultOut(success=False, message="Персонаж не найден", character_update_needed=False)
 
     activation_type = activation_data.activation_type
     target_id = activation_data.target_id
-    target_entities: List[int] = activation_data.target_entities or []
 
-    # Логирование старта
-    logger.info(f"--- ACTION START ---")
-    logger.info(f"  Character: {character.name} (ID: {character.id})")
-    logger.info(f"  Activation Type: {activation_type}, Target ID: {target_id}")
+    logger.info(f"--- ACTION START: {activation_type} (Target ID: {target_id}) for {character.name} ---")
 
-    # Инициализация переменных
+    # Инициализация
     consumed_resources_dict = {}
     action_result: Optional[schemas.ActionResultOut] = None
-    objects_to_delete = [] # Список для обычных предметов инвентаря на удаление
-    ammo_inv_item_to_delete = None # Для патронов, которые закончились
+    objects_to_delete = []
+    ammo_inv_item_to_delete = None
 
     try:
         # ===========================================
         # === ЛОГИКА ИСПОЛЬЗОВАНИЯ ПРЕДМЕТА (item) ===
         # ===========================================
         if activation_type == 'item':
-            # Проверка ограничений (упрощенная, блокируем если Основное Действие заблокировано)
+            # ... (Логика использования предмета как была, включая проверку ограничений) ...
             action_restricted_by_effect = None
             if character.active_status_effects:
                  for effect in character.active_status_effects:
-                      if effect.action_restrictions and isinstance(effect.action_restrictions, dict) and effect.action_restrictions.get("block_action"):
-                           action_restricted_by_effect = effect.name; break
-            if action_restricted_by_effect:
-                message = f"Невозможно использовать предмет: Действие заблокировано эффектом '{action_restricted_by_effect}'."
-                logger.warning(message)
-                return schemas.ActionResultOut(success=False, message=message, character_update_needed=False)
-
-            # Получение предмета из инвентаря
+                      if effect.action_restrictions and isinstance(effect.action_restrictions, dict) and effect.action_restrictions.get("block_action"): action_restricted_by_effect = effect.name; break
+            if action_restricted_by_effect: message = f"Предмет не исп.: Действие заблокировано '{action_restricted_by_effect}'."; logger.warning(message); return schemas.ActionResultOut(success=False, message=message, character_update_needed=False)
             inv_item = get_inventory_item(db, inventory_item_id=target_id, character_id=character_id, user_id=user_id)
-            if not inv_item: action_result = schemas.ActionResultOut(success=False, message="Предмет не найден в инвентаре.", character_update_needed=False); raise ValueError(action_result.message)
+            if not inv_item: action_result = schemas.ActionResultOut(success=False, message="Предмет не найден.", character_update_needed=False); raise ValueError(action_result.message)
             item = inv_item.item
-            if inv_item.quantity <= 0: action_result = schemas.ActionResultOut(success=False, message=f"У предмета '{item.name}' закончились использования.", character_update_needed=False); raise ValueError(action_result.message)
-
-            # Расчет эффекта предмета
-            formula = getattr(item, 'effect_dice_formula', None)
-            calculated_value = 0; roll_details = "Нет формулы"
+            if inv_item.quantity <= 0: action_result = schemas.ActionResultOut(success=False, message=f"У '{item.name}' закончились использования.", character_update_needed=False); raise ValueError(action_result.message)
+            formula = getattr(item, 'effect_dice_formula', None); calculated_value = 0; roll_details = "Нет формулы"
             if formula: calculated_value, roll_details = _parse_and_roll(formula, character)
-
-            # Расход предмета (если он расходуемый)
             item_was_consumed_or_deleted = False
             if item.item_type == 'general' and getattr(item, 'uses', None) is not None:
-                 if inv_item.quantity > 1:
-                     inv_item.quantity -= 1; consumed_resources_dict['item'] = {"item_id": item.id, "name": item.name, "consumed": 1, "remaining": inv_item.quantity}; db.add(inv_item); item_was_consumed_or_deleted = True
-                 else:
-                     consumed_resources_dict['item'] = {"item_id": item.id, "name": item.name, "consumed": 1, "remaining": 0}; objects_to_delete.append(inv_item); item_was_consumed_or_deleted = True; logger.info(f"Item entry {inv_item.id} marked for deletion.")
-
-            # Обработка эффекта (например, лечения)
+                 if inv_item.quantity > 1: inv_item.quantity -= 1; consumed_resources_dict['item'] = {"item_id": item.id, "name": item.name, "consumed": 1, "remaining": inv_item.quantity}; db.add(inv_item); item_was_consumed_or_deleted = True
+                 else: consumed_resources_dict['item'] = {"item_id": item.id, "name": item.name, "consumed": 1, "remaining": 0}; objects_to_delete.append(inv_item); item_was_consumed_or_deleted = True; logger.info(f"Item entry {inv_item.id} marked for deletion.")
             healing_applied = False; final_message = ""; result_details = {}
             if isinstance(item, models.GeneralItem) and item.category == 'Медицина' and calculated_value > 0:
                  current_hp = character.current_hp; max_hp = character.max_hp; new_hp = min(max_hp, current_hp + calculated_value); healed_for = new_hp - current_hp
                  if healed_for > 0: character.current_hp = new_hp; final_message = f"'{item.name}' исп. Восст. {healed_for} ПЗ ({roll_details}). ПЗ: {new_hp}/{max_hp}."; result_details = {"roll_details": roll_details, "calculated_value": calculated_value, "healing_done": healed_for, "new_hp": new_hp}; db.add(character); healing_applied = True
                  else: final_message = f"'{item.name}' исп. Здоровье полное."; result_details = {"roll_details": roll_details, "calculated_value": calculated_value}
-            else:
-                 final_message = f"Предмет '{item.name}' использован."; result_details = {"roll_details": roll_details, "calculated_value": calculated_value}
-                 if calculated_value > 0: final_message += f" Результат ({roll_details}): {calculated_value}."
-
-            # Формирование результата
+            else: final_message = f"Предмет '{item.name}' использован."; result_details = {"roll_details": roll_details, "calculated_value": calculated_value};
+            if calculated_value > 0 and not healing_applied: final_message += f" Результат ({roll_details}): {calculated_value}."
             character_update_needed = item_was_consumed_or_deleted or healing_applied
             action_result = schemas.ActionResultOut(success=True, message=final_message, details=result_details, consumed_resources=consumed_resources_dict or None, character_update_needed=character_update_needed)
 
@@ -176,26 +154,18 @@ def activate_action(
             ability = db.query(models.Ability).filter(models.Ability.id == target_id).first()
             if not ability: action_result = schemas.ActionResultOut(success=False, message="Способность не найдена.", character_update_needed=False); raise ValueError(action_result.message)
 
-            # --- ПРОВЕРКА ОГРАНИЧЕНИЙ ДЕЙСТВИЙ (Исправленная) ---
-            required_action_type = ability.action_type or "Действие" # Тип действия из способности
+            # --- Проверка ограничений действий ---
+            required_action_type = ability.action_type or "Действие"
             restriction_violated = False; action_restricted_by_effect = None
             if character.active_status_effects:
                 for effect in character.active_status_effects:
                     if effect.action_restrictions and isinstance(effect.action_restrictions, dict):
                         restrictions = effect.action_restrictions
-                        # Проверяем, начинается ли тип действия с "Действие" или "Атака"
                         is_main_action = required_action_type.startswith("Действие") or required_action_type.startswith("Атака")
-                        if is_main_action and restrictions.get("block_action"):
-                            action_restricted_by_effect = effect.name; restriction_violated = True; break
-                        if required_action_type == "Бонусное действие" and restrictions.get("block_bonus"):
-                            action_restricted_by_effect = effect.name; restriction_violated = True; break
-                        if required_action_type == "Реакция" and restrictions.get("block_reaction"):
-                             action_restricted_by_effect = effect.name; restriction_violated = True; break
-            if restriction_violated:
-                message = f"Невозможно исп. '{ability.name}': {required_action_type} заблокировано эффектом '{action_restricted_by_effect}'."
-                logger.warning(message)
-                return schemas.ActionResultOut(success=False, message=message, character_update_needed=False) # Сразу выходим
-            # --- КОНЕЦ ПРОВЕРКИ ОГРАНИЧЕНИЙ ---
+                        if is_main_action and restrictions.get("block_action"): action_restricted_by_effect = effect.name; restriction_violated = True; break
+                        if required_action_type == "Бонусное действие" and restrictions.get("block_bonus"): action_restricted_by_effect = effect.name; restriction_violated = True; break
+                        if required_action_type == "Реакция" and restrictions.get("block_reaction"): action_restricted_by_effect = effect.name; restriction_violated = True; break
+            if restriction_violated: message = f"Невозможно исп. '{ability.name}': {required_action_type} заблокировано '{action_restricted_by_effect}'."; logger.warning(message); return schemas.ActionResultOut(success=False, message=message, character_update_needed=False)
 
             # Поиск оружия
             equipped_weapon: Optional[models.Weapon] = None
@@ -219,39 +189,50 @@ def activate_action(
 
             # --- Обработка Базовой Атаки Оружием ---
             if ability.is_weapon_attack:
-                attack_skill_name = ability.attack_skill or "Ловкость"; mod_attribute_name = SKILL_MODIFIER_MAP.get(attack_skill_name[:3]); attack_modifier = getattr(character, mod_attribute_name, 0)
-                numeric_attack_mod_sum = sum(eff.attack_roll_modifier for eff in character.active_status_effects if eff.attack_roll_modifier is not None)
-                if numeric_attack_mod_sum != 0: logger.debug(f"Attack Roll numeric mod: {numeric_attack_mod_sum}")
+                attack_skill_name = ability.attack_skill or "Ловкость"; mod_attribute_name = SKILL_MODIFIER_MAP.get(attack_skill_name[:3]); base_modifier = getattr(character, mod_attribute_name, 0)
+
+                # Определяем контекст атаки
+                is_ranged_attack = attack_skill_name in ["Ловкость", "Внимательность"] and equipped_weapon and equipped_weapon.range_normal is not None
+                attack_type_str = 'ranged' if is_ranged_attack else 'melee'
+                skill_attr_map = {'Сила': 'strength', 'Ловкость': 'dexterity', 'Внимательность': 'attention'}
+                skill_attr_for_target = skill_attr_map.get(attack_skill_name, 'other')
+                attack_context_string = f"attack_rolls.{attack_type_str}.{skill_attr_for_target}"
+                logger.debug(f"Generated context string for base attack: {attack_context_string}")
+
+                # Получаем числовой мод из JSON
+                numeric_mod_sum = _get_numeric_modifier_for_context(character.active_status_effects, attack_context_string)
 
                 # Проверяем временное преимущество
                 has_temp_advantage = False; effect_to_remove_after_attack = None
-                is_ranged_attack = attack_skill_name in ["Ловкость", "Внимательность"] and equipped_weapon and equipped_weapon.range_normal is not None
                 if is_ranged_attack and character.active_status_effects:
                     for effect in list(character.active_status_effects): # Итерация по копии
                         if effect.name == "_Temp: Precise Aim":
                             targets = effect.roll_modifier_targets; applies = False
+                            # --- ИСПРАВЛЕННЫЙ СИНТАКСИС ---
                             if isinstance(targets, dict):
                                 target_list = targets.get("attack_rolls")
                                 if target_list is True or target_list == "all" or (isinstance(target_list, list) and "ranged" in target_list):
                                     applies = True
+                            # --- КОНЕЦ ИСПРАВЛЕНИЯ ---
                             if applies: logger.info(f"Consuming temporary effect: _Temp: Precise Aim"); has_temp_advantage = True; effect_to_remove_after_attack = effect; break
 
                 # Определяем режим броска
-                attack_type_str = 'ranged' if is_ranged_attack else 'melee'
-                skill_attr_map = {'Сила': 'strength', 'Ловкость': 'dexterity', 'Внимательность': 'attention'}
-                skill_attr_for_target = skill_attr_map.get(attack_skill_name, 'other')
-                roll_target_string = f"attack_rolls.{attack_type_str}.{skill_attr_for_target}"
-                logger.debug(f"Generated roll_target_string for base attack: {roll_target_string}")
-                attack_roll_mode = determine_roll_mode(character, roll_target_string, 'normal', has_temporary_advantage=has_temp_advantage)
+                attack_roll_mode = determine_roll_mode(character, attack_context_string, 'normal', has_temporary_advantage=has_temp_advantage)
 
                 # Бросок
                 attack_roll_base, kept_dice, all_rolls, used_mode = roll_with_advantage_disadvantage(mode=attack_roll_mode)
-                attack_roll_total = attack_roll_base + attack_modifier + numeric_attack_mod_sum
+                attack_roll_total = attack_roll_base + base_modifier + numeric_mod_sum
 
                 # Детали броска
-                attack_roll_detail = format_roll_details(kept_dice, all_rolls, attack_modifier, f"Мод.{attack_skill_name[:3]}", numeric_attack_mod_sum, "Эффекты", used_mode)
+                attack_roll_detail = format_roll_details(
+                    kept_dice, all_rolls,
+                    base_modifier,  # Модификатор от стата/навыка
+                    f"Мод.{attack_skill_name[:3]}",  # Источник базового мода
+                    numeric_mod_sum,  # Сумма числовых модов от эффектов
+                    used_mode  # Режим броска
+                )
 
-                # Удаляем временный эффект, если был использован
+                # Удаляем временный эффект
                 if effect_to_remove_after_attack:
                     try: character.active_status_effects.remove(effect_to_remove_after_attack); logger.info(f"Temp effect '{effect_to_remove_after_attack.name}' removed.")
                     except ValueError: logger.warning(f"Effect '{effect_to_remove_after_attack.name}' not found for removal.")
@@ -274,7 +255,7 @@ def activate_action(
                 else: result_message += " Промах."
                 if ammo_consumed_info: result_message += f" Патроны: -{ammo_consumed_info['consumed']} (ост: {ammo_consumed_info['remaining']})."
 
-                # Результат (с исправленным details)
+                # Результат (с исправленным details и numeric_mod_from_effects)
                 action_result = schemas.ActionResultOut(
                     success=True, message=result_message,
                     details={
@@ -283,6 +264,7 @@ def activate_action(
                         "damage_roll_detail": damage_roll_detail if hit else "Нет урона",
                         "damage_type": damage_type if hit else None
                     },
+                    numeric_mod_from_effects=numeric_mod_sum if numeric_mod_sum != 0 else None,
                     consumed_resources=consumed_resources_dict or None, character_update_needed=True
                 )
 
@@ -302,9 +284,16 @@ def activate_action(
                 # --- Очередь ---
                 elif ability.name == "Очередь":
                     if not equipped_weapon: action_result = schemas.ActionResultOut(success=False, message="Нет оружия.", character_update_needed=False); raise ValueError(action_result.message)
-                    attack_skill_name = ability.attack_skill or "Ловкость"; mod_attribute_name = SKILL_MODIFIER_MAP.get(attack_skill_name[:3]); attack_modifier = getattr(character, mod_attribute_name, 0)
-                    numeric_attack_mod_sum = sum(eff.attack_roll_modifier for eff in character.active_status_effects if eff.attack_roll_modifier is not None)
-                    if numeric_attack_mod_sum != 0: logger.debug(f"Burst Attack Roll numeric mod: {numeric_attack_mod_sum}")
+                    attack_skill_name = ability.attack_skill or "Ловкость"; mod_attribute_name = SKILL_MODIFIER_MAP.get(attack_skill_name[:3]); base_modifier = getattr(character, mod_attribute_name, 0)
+
+                    # Определяем контекст атаки
+                    attack_type_str_burst = 'ranged'; skill_attr_map_burst = {'Ловкость': 'dexterity', 'Внимательность': 'attention'}
+                    skill_attr_for_target_burst = skill_attr_map_burst.get(attack_skill_name, 'other')
+                    burst_context_string = f"attack_rolls.{attack_type_str_burst}.{skill_attr_for_target_burst}"
+                    logger.debug(f"Generated context string for Burst Fire: {burst_context_string}")
+
+                    # Получаем числовой мод из JSON
+                    numeric_mod_sum = _get_numeric_modifier_for_context(character.active_status_effects, burst_context_string)
 
                     # Проверяем временное преимущество
                     has_temp_advantage = False; effect_to_remove_after_attack = None; is_ranged_attack_burst = True
@@ -312,40 +301,41 @@ def activate_action(
                         for effect in list(character.active_status_effects): # Итерация по копии
                             if effect.name == "_Temp: Precise Aim":
                                 targets = effect.roll_modifier_targets; applies = False
-                                # Исправленный синтаксис проверки цели
+                                # --- ИСПРАВЛЕННЫЙ СИНТАКСИС ---
                                 if isinstance(targets, dict):
                                     target_list = targets.get("attack_rolls")
                                     if target_list is True or target_list == "all" or (isinstance(target_list, list) and "ranged" in target_list):
                                         applies = True
+                                # --- КОНЕЦ ИСПРАВЛЕНИЯ ---
                                 if applies: logger.info(f"Consuming temp effect _Temp: Precise Aim for Burst"); has_temp_advantage = True; effect_to_remove_after_attack = effect; break
 
                     # Определяем режим броска (Помеха от Очереди + Временное Преим. + Статусы)
-                    skill_attr_map_burst = {'Ловкость': 'dexterity', 'Внимательность': 'attention'}
-                    skill_attr_for_target_burst = skill_attr_map_burst.get(attack_skill_name, 'other')
-                    roll_target_string_burst = f"attack_rolls.ranged.{skill_attr_for_target_burst}"
-                    logger.debug(f"Generated roll_target_string for Burst Fire: {roll_target_string_burst}")
-
                     attack_roll_mode = determine_roll_mode(
-                        character, roll_target_string_burst,
+                        character, burst_context_string,
                         ability_modifies='disadvantage', # <-- Всегда передаем помеху от Очереди
                         has_temporary_advantage=has_temp_advantage # <-- Передаем флаг временного преим.
                     )
 
                     # Бросок
                     attack_roll_base, kept_dice, all_rolls, used_mode = roll_with_advantage_disadvantage(mode=attack_roll_mode)
-                    attack_roll_total = attack_roll_base + attack_modifier + numeric_attack_mod_sum
+                    attack_roll_total = attack_roll_base + base_modifier + numeric_mod_sum
 
                     # Детали
-                    attack_roll_detail = format_roll_details(kept_dice, all_rolls, attack_modifier, f"Мод.{attack_skill_name[:3]}", numeric_attack_mod_sum, "Эффекты", used_mode)
-
-                    # Удаляем временный эффект, если был использован
+                    attack_roll_detail = format_roll_details(
+                        kept_dice, all_rolls,
+                        base_modifier,  # Модификатор от стата/навыка
+                        f"Мод.{attack_skill_name[:3]}",  # Источник базового мода
+                        numeric_mod_sum,  # Сумма числовых модов от эффектов
+                        used_mode  # Режим броска
+                    )
+                    # Удаляем временный эффект
                     if effect_to_remove_after_attack:
                         try: character.active_status_effects.remove(effect_to_remove_after_attack); logger.info(f"Temp effect '{effect_to_remove_after_attack.name}' removed after Burst.")
                         except ValueError: logger.warning(f"Effect '{effect_to_remove_after_attack.name}' not found for removal after Burst.")
 
                     # Попадание и Урон
                     hit = True # ЗАГЛУШКА
-                    # ... (расчет урона Очереди как был)
+                    # ... (расчет урона Очереди)
                     damage_value = 0; damage_roll_detail = "Промах"; damage_type = equipped_weapon.damage_type or "Неизвестный"
                     if hit:
                         base_formula = equipped_weapon.damage; dice_match = re.search(r"(\d+)к(\d+)", base_formula); extra_dice_formula = f"1к{dice_match.group(2)}" if dice_match else "1к6"
@@ -359,7 +349,7 @@ def activate_action(
                     else: result_message += " Промах."
                     if ammo_consumed_info: result_message += f" Патроны: -{ammo_consumed_info['consumed']} (ост: {ammo_consumed_info['remaining']})."
 
-                    # Результат (с исправленным details)
+                    # Результат (с исправленным details и numeric_mod_from_effects)
                     action_result = schemas.ActionResultOut(
                         success=True, message=result_message,
                         details={
@@ -367,6 +357,7 @@ def activate_action(
                             "hit": hit, "damage_dealt": damage_value if hit else 0, "damage_roll_detail": damage_roll_detail if hit else "Нет урона",
                             "damage_type": damage_type if hit else None
                         },
+                        numeric_mod_from_effects=numeric_mod_sum if numeric_mod_sum != 0 else None,
                         consumed_resources=consumed_resources_dict or None, character_update_needed=True
                     )
 
@@ -382,7 +373,7 @@ def activate_action(
 
                 # --- Другие способности (Заглушка) ---
                 else:
-                    db.rollback() # Откатываем, так как действие не выполнено
+                    db.rollback()
                     action_result = schemas.ActionResultOut(success=False, message=f"Логика для '{ability.name}' не реализована.", character_update_needed=False)
 
         # --- Неизвестный тип активации ---
@@ -398,29 +389,26 @@ def activate_action(
                 # Удаляем объекты перед коммитом
                 for obj_to_del in objects_to_delete: logger.info(f"Deleting Item object {obj_to_del}"); db.delete(obj_to_del)
                 if ammo_inv_item_to_delete and ammo_inv_item_to_delete.quantity <= 0: logger.info(f"Deleting ammo InvItem ID {ammo_inv_item_to_delete.id}"); db.delete(ammo_inv_item_to_delete)
-
-                db.commit() # Сохраняем все изменения
+                db.commit()
                 logger.info("Action successful, changes committed.")
                 if action_result.character_update_needed:
                     db.refresh(character)
-                    # Перезагружаем связи (оптимизировать при необходимости)
                     db.refresh(character, attribute_names=['active_status_effects', 'inventory'])
                     logger.debug("Character object/relations refreshed.")
             except Exception as commit_exc:
                 logger.error(f"DATABASE COMMIT FAILED: {commit_exc}", exc_info=True); db.rollback()
-                action_result = schemas.ActionResultOut(success=False, message=f"Ошибка сохранения: {commit_exc}", character_update_needed=False) # Перезаписываем
+                action_result = schemas.ActionResultOut(success=False, message=f"Ошибка сохранения: {commit_exc}", character_update_needed=False)
 
         elif not action_result or not action_result.success:
-             logger.warning(f"--- ACTION RESULT (Failed Internally or Not Implemented): {action_result.message if action_result else 'No result'} ---")
+             logger.warning(f"--- ACTION RESULT (Failed/Not Implemented): {action_result.message if action_result else 'No result'} ---")
              if not action_result: action_result = schemas.ActionResultOut(success=False, message="Непредвиденная ошибка.", character_update_needed=False)
 
-        return action_result # Возвращаем итоговый результат
+        return action_result
 
     # --- Обработка Исключений ---
     except Exception as e:
-        db.rollback() # Откат при любой ошибке
+        db.rollback()
         error_message = f"Внутренняя ошибка сервера: {e}"
-        # Используем сообщение из action_result, если оно было установлено как ошибка до исключения
         if action_result and not action_result.success and action_result.message: error_message = action_result.message
         logger.error(f"--- ACTION FAILED (Exception): {error_message} ---", exc_info=True)
         return schemas.ActionResultOut(success=False, message=error_message, character_update_needed=False)
