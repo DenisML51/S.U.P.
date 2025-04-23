@@ -7,6 +7,9 @@ from typing import Optional, Dict, Any, Tuple, Literal, List
 
 # Импортируем модели напрямую, т.к. utils не должен зависеть от других crud модулей
 from .. import models, schemas # schemas нужен для VALID_BRANCH_KEYS
+import logging
+
+logger = logging.getLogger(__name__)
 
 # --- Таблицы Эмоций (Перенесены сюда, т.к. используются в character.py) ---
 NEGATIVE_EMOTIONS = [ "ПУ: Паника", "ПУ: Ярость", "ПУ: Апатия", "ПУ: Паранойя", "ПУ: Слабоумие", "ПУ: Срыв" ]
@@ -76,30 +79,47 @@ def roll_with_advantage_disadvantage(base_roll_func: callable = lambda: roll_d6_
 def format_roll_details(
     kept_dice: List[int],
     all_rolls: List[int],
-    modifier_value: int = 0,
-    modifier_source: str = "", # Напр. "Мод.Лов", "Проф."
+    attribute_modifier_value: int = 0, # Переименовали для ясности
+    attribute_modifier_source: str = "", # Напр. "Мод.Лов", "Проф."
+    numeric_modifier_value: int = 0, # <-- НОВОЕ: Численный модификатор от эффектов/прочего
+    numeric_modifier_source: str = "Эффекты", # <-- НОВОЕ: Источник
     mode_used: RollMode = 'normal'
 ) -> str:
     """Форматирует строку с деталями броска, включая модификаторы и режим."""
     dice_str = "+".join(map(str, kept_dice))
     roll_base_sum = sum(kept_dice)
-    total = roll_base_sum + modifier_value
 
     prefix = ""
     if mode_used == 'advantage':
-        prefix = f"4к6в3 ({'/'.join(map(str, sorted(all_rolls)))})" # Показываем все 4 броска
+        prefix = f"4к6в3 ({'/'.join(map(str, sorted(all_rolls)))})"
     elif mode_used == 'disadvantage':
-        prefix = f"4к6н3 ({'/'.join(map(str, sorted(all_rolls)))})" # Показываем все 4 броска
+        prefix = f"4к6н3 ({'/'.join(map(str, sorted(all_rolls)))})"
     else:
         prefix = f"3к6 ({'/'.join(map(str, sorted(all_rolls)))})" # Для 3к6 all_rolls == kept_dice
 
     modifier_str = ""
-    if modifier_value != 0:
-        sign = "+" if modifier_value > 0 else ""
-        source_info = f"({modifier_source})" if modifier_source else ""
-        modifier_str = f" {sign}{modifier_value}{source_info}"
+    total_numeric_mod = attribute_modifier_value + numeric_modifier_value # <-- СУММИРУЕМ МОДИФИКАТОРЫ
+    total_result = roll_base_sum + total_numeric_mod
 
-    return f"{prefix} = {roll_base_sum}{modifier_str} = {total}"
+    if attribute_modifier_value != 0:
+        sign = "+" if attribute_modifier_value > 0 else ""
+        source_info = f"({attribute_modifier_source})" if attribute_modifier_source else ""
+        modifier_str += f" {sign}{attribute_modifier_value}{source_info}"
+
+    # --- НОВОЕ: Добавляем числовой модификатор от эффектов ---
+    if numeric_modifier_value != 0:
+        sign = "+" if numeric_modifier_value > 0 else ""
+        source_info = f"({numeric_modifier_source})" if numeric_modifier_source else ""
+        modifier_str += f" {sign}{numeric_modifier_value}{source_info}"
+    # --- КОНЕЦ НОВОГО БЛОКА ---
+
+    # Убираем пробел в начале, если он есть
+    modifier_str = modifier_str.strip()
+
+    if modifier_str: # Если были какие-либо модификаторы
+        return f"{prefix} = {roll_base_sum} {modifier_str.replace('+','+ ').replace('-','- ')} = {total_result}" # Добавим пробелы для читаемости
+    else: # Если модификаторов не было
+        return f"{prefix} = {roll_base_sum}"
 
 def _parse_and_roll(formula: str, character: models.Character) -> Tuple[int, str]:
     """
@@ -228,15 +248,15 @@ def _update_character_available_abilities(db: Session, character: models.Charact
         # Не делаем flush/commit здесь, это должно происходить в вызывающей функции
 
 def _calculate_total_ac(character: models.Character) -> int:
-    """Рассчитывает итоговый AC с учетом брони и щита."""
+    """Рассчитывает итоговый AC с учетом брони, щита и статус-эффектов."""
     dex_mod = character.dexterity_mod
     ac_from_armor = 10 + dex_mod # Базовый AC
 
+    # Расчет AC от брони (существующая логика без изменений)
     if character.equipped_armor and isinstance(character.equipped_armor.item, models.Armor):
         armor = character.equipped_armor.item
         base_armor_ac = armor.ac_bonus
-        max_dex = 99 # По умолчанию
-
+        max_dex = 99
         if armor.armor_type == 'Средняя':
             max_dex = armor.max_dex_bonus if armor.max_dex_bonus is not None else 2
             ac_from_armor = base_armor_ac + min(dex_mod, max_dex)
@@ -245,12 +265,115 @@ def _calculate_total_ac(character: models.Character) -> int:
         elif armor.armor_type == 'Лёгкая':
              max_dex = armor.max_dex_bonus if armor.max_dex_bonus is not None else 99
              ac_from_armor = base_armor_ac + min(dex_mod, max_dex)
-        else:
-            ac_from_armor = base_armor_ac + dex_mod
+        else: # Если тип брони неизвестен или "Нет", считаем как без брони
+             ac_from_armor = 10 + dex_mod # Используем базовый AC
 
     total_ac = ac_from_armor
 
+    # Добавление бонуса от щита (существующая логика без изменений)
     if character.equipped_shield and isinstance(character.equipped_shield.item, models.Shield):
         total_ac += character.equipped_shield.item.ac_bonus
 
+    # --- НОВОЕ: Учет модификаторов от статус-эффектов ---
+    # Убедимся, что эффекты загружены. Если нет, возможно, их нужно загрузить здесь
+    # или передавать в функцию. Предполагаем, что они доступны в character.active_status_effects
+    if character.active_status_effects:
+        ac_mod_from_effects = sum(
+            effect.ac_modifier for effect in character.active_status_effects
+            if effect.ac_modifier is not None
+        )
+        total_ac += ac_mod_from_effects
+        # Логирование для отладки (опционально)
+        if ac_mod_from_effects != 0:
+             logger.debug(f"Applying AC modifier from status effects: {ac_mod_from_effects}. New Total AC (before final): {total_ac}")
+    # --- КОНЕЦ НОВОГО БЛОКА ---
+
     return total_ac
+
+
+def determine_roll_mode(character: models.Character, roll_target: str, ability_modifies: RollMode = 'normal') -> RollMode:
+    """
+    Определяет итоговый режим броска (advantage, disadvantage, normal),
+    учитывая активные статус-эффекты персонажа и модификатор от самой способности/действия.
+
+    roll_target: Строка, описывающая тип броска (напр., 'attack_rolls.melee.Сил', 'saving_throws.dexterity')
+    ability_modifies: Режим, накладываемый самой способностью ('advantage', 'disadvantage')
+    """
+    status_advantage = False
+    status_disadvantage = False
+    roll_target_parts = roll_target.split('.') # Разбираем цель на части
+
+    if character.active_status_effects:
+        logger.debug(f"Checking effects for roll target: {roll_target}")
+        for effect in character.active_status_effects:
+            # Пропускаем временные эффекты, они обрабатываются отдельно
+            if effect.name.startswith("_Temp:"):
+                continue
+
+            # Проверяем, есть ли у эффекта нужные поля и является ли targets словарем
+            if not (effect.roll_modifier_type and effect.roll_modifier_targets and isinstance(effect.roll_modifier_targets, dict)):
+                continue
+
+            targets_dict = effect.roll_modifier_targets
+            applies = False # Флаг, сработал ли эффект на эту цель
+
+            # --- Логика проверки совпадения цели ---
+            for target_key, target_value in targets_dict.items():
+                target_key_parts = target_key.split('.')
+
+                # 1. Полное совпадение ключа эффекта с целью броска
+                #    (e.g., effect key "attack_rolls.melee.Сил" == roll_target "attack_rolls.melee.Сил")
+                if target_key == roll_target and target_value == True:
+                    applies = True
+                    logger.debug(f"  Effect '{effect.name}' MATCH (Exact Key) for '{roll_target}'")
+                    break
+
+                # 2. Совпадение по основной категории с значением true или "all"
+                #    (e.g., effect key "attack_rolls" == roll_target_parts[0] "attack_rolls" and value is true/"all")
+                if len(target_key_parts) == 1 and target_key == roll_target_parts[0] and (target_value == True or target_value == "all"):
+                    applies = True
+                    logger.debug(f"  Effect '{effect.name}' MATCH (Base Category '{target_key}' == true/all)")
+                    break
+
+                # 3. Совпадение по основной категории и подкатегории в списке
+                #    (e.g., effect key "saving_throws", value ["dexterity", "strength"], roll_target "saving_throws.dexterity")
+                if len(target_key_parts) == 1 and target_key == roll_target_parts[0] and isinstance(target_value, list) and len(roll_target_parts) > 1:
+                    if roll_target_parts[1] in target_value:
+                        applies = True
+                        logger.debug(f"  Effect '{effect.name}' MATCH (Sub-category '{roll_target_parts[1]}' in list for '{target_key}')")
+                        break
+
+                # 4. Совпадение по более общей категории с точкой (менее специфичной, чем roll_target)
+                #    (e.g., effect key "attack_rolls.melee" == roll_target "attack_rolls.melee.Сил" and value is true)
+                #    Проверяем, что ключ эффекта является началом строки цели броска
+                if roll_target.startswith(target_key + '.') and target_value == True:
+                     applies = True
+                     logger.debug(f"  Effect '{effect.name}' MATCH (General Key '{target_key}' applies to '{roll_target}')")
+                     break
+
+            # --- Применяем модификатор, если цель совпала ---
+            if applies:
+                if effect.roll_modifier_type == 'advantage':
+                    status_advantage = True
+                    logger.debug(f"  Effect '{effect.name}' grants ADVANTAGE.")
+                elif effect.roll_modifier_type == 'disadvantage':
+                    status_disadvantage = True
+                    logger.debug(f"  Effect '{effect.name}' grants DISADVANTAGE.")
+
+    # --- Определяем итоговый режим ---
+    final_mode = 'normal'
+    action_has_advantage = ability_modifies == 'advantage'
+    action_has_disadvantage = ability_modifies == 'disadvantage'
+
+    has_advantage = status_advantage or action_has_advantage
+    has_disadvantage = status_disadvantage or action_has_disadvantage
+
+    if has_advantage and has_disadvantage:
+        final_mode = 'normal' # Конфликт -> нормальный бросок
+    elif has_advantage:
+        final_mode = 'advantage'
+    elif has_disadvantage:
+        final_mode = 'disadvantage'
+
+    logger.debug(f"Determine Roll Mode Result: Target='{roll_target}', AbilityMod='{ability_modifies}', StatusAdv={status_advantage}, StatusDisadv={status_disadvantage} => FinalMode='{final_mode}'")
+    return final_mode

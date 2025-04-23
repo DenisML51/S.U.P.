@@ -34,6 +34,9 @@ from .utils import (
 )
 
 from ..schemas import CustomItemOut
+import logging
+
+logger = logging.getLogger(__name__)
 # Импортируем item CRUD для проверки экипировки при удалении
 from . import item as item_crud
 # Импортируем статус эффект CRUD для добавления эмоций
@@ -532,23 +535,23 @@ def apply_status_effect(db: Session, character: Character, status_effect_id: int
     """
     status_effect = db.query(StatusEffect).filter(StatusEffect.id == status_effect_id).first()
     if not status_effect:
-        print(f"Предупреждение: Статус-эффект с ID {status_effect_id} не найден.")
-        # Можно поднять HTTPException, если это критично
-        # raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Статус-эффект не найден")
-        return None # Просто возвращаем None
+        logger.warning(f"StatusEffect with ID {status_effect_id} not found.")
+        return None
 
-    # Проверяем, нет ли уже такого эффекта у персонажа (используя загруженные данные)
-    has_effect = any(eff.id == status_effect_id for eff in character.active_status_effects)
+    # Используем множество ID для быстрой проверки
+    current_effect_ids = {eff.id for eff in character.active_status_effects}
 
-    if not has_effect:
+    if status_effect_id not in current_effect_ids:
         # Добавляем объект StatusEffect к списку связей персонажа
-        character.active_status_effects.append(status_effect)
-        # НЕ ДЕЛАЕМ COMMIT/FLUSH ЗДЕСЬ! Это задача вызывающей функции.
-        print(f"Эффект '{status_effect.name}' добавлен к персонажу ID {character.id} (ожидает commit)")
-        return status_effect.name # Возвращаем имя добавленного эффекта
+        # Убедимся, что объект status_effect находится в текущей сессии
+        effect_in_session = db.merge(status_effect)
+        character.active_status_effects.append(effect_in_session)
+        # НЕ ДЕЛАЕМ COMMIT/FLUSH ЗДЕСЬ!
+        logger.info(f"Effect '{status_effect.name}' (ID: {status_effect_id}) added to Character ID {character.id} session (pending commit)")
+        return status_effect.name
     else:
-        print(f"Эффект '{status_effect.name}' уже есть у персонажа ID {character.id}")
-        return None # Эффект уже был, ничего не добавлено
+        logger.info(f"Effect '{status_effect.name}' (ID: {status_effect_id}) already present on Character ID {character.id}")
+        return None # Эффект уже был
 
 
 def remove_status_effect(db: Session, character_id: int, user_id: int, status_effect_id: int) -> Optional[Character]:

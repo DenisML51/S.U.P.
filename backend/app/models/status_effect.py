@@ -26,6 +26,23 @@ class StatusEffect(Base):
         comment='Словарь/JSON, указывающий на какие типы бросков действует модификатор. Пример: {"attack_rolls": true, "skill_checks": ["dexterity", "strength"], "saving_throws": "all"}'
     )
 
+    ac_modifier: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Численный модификатор к КД (AC). Например, -2."
+    )
+    attack_roll_modifier: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Численный модификатор к броскам атаки. Например, -2."
+    )
+    # --- ПОЛЕ ДЛЯ ОТСЛЕЖИВАНИЯ ТИПА ДЛИТЕЛЬНОСТИ (пока без логики) ---
+    duration_type: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+        comment="Тип длительности: next_action, next_attack, save_ends, rounds, minutes и т.д."
+    )
+
     # Связь "многие-ко-многим" с Character
     characters: Mapped[List["Character"]] = relationship(
         "Character",

@@ -7,7 +7,10 @@ import { theme } from '../../../styles/theme'; // <--- Проверьте это
 // Можно использовать иконку, соответствующую типу эффекта, если передавать тип
 // Пока оставим общую иконку
 const StatusIcon = () => (<svg style={styles.titleIcon} viewBox="0 0 24 24" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>); // Иконка Info
-
+const ACMoIcon = () => (<svg style={styles.modIcon} viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>); // Shield icon
+const AttackModIcon = () => (<svg style={styles.modIcon} viewBox="0 0 24 24"><path d="M19.78 2.22a.75.75 0 0 0-1.06 0l-2.22 2.22-1.41-1.41a.75.75 0 0 0-1.06 1.06l1.41 1.41-1.94 1.94-1.41-1.41a.75.75 0 0 0-1.06 1.06l1.41 1.41-1.94 1.94-1.41-1.41a.75.75 0 0 0-1.06 1.06l1.41 1.41L4 15.06V19a1 1 0 0 0 1 1h3.94l10.84-10.84L19.78 3.28a.75.75 0 0 0 0-1.06zM8.5 18H6v-2.5l7.37-7.37 2.5 2.5L8.5 18z"/></svg>); // Sword/Attack icon
+const AdvantageIcon = () => ( <svg style={styles.modTagIcon} /* ... */ >{/* ... */}</svg> );
+const DisadvantageIcon = () => ( <svg style={styles.modTagIcon} /* ... */ >{/* ... */}</svg> );
 // --- Вспомогательная функция для форматирования целей модификатора ---
 const formatModifierTargets = (targets) => {
     if (!targets || typeof targets !== 'object') return null;
@@ -41,6 +44,7 @@ const formatModifierTargets = (targets) => {
         }
     }
 
+
     if (formattedTargets.length === 0) return null;
 
     return (
@@ -65,67 +69,85 @@ const StatusEffectDetailModal = ({ effect, onClose }) => {
     // Форматируем цели модификатора
     const formattedTargets = formatModifierTargets(effect.roll_modifier_targets);
 
-    return (
+    const acModifier = effect.ac_modifier;
+    const attackRollModifier = effect.attack_roll_modifier;
+
+return (
         <>
             <style>{animationStyle}</style>
             {/* Overlay */}
-            <div style={styles.overlay} onClick={onClose}>
+            <div style={styles.overlay} onClick={onClose}> {/* Источник: [Source: 1435] */}
                 {/* Modal Container */}
-                <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+                <div style={styles.modal} onClick={(e) => e.stopPropagation()}> {/* Источник: [Source: 1435] */}
                     {/* Close Button (Top Right) */}
-                    <button onClick={onClose} style={styles.closeButton} title="Закрыть">×</button>
-
+                    <button onClick={onClose} style={styles.closeButton} title="Закрыть">×</button> {/* Источник: [Source: 1436] */}
                     {/* Header Section */}
-                    <div style={styles.headerSection}>
-                        <div style={styles.iconContainer}>
-                            <StatusIcon />
-                        </div>
-                        <h2 style={styles.title}>{effect.name}</h2>
+                    <div style={styles.headerSection}> {/* Источник: [Source: 1436] */}
+                         <div style={styles.iconContainer}><StatusIcon /></div> {/* Источник: [Source: 1436-1437] */}
+                         <h2 style={styles.title}>{effect.name}</h2> {/* Источник: [Source: 1437] */}
                     </div>
-
                     {/* Content Section (Scrollable) */}
-                    <div style={styles.contentSection}>
+                    <div style={styles.contentSection}> {/* Источник: [Source: 1437] */}
                         {/* Описание */}
-                        <p style={styles.descriptionText}>
+                        <p style={styles.descriptionText}> {/* Источник: [Source: 1438-1439] */}
                             {effect.description || "Описание отсутствует."}
                         </p>
+                        {/* --- ОБНОВЛЕННАЯ СЕКЦИЯ МОДИФИКАТОРА --- */}
+                        {(effect.roll_modifier_type || acModifier !== null || attackRollModifier !== null) && ( // Показываем секцию, если есть ЛЮБОЙ модификатор
+                            <div style={styles.modifierSection}> {/* Источник: [Source: 1440] */}
+                                <h3 style={styles.modifierTitle}>Модификаторы</h3> {/* Изменили заголовок */}
 
-                        {/* --- НОВОЕ: Секция Модификатора Броска --- */}
-                        {effect.roll_modifier_type && (
-                            <div style={styles.modifierSection}>
-                                <h3 style={styles.modifierTitle}>Модификатор Броска</h3>
-                                <p style={styles.modifierType}>
-                                    Тип: <span style={effect.roll_modifier_type === 'advantage' ? styles.advantageText : styles.disadvantageText}>
-                                        {effect.roll_modifier_type === 'advantage' ? 'Преимущество' : 'Помеха'}
-                                    </span>
-                                </p>
-                                {formattedTargets ? (
-                                    <>
-                                        <p style={styles.modifierTargetsLabel}>Цели:</p>
-                                        {formattedTargets}
-                                    </>
-                                ) : (
-                                    <p style={styles.modifierTargetsLabel}>Цели: Не указаны</p>
+                                {effect.roll_modifier_type && ( // Показываем блок Преимущества/Помехи только если он есть
+                                    <div style={styles.modifierBlock}>
+                                        <p style={styles.modifierType}>
+                                            Броски: <span style={effect.roll_modifier_type === 'advantage' ? styles.advantageText : styles.disadvantageText}> {/* Источник: [Source: 1441-1443] */}
+                                                {effect.roll_modifier_type === 'advantage' ? <><AdvantageIcon /> Преимущество</> : <><DisadvantageIcon /> Помеха</>}
+                                            </span>
+                                        </p>
+                                        {formattedTargets ? (
+                                            <>
+                                                <p style={styles.modifierTargetsLabel}>Цели:</p> {/* Источник: [Source: 1444] */}
+                                                {formattedTargets} {/* Источник: [Source: 1445] */}
+                                            </>
+                                        ) : (
+                                             <p style={styles.modifierTargetsLabel}>Цели: Все броски</p> // Уточнено
+                                        )}
+                                    </div>
                                 )}
+
+                                {/* --- НОВЫЙ БЛОК: Числовые модификаторы --- */}
+                                {acModifier !== null && (
+                                     <div style={styles.modifierBlock}>
+                                         <p style={styles.modifierNumeric}>
+                                             <ACMoIcon /> КЗ (AC): <span style={acModifier > 0 ? styles.positiveMod : styles.negativeMod}>{acModifier > 0 ? `+${acModifier}` : acModifier}</span>
+                                         </p>
+                                     </div>
+                                )}
+                                {attackRollModifier !== null && (
+                                    <div style={styles.modifierBlock}>
+                                        <p style={styles.modifierNumeric}>
+                                            <AttackModIcon /> Бросок Атаки: <span style={attackRollModifier > 0 ? styles.positiveMod : styles.negativeMod}>{attackRollModifier > 0 ? `+${attackRollModifier}` : attackRollModifier}</span>
+                                        </p>
+                                    </div>
+                                )}
+                                {/* --- КОНЕЦ НОВОГО БЛОКА --- */}
+
                             </div>
                         )}
-                        {/* --- КОНЕЦ НОВОЙ СЕКЦИИ --- */}
+                        {/* --- КОНЕЦ ОБНОВЛЕННОЙ СЕКЦИИ --- */}
 
-                        {/* Можно добавить сюда другие детали эффекта, если они есть */}
-                        {/* Например:
-                        {effect.duration && <p style={styles.detailText}>Длительность: {effect.duration}</p>}
-                        {effect.source && <p style={styles.detailText}>Источник: {effect.source}</p>}
-                        */}
+                         {/* Другие детали эффекта... */} {/* Источник: [Source: 1447-1448] */}
+
                     </div>
-
                     {/* Footer Section */}
-                    <div style={styles.footerSection}>
-                        <button onClick={onClose} style={styles.closeBottomButton}>Закрыть</button>
+                    <div style={styles.footerSection}> {/* Источник: [Source: 1449] */}
+                        <button onClick={onClose} style={styles.closeBottomButton}>Закрыть</button> {/* Источник: [Source: 1449] */}
                     </div>
                 </div>
             </div>
         </>
     );
+
 };
 
 // --- Стили ---
@@ -217,49 +239,95 @@ const styles = {
         paddingTop: '10px',
     },
     // --- НОВЫЕ СТИЛИ: Секция Модификатора ---
-    modifierSection: {
+    modifierSection: { // Стиль всей секции модификаторов
         marginTop: '20px',
-        paddingTop: '20px',
-        borderTop: `1px dashed ${theme.colors.surfaceVariant}88`, // Разделитель
-        background: `${theme.colors.surfaceVariant}1A`, // Легкий фон для секции
+        paddingTop: '15px',
+        borderTop: `1px dashed ${theme.colors.surfaceVariant}88`,
+        background: `${theme.colors.surfaceVariant}1A`,
         borderRadius: '8px',
         padding: '15px',
+        display: 'flex', // Используем flex для блоков внутри
+        flexDirection: 'column', // Блоки идут друг под другом
+        gap: '15px' // Отступ между блоками
     },
-    modifierTitle: {
+    modifierTitle: { // Заголовок секции "Модификаторы"
         margin: '0 0 10px 0',
         fontSize: '1.1rem',
         fontWeight: '600',
-        color: theme.colors.secondary, // Используем вторичный цвет для подзаголовка
+        color: theme.colors.secondary,
+        paddingBottom: '5px',
+        borderBottom: `1px solid ${theme.colors.secondary}44` // Тонкая линия под заголовком секции
     },
-    modifierType: {
-        margin: '0 0 10px 0',
+    modifierBlock: { // Контейнер для одного типа модификатора (Adv/Disadv, AC, Attack)
+        // Убрали рамку, фон и т.д. отсюда
+    },
+    modifierType: { // Текст "Броски: Преимущество/Помеха"
+        margin: '0 0 5px 0', // Уменьшен нижний отступ
         fontSize: '1rem',
-        color: theme.colors.textSecondary,
+        color: theme.colors.text, // Белый цвет для "Броски:"
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px' // Отступ между "Броски:" и иконкой/текстом
     },
-    advantageText: { // Стиль для "Преимущество"
+     advantageText: { // Стиль для "Преимущество"
         color: theme.colors.success || '#66BB6A',
         fontWeight: 'bold',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '5px'
     },
     disadvantageText: { // Стиль для "Помеха"
         color: theme.colors.error || '#CF6679',
         fontWeight: 'bold',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '5px'
     },
-    modifierTargetsLabel: {
-        margin: '10px 0 5px 0',
+    modTagIcon: { // Иконка для Преим/Помехи
+        width: '16px', // Чуть больше
+        height: '16px',
+        fill: 'currentColor',
+        verticalAlign: 'bottom' // Выравнивание
+    },
+    modifierTargetsLabel: { // Текст "Цели:"
+        margin: '5px 0 5px 0', // Отступы
         fontSize: '0.9rem',
         fontWeight: 'bold',
         color: theme.colors.textSecondary,
     },
     modifierTargetList: { // Список целей
         margin: 0,
-        paddingLeft: '20px', // Отступ для маркеров списка
-        listStyle: 'disc', // Маркеры списка
+        paddingLeft: '20px',
+        listStyle: 'disc',
         color: theme.colors.text,
     },
     modifierTargetItem: { // Элемент списка целей
         marginBottom: '5px',
         fontSize: '0.95rem',
         lineHeight: 1.5,
+    },
+    // --- НОВЫЕ СТИЛИ для числовых модификаторов ---
+    modifierNumeric: { // Стиль строки с числовым модификатором
+        margin: '0',
+        fontSize: '1rem',
+        color: theme.colors.text,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px' // Отступ между иконкой и текстом
+    },
+    modIcon: { // Иконка для AC/Attack мода
+        width: '16px',
+        height: '16px',
+        fill: theme.colors.textSecondary, // Серая иконка по умолчанию
+        opacity: 0.8
+    },
+    positiveMod: { // Стиль для положительного значения мода
+        fontWeight: 'bold',
+        color: theme.colors.success || '#66BB6A',
+    },
+    negativeMod: { // Стиль для отрицательного значения мода
+        fontWeight: 'bold',
+        color: theme.colors.error || '#CF6679',
     },
     // --- КОНЕЦ НОВЫХ СТИЛЕЙ ---
 

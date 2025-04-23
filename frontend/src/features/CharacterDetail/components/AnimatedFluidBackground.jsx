@@ -112,6 +112,7 @@ const AnimatedFluidBackground = () => (
   }}>
     <Canvas
       style={{
+
         position: 'absolute', top: '-5%', left: '-5%',
         width: '110%', height: '110%', zIndex: 0,
         filter: 'blur(10px)', opacity: 0.9,

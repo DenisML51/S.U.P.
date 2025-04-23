@@ -11,6 +11,10 @@ class StatusEffectOut(BaseModel):
     roll_modifier_type: Optional[str] = None
     roll_modifier_targets: Optional[Dict[str, Any]] = None
 
+    ac_modifier: Optional[int] = None
+    attack_roll_modifier: Optional[int] = None
+    duration_type: Optional[str] = None # Добавлено для информации
+
     class Config:
         from_attributes = True
 
@@ -25,6 +29,10 @@ class StatusEffectBase(BaseModel):
     roll_modifier_type: Optional[Literal['advantage', 'disadvantage']] = Field(None, description="Тип модификатора броска") # Используем Literal
     # Валидация формата целей
     roll_modifier_targets: Optional[Dict[str, Union[bool, str, List[str]]]] = Field(None, description="Цели модификатора")
+
+    ac_modifier: Optional[int] = None
+    attack_roll_modifier: Optional[int] = None
+    duration_type: Optional[str] = None # Добавлено для информации
 
 class StatusEffectCreate(StatusEffectBase):
     pass
