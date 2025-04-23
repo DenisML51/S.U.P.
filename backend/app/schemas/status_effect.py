@@ -15,6 +15,9 @@ class StatusEffectOut(BaseModel):
     attack_roll_modifier: Optional[int] = None
     duration_type: Optional[str] = None # Добавлено для информации
 
+    action_restrictions: Optional[Dict[str, Any]] = None
+    saving_throw_modifiers: Optional[Dict[str, Any]] = None
+
     class Config:
         from_attributes = True
 
@@ -33,6 +36,9 @@ class StatusEffectBase(BaseModel):
     ac_modifier: Optional[int] = None
     attack_roll_modifier: Optional[int] = None
     duration_type: Optional[str] = None # Добавлено для информации
+
+    action_restrictions: Optional[Dict[str, Any]] = None
+    saving_throw_modifiers: Optional[Dict[str, Any]] = None
 
 class StatusEffectCreate(StatusEffectBase):
     pass

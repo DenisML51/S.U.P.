@@ -1,6 +1,6 @@
 # backend/app/crud/utils.py
 from sqlalchemy.orm import Session
-import re 
+import re
 import random
 import math
 from typing import Optional, Dict, Any, Tuple, Literal, List
@@ -75,7 +75,7 @@ def roll_with_advantage_disadvantage(base_roll_func: callable = lambda: roll_d6_
         result, kept, all_rolls = base_roll_func()
         # Для обычного броска 3к6, kept и all_rolls будут одинаковыми
         return result, kept, all_rolls, 'normal'
-    
+
 def format_roll_details(
     kept_dice: List[int],
     all_rolls: List[int],
@@ -290,23 +290,36 @@ def _calculate_total_ac(character: models.Character) -> int:
 
     return total_ac
 
-
-def determine_roll_mode(character: models.Character, roll_target: str, ability_modifies: RollMode = 'normal') -> RollMode:
+RollMode = Literal['normal', 'advantage', 'disadvantage']
+def determine_roll_mode(
+    character: models.Character,
+    roll_target: str,
+    ability_modifies: RollMode = 'normal',
+    has_temporary_advantage: bool = False # <-- НОВЫЙ ПАРАМЕТР
+    ) -> RollMode:
     """
     Определяет итоговый режим броска (advantage, disadvantage, normal),
-    учитывая активные статус-эффекты персонажа и модификатор от самой способности/действия.
+    учитывая активные статус-эффекты персонажа, модификатор от самой способности
+    и временное преимущество (например, от прицеливания).
 
-    roll_target: Строка, описывающая тип броска (напр., 'attack_rolls.melee.Сил', 'saving_throws.dexterity')
+    roll_target: Строка, описывающая тип броска (напр., 'attack_rolls.melee.strength')
     ability_modifies: Режим, накладываемый самой способностью ('advantage', 'disadvantage')
+    has_temporary_advantage: Флаг, указывающий на наличие временного преимущества от действия.
     """
     status_advantage = False
     status_disadvantage = False
     roll_target_parts = roll_target.split('.') # Разбираем цель на части
 
+    # Устанавливаем преимущество от временного эффекта, если он есть
+    if has_temporary_advantage:
+        status_advantage = True
+        logger.debug("Temporary advantage source detected.")
+
+    # Проверяем постоянные статус-эффекты
     if character.active_status_effects:
-        logger.debug(f"Checking effects for roll target: {roll_target}")
+        logger.debug(f"Checking persistent effects for roll target: {roll_target}")
         for effect in character.active_status_effects:
-            # Пропускаем временные эффекты, они обрабатываются отдельно
+            # Пропускаем временные, так как они учтены выше
             if effect.name.startswith("_Temp:"):
                 continue
 
@@ -323,14 +336,14 @@ def determine_roll_mode(character: models.Character, roll_target: str, ability_m
 
                 # 1. Полное совпадение ключа эффекта с целью броска
                 #    (e.g., effect key "attack_rolls.melee.Сил" == roll_target "attack_rolls.melee.Сил")
-                if target_key == roll_target and target_value == True:
+                if target_key == roll_target and target_value is True:
                     applies = True
                     logger.debug(f"  Effect '{effect.name}' MATCH (Exact Key) for '{roll_target}'")
                     break
 
                 # 2. Совпадение по основной категории с значением true или "all"
                 #    (e.g., effect key "attack_rolls" == roll_target_parts[0] "attack_rolls" and value is true/"all")
-                if len(target_key_parts) == 1 and target_key == roll_target_parts[0] and (target_value == True or target_value == "all"):
+                if len(target_key_parts) == 1 and target_key == roll_target_parts[0] and (target_value is True or target_value == "all"):
                     applies = True
                     logger.debug(f"  Effect '{effect.name}' MATCH (Base Category '{target_key}' == true/all)")
                     break
@@ -346,7 +359,7 @@ def determine_roll_mode(character: models.Character, roll_target: str, ability_m
                 # 4. Совпадение по более общей категории с точкой (менее специфичной, чем roll_target)
                 #    (e.g., effect key "attack_rolls.melee" == roll_target "attack_rolls.melee.Сил" and value is true)
                 #    Проверяем, что ключ эффекта является началом строки цели броска
-                if roll_target.startswith(target_key + '.') and target_value == True:
+                if roll_target.startswith(target_key + '.') and target_value is True:
                      applies = True
                      logger.debug(f"  Effect '{effect.name}' MATCH (General Key '{target_key}' applies to '{roll_target}')")
                      break
@@ -354,26 +367,34 @@ def determine_roll_mode(character: models.Character, roll_target: str, ability_m
             # --- Применяем модификатор, если цель совпала ---
             if applies:
                 if effect.roll_modifier_type == 'advantage':
-                    status_advantage = True
-                    logger.debug(f"  Effect '{effect.name}' grants ADVANTAGE.")
+                    # Если временное преимущество уже есть, статусное его не добавит
+                    if not status_advantage:
+                         status_advantage = True
+                         logger.debug(f"  Effect '{effect.name}' grants ADVANTAGE.")
                 elif effect.roll_modifier_type == 'disadvantage':
-                    status_disadvantage = True
+                    status_disadvantage = True # Помеха всегда может добавиться
                     logger.debug(f"  Effect '{effect.name}' grants DISADVANTAGE.")
 
     # --- Определяем итоговый режим ---
     final_mode = 'normal'
+    # Преимущество от способности
     action_has_advantage = ability_modifies == 'advantage'
+    # Помеха от способности
     action_has_disadvantage = ability_modifies == 'disadvantage'
 
-    has_advantage = status_advantage or action_has_advantage
-    has_disadvantage = status_disadvantage or action_has_disadvantage
+    # Проверяем наличие источников преимущества (статус ИЛИ способность)
+    # Обрати внимание: status_advantage уже включает временное преимущество, если оно было
+    has_advantage_source = status_advantage or action_has_advantage
+    # Проверяем наличие источников помехи (статус ИЛИ способность)
+    has_disadvantage_source = status_disadvantage or action_has_disadvantage
 
-    if has_advantage and has_disadvantage:
+    # Компенсация
+    if has_advantage_source and has_disadvantage_source:
         final_mode = 'normal' # Конфликт -> нормальный бросок
-    elif has_advantage:
+    elif has_advantage_source:
         final_mode = 'advantage'
-    elif has_disadvantage:
+    elif has_disadvantage_source:
         final_mode = 'disadvantage'
 
-    logger.debug(f"Determine Roll Mode Result: Target='{roll_target}', AbilityMod='{ability_modifies}', StatusAdv={status_advantage}, StatusDisadv={status_disadvantage} => FinalMode='{final_mode}'")
+    logger.debug(f"Determine Roll Mode Resuasdflt: Target='{roll_target}', AbilityMod='{ability_modifies}', TempAdv={has_temporary_advantage}, StatusAdv={status_advantage}, StatusDisadv={status_disadvantage} => FinalMode='{final_mode}'")
     return final_mode

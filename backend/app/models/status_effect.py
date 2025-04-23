@@ -43,6 +43,17 @@ class StatusEffect(Base):
         comment="Тип длительности: next_action, next_attack, save_ends, rounds, minutes и т.д."
     )
 
+    action_restrictions: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+        JSON,
+        nullable=True,
+        comment='Ограничения действий. Пример: {"block_bonus": true, "block_reaction": true}'
+    )
+    saving_throw_modifiers: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+        JSON,
+        nullable=True,
+        comment='Модификаторы спасбросков. Пример: {"strength": "fail", "dexterity": "fail", "all": "disadvantage"}'
+    )
+
     # Связь "многие-ко-многим" с Character
     characters: Mapped[List["Character"]] = relationship(
         "Character",
