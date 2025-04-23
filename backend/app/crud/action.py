@@ -202,6 +202,27 @@ def activate_action(
                 # Получаем числовой мод из JSON
                 numeric_mod_sum = _get_numeric_modifier_for_context(character.active_status_effects, attack_context_string)
 
+                # --- НОВОЕ: Получаем бонус от ПРЕДМЕТОВ ---
+                item_bonus_value = 0; item_advantage = False; item_disadvantage = False
+                if character.inventory:
+                    logger.debug(f"  Checking inventory ({len(character.inventory)} items) for attack bonuses...")
+                    for inv_item in character.inventory:
+                        item = inv_item.item
+                        if item and hasattr(item, 'skill_check_bonuses') and item.skill_check_bonuses and isinstance(item.skill_check_bonuses, dict):
+                            bonuses = item.skill_check_bonuses
+                            # Ищем бонус для КОНТЕКСТА АТАКИ (упрощенно, ищем "attack_rolls", "attack_rolls.melee" и т.д.)
+                            mod_value = None
+                            if attack_context_string in bonuses: mod_value = bonuses[attack_context_string]
+                            elif f"attack_rolls.{attack_type_str}" in bonuses: mod_value = bonuses[f"attack_rolls.{attack_type_str}"]
+                            elif "attack_rolls" in bonuses: mod_value = bonuses["attack_rolls"]
+
+                            if isinstance(mod_value, int): item_bonus_value += mod_value; logger.debug(f"    Found numeric attack bonus +{mod_value} from item '{item.name}'")
+                            elif isinstance(mod_value, str):
+                                if mod_value.lower() == 'advantage': item_advantage = True; logger.debug(f"    Found ADVANTAGE for attack from item '{item.name}'")
+                                elif mod_value.lower() == 'disadvantage': item_disadvantage = True; logger.debug(f"    Found DISADVANTAGE for attack from item '{item.name}'")
+                if item_bonus_value != 0: logger.debug(f"  Total numeric bonus from items for attack: {item_bonus_value}")
+                # --- КОНЕЦ НОВОГО БЛОКА ---
+
                 # Проверяем временное преимущество
                 has_temp_advantage = False; effect_to_remove_after_attack = None
                 if is_ranged_attack and character.active_status_effects:
@@ -229,6 +250,7 @@ def activate_action(
                     base_modifier,  # Модификатор от стата/навыка
                     f"Мод.{attack_skill_name[:3]}",  # Источник базового мода
                     numeric_mod_sum,  # Сумма числовых модов от эффектов
+                    item_bonus_value,
                     used_mode  # Режим броска
                 )
 
@@ -295,6 +317,24 @@ def activate_action(
                     # Получаем числовой мод из JSON
                     numeric_mod_sum = _get_numeric_modifier_for_context(character.active_status_effects, burst_context_string)
 
+                    # --- НОВОЕ: Получаем бонус от ПРЕДМЕТОВ ---
+                    item_bonus_value = 0; item_advantage = False; item_disadvantage = False
+                    if character.inventory:
+                        logger.debug(f"  Checking inventory for Burst attack bonuses...")
+                        for inv_item in character.inventory:
+                            item = inv_item.item
+                            if item and hasattr(item, 'skill_check_bonuses') and item.skill_check_bonuses and isinstance(item.skill_check_bonuses, dict):
+                                bonuses = item.skill_check_bonuses; mod_value = None
+                                if burst_context_string in bonuses: mod_value = bonuses[burst_context_string]
+                                elif "attack_rolls.ranged" in bonuses: mod_value = bonuses["attack_rolls.ranged"]
+                                elif "attack_rolls" in bonuses: mod_value = bonuses["attack_rolls"]
+                                if isinstance(mod_value, int): item_bonus_value += mod_value; logger.debug(f"    Found numeric attack bonus +{mod_value} from item '{item.name}'")
+                                elif isinstance(mod_value, str):
+                                    if mod_value.lower() == 'advantage': item_advantage = True; logger.debug(f"    Found ADVANTAGE for attack from item '{item.name}'")
+                                    elif mod_value.lower() == 'disadvantage': item_disadvantage = True; logger.debug(f"    Found DISADVANTAGE for attack from item '{item.name}'")
+                    if item_bonus_value != 0: logger.debug(f"  Total numeric bonus from items for Burst: {item_bonus_value}")
+                    # --- КОНЕЦ НОВОГО БЛОКА ---
+
                     # Проверяем временное преимущество
                     has_temp_advantage = False; effect_to_remove_after_attack = None; is_ranged_attack_burst = True
                     if is_ranged_attack_burst and character.active_status_effects:
@@ -316,6 +356,8 @@ def activate_action(
                         has_temporary_advantage=has_temp_advantage # <-- Передаем флаг временного преим.
                     )
 
+
+
                     # Бросок
                     attack_roll_base, kept_dice, all_rolls, used_mode = roll_with_advantage_disadvantage(mode=attack_roll_mode)
                     attack_roll_total = attack_roll_base + base_modifier + numeric_mod_sum
@@ -326,6 +368,7 @@ def activate_action(
                         base_modifier,  # Модификатор от стата/навыка
                         f"Мод.{attack_skill_name[:3]}",  # Источник базового мода
                         numeric_mod_sum,  # Сумма числовых модов от эффектов
+                        item_bonus_value,
                         used_mode  # Режим броска
                     )
                     # Удаляем временный эффект

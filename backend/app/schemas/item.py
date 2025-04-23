@@ -1,6 +1,6 @@
 # backend/app/schemas/item.py
 from pydantic import BaseModel, Field
-from typing import List, Optional, Union, Any
+from typing import List, Optional, Union, Any, Dict
 
 # Импортируем зависимую схему
 from .ability import AbilityOut
@@ -65,6 +65,9 @@ class GeneralItemOut(ItemBase):
     uses: Optional[int] = None
     effect_dice_formula: Optional[str] = None
 
+    skill_check_bonuses: Optional[Dict[str, Any]] = Field(None, description="Бонусы к проверкам навыков (JSON)")
+
+
 
 class AmmoOut(ItemBase):
     item_type: str = 'ammo'
@@ -75,7 +78,22 @@ class AmmoOut(ItemBase):
 # Важно, чтобы дочерние типы шли ПЕРЕД базовым ItemBase
 AnyItemOut = Union[WeaponOut, ArmorOut, ShieldOut, GeneralItemOut, AmmoOut, ItemBase]
 
+class ItemOut(BaseModel): # Базовая схема для вывода любого предмета
+    id: int
+    name: str
+    item_type: str
+    category: Optional[str] = None
+    rarity: Optional[str] = None
+    weight: Optional[float] = None
+    description: Optional[str] = None
+    # ... другие общие поля ...
 
+    # Добавляем поле сюда, чтобы оно было во всех типах предметов при выводе
+    # Оно будет None для тех типов, где его нет в модели
+    skill_check_bonuses: Optional[Dict[str, Any]] = None
+
+    class Config:
+        from_attributes = True
 # --- Схемы для Инвентаря и Экипировки ---
 
 class CharacterInventoryItemOut(BaseModel):

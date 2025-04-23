@@ -79,60 +79,52 @@ def roll_with_advantage_disadvantage(base_roll_func: callable = lambda: roll_d6_
 def format_roll_details(
     kept_dice: List[int],
     all_rolls: List[int],
-    base_modifier_value: int = 0, # <-- ИЗМЕНЕНО: Модификатор от стата/навыка
-    base_modifier_source: str = "", # <-- ИЗМЕНЕНО: Источник базового мода (напр. "Мод.Лов")
-    numeric_mod_from_effects: int = 0, # <-- ИЗМЕНЕНО: Сумма числовых модов от эффектов
+    base_modifier_value: int = 0,
+    base_modifier_source: str = "",
+    numeric_mod_from_effects: int = 0,
+    item_bonus_value: int = 0, # <-- НОВЫЙ ПАРАМЕТР
     mode_used: RollMode = 'normal'
 ) -> str:
     """
     Форматирует строку с деталями броска, включая базовый модификатор,
-    числовой модификатор от эффектов и режим броска.
+    числовой модификатор от эффектов, бонус от предметов и режим броска.
     """
-    dice_str = "+".join(map(str, kept_dice))
-    roll_base_sum = sum(kept_dice)
-
-    prefix = ""
-    # Формируем префикс в зависимости от режима броска
-    if mode_used == 'advantage':
-        prefix = f"4к6в3 ({'/'.join(map(str, sorted(all_rolls)))})"
-    elif mode_used == 'disadvantage':
-        prefix = f"4к6н3 ({'/'.join(map(str, sorted(all_rolls)))})"
-    else: # normal
-        if len(all_rolls) == 4: # Если был нормальный бросок из-за компенсации
-            prefix = f"4к6к ({'/'.join(map(str, sorted(all_rolls)))})" # 'к' - компенсированный
-        else:
-             prefix = f"3к6 ({'/'.join(map(str, sorted(all_rolls)))})"
+    dice_str = "+".join(map(str, kept_dice)); roll_base_sum = sum(kept_dice)
+    prefix = ""; # ... (логика префикса как была) ...
+    if mode_used == 'advantage': prefix = f"4к6в3 ({'/'.join(map(str, sorted(all_rolls)))})"
+    elif mode_used == 'disadvantage': prefix = f"4к6н3 ({'/'.join(map(str, sorted(all_rolls)))})"
+    else: prefix = f"3к6 ({'/'.join(map(str, sorted(all_rolls)))})" if len(all_rolls) == 3 else f"4к6к ({'/'.join(map(str, sorted(all_rolls)))})"
 
     modifier_str = ""
     # Суммируем ВСЕ числовые модификаторы
-    total_numeric_mod = base_modifier_value + numeric_mod_from_effects
-    # Итоговый результат
+    total_numeric_mod = base_modifier_value + numeric_mod_from_effects + item_bonus_value # <-- Добавлен item_bonus_value
     total_result = roll_base_sum + total_numeric_mod
 
-    # Добавляем базовый модификатор (от стата/навыка)
+    # Добавляем базовый модификатор
     if base_modifier_value != 0:
-        sign = "+" if base_modifier_value > 0 else ""
-        source_info = f"({base_modifier_source})" if base_modifier_source else ""
+        sign = "+" if base_modifier_value > 0 else ""; source_info = f"({base_modifier_source})" if base_modifier_source else ""
         modifier_str += f" {sign}{base_modifier_value}{source_info}"
 
     # Добавляем сумму числовых модификаторов от эффектов
     if numeric_mod_from_effects != 0:
-        sign = "+" if numeric_mod_from_effects > 0 else ""
-        source_info = "(Эффекты)" # Источник
+        sign = "+" if numeric_mod_from_effects > 0 else ""; source_info = "(Эффекты)"
         modifier_str += f" {sign}{numeric_mod_from_effects}{source_info}"
 
-    # Убираем пробел в начале, если он есть
+    # --- ДОБАВЛЕНО: Отображение бонуса от предметов ---
+    if item_bonus_value != 0:
+        sign = "+" if item_bonus_value > 0 else ""; source_info = "(Предметы)"
+        modifier_str += f" {sign}{item_bonus_value}{source_info}"
+    # --- КОНЕЦ ДОБАВЛЕНИЯ ---
+
     modifier_str = modifier_str.strip()
 
     # Формируем итоговую строку
     if modifier_str:
-        # Добавляем пробелы для лучшей читаемости знаков +/-
         readable_modifier_str = modifier_str.replace('+', ' + ').replace('-', ' - ')
-        # Убираем двойной пробел, если он вдруг появился в начале
         if readable_modifier_str.startswith(' +'): readable_modifier_str = '+' + readable_modifier_str[2:]
         if readable_modifier_str.startswith(' -'): readable_modifier_str = '-' + readable_modifier_str[2:]
         return f"{prefix} = {roll_base_sum} {readable_modifier_str} = {total_result}"
-    else: # Если модификаторов не было
+    else:
         return f"{prefix} = {roll_base_sum}"
 
 def _parse_and_roll(formula: str, character: models.Character) -> Tuple[int, str]:

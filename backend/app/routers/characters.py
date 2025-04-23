@@ -400,44 +400,37 @@ async def delete_character_custom_item(
 
 
 @router.post("/{character_id}/skill_check",
-             response_model=SkillCheckResultOut, # Используем новую схему ответа
-             tags=["Skill Checks"], # Опциональный тег для группировки в Swagger
+             response_model=SkillCheckResultOut,
+             tags=["Skill Checks"],
              summary="Выполнить проверку навыка")
 async def perform_character_skill_check(
     character_id: int,
-    request: SkillCheckRequest, # Используем новую схему запроса
+    request: SkillCheckRequest,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
     """
-    Выполняет проверку указанного навыка для персонажа.
-    Учитывает модификаторы характеристик и статус-эффекты (числовые и преим./помеха).
+    Выполняет проверку навыка, учитывая моды, эффекты и бонусы от предметов.
     """
-    # Загружаем персонажа (убедимся, что эффекты загружены)
+    # --- ИЗМЕНЕНИЕ: Добавляем загрузку инвентаря ---
     character = db.query(models.Character).options(
-         selectinload(models.Character.active_status_effects) # Важно для получения эффектов
+         selectinload(models.Character.active_status_effects),
+         selectinload(models.Character.inventory).selectinload(models.CharacterInventoryItem.item) # <-- ЗАГРУЖАЕМ ИНВЕНТАРЬ
     ).filter(
         models.Character.id == character_id,
         models.Character.owner_id == current_user.id
     ).first()
+    # --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
     if not character:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Персонаж не найден")
 
-    # Вызываем функцию логики из crud/skill_check.py
-    result = perform_skill_check(
-        db=db,
-        character=character,
-        skill_name=request.skill_name
-        # situational_modifier=request.situational_modifier # Если добавили
-    )
+    # Вызываем функцию логики
+    result = perform_skill_check(db=db, character=character, skill_name=request.skill_name)
 
-    # Обработка возможных ошибок из CRUD функции
     if not result.success:
-        if "Неизвестный навык" in result.message:
-             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.message)
-        else: # Другие возможные ошибки внутри функции
-             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=result.message)
+        # ... (обработка ошибок как была) ...
+        if "Неизвестный навык" in result.message: raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.message)
+        else: raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=result.message)
 
-    # Возвращаем успешный результат
     return result

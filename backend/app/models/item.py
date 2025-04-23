@@ -1,7 +1,7 @@
 # backend/app/models/item.py
 from __future__ import annotations
-from typing import Optional, List, TYPE_CHECKING
-from sqlalchemy import Column, Integer, String, ForeignKey, Table, Text, Boolean, Float
+from typing import Optional, List, TYPE_CHECKING, Dict, Any
+from sqlalchemy import Column, Integer, String, ForeignKey, Table, Text, Boolean, Float, JSON
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from ..db.database import Base
@@ -87,6 +87,11 @@ class GeneralItem(Item):
     effect: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     uses: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     effect_dice_formula: Mapped[Optional[str]] = mapped_column(String, nullable=True, comment="Формула для расчета эффекта, напр. '1к8+Мод.Мед', '2к4'")
+    skill_check_bonuses: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+        JSON,
+        nullable=True,
+        comment='Бонусы к проверкам навыков от предмета. Пример: {"Техника": 2, "Ловкость": "advantage"}'
+    )
     __mapper_args__ = {'polymorphic_identity': 'general'}
 
 class Ammo(Item):

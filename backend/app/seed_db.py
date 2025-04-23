@@ -271,81 +271,150 @@ shields_data = [
 ]
 # ОБЩИЕ ПРЕДМЕТЫ (без изменений)
 general_items_data = [
-    {"name": "Мультитул", "item_type": "general", "category": "Инструменты", "rarity": "Обычная", "weight": 1,
-     "description": "Набор отверток, ключей, пассатижей.", "effect": "Преимущество на Технику (ремонт).", "uses": None,
-     "effect_dice_formula": None},
-    {"name": "Набор для взлома (Мех.)", "item_type": "general", "category": "Инструменты", "rarity": "Необычная",
-     "weight": 1, "description": "Отмычки, щупы.", "effect": "Позволяет вскрывать мех. замки (Ловкость).", "uses": None,
-     "effect_dice_formula": None},
-    {"name": "Набор для взлома (Эл.)", "item_type": "general", "category": "Инструменты", "rarity": "Необычная",
-     "weight": 1, "description": "Кабели, скребки данных.",
-     "effect": "Позволяет взламывать эл. замки/системы (Техника).", "uses": None, "effect_dice_formula": None},
-    {"name": "Лом", "item_type": "general", "category": "Инструменты", "rarity": "Обычная", "weight": 5,
-     "description": "Тяжелый металлический рычаг.",
-     "effect": "Преимущество на Силу (взлом). Можно использовать как Дубинку.", "uses": None,
-     "effect_dice_formula": None},
-    {"name": "Аптечка", "item_type": "general", "category": "Медицина", "rarity": "Обычная", "weight": 3,
-     "description": "Бинты, антисептики.", "effect": "Позволяет стабилизировать (Первая Помощь) или лечить.", "uses": 3,
-     "effect_dice_formula": "1к8+Мод.Мед"},
-    {"name": "Медпак", "item_type": "general", "category": "Медицина", "rarity": "Обычная", "weight": 3,
-     "description": "Улучшенная аптечка.", "effect": "Позволяет стабилизировать или лечить.", "uses": 5,
-     "effect_dice_formula": "1к8+Мод.Мед"},
-    {"name": "Стимулятор (Стим)", "item_type": "general", "category": "Медицина", "rarity": "Необычная", "weight": 0.1,
-     "description": "Инъектор с бодрящим веществом.",
-     "effect": "Бонусное Действие: +2к4 временных ПЗ ИЛИ снять 1 ур. Истощения.", "uses": 1,
-     "effect_dice_formula": "2к4"},
-    {"name": "Антидот / Противоядие", "item_type": "general", "category": "Медицина", "rarity": "Необычная",
-     "weight": 0.1, "description": "Универсальное противоядие.", "effect": "Действие: Снимает эффект Отравления.",
-     "uses": 1, "effect_dice_formula": None},
-    {"name": "Фонарик", "item_type": "general", "category": "Снаряжение", "rarity": "Обычная", "weight": 1,
-     "description": "Источник света.", "effect": "Освещает конус 10м/тускло +10м.", "uses": None,
-     "effect_dice_formula": None},
-    {"name": "Химсвет", "item_type": "general", "category": "Снаряжение", "rarity": "Обычная", "weight": 0.2,
-     "description": "Химический источник света.", "effect": "Сломать: свет 5-10м на 1 час.", "uses": 1,
-     "effect_dice_formula": None},
-    {"name": "Сканер", "item_type": "general", "category": "Снаряжение", "rarity": "Необычная", "weight": 2,
-     "description": "Ручной сканер.", "effect": "Действие: анализ окружения (Техника/Внимание).", "uses": None,
-     "effect_dice_formula": None},
-    {"name": "Ауспик", "item_type": "general", "category": "Снаряжение", "rarity": "Редкая", "weight": 2,
-     "description": "Продвинутый сканер.", "effect": "Действие: детальный анализ окружения (Техника/Внимание).",
-     "uses": None, "effect_dice_formula": None},
-    {"name": "Датапад / Планшет", "item_type": "general", "category": "Снаряжение", "rarity": "Обычная", "weight": 1,
-     "description": "Портативный компьютер.", "effect": "Хранение информации, интерфейс (Техника для взлома).",
-     "uses": None, "effect_dice_formula": None},
-    {"name": "Комм-линк", "item_type": "general", "category": "Снаряжение", "rarity": "Обычная", "weight": 0.5,
-     "description": "Устройство связи.", "effect": "Радиосвязь (короткие дистанции).", "uses": None,
-     "effect_dice_formula": None},
-    {"name": "Вокс-кастер", "item_type": "general", "category": "Снаряжение", "rarity": "Необычная", "weight": 3,
-     "description": "Мощное устройство связи.", "effect": "Радиосвязь (большие дистанции), шифрование.", "uses": None,
-     "effect_dice_formula": None},
-    {"name": "Респиратор", "item_type": "general", "category": "Снаряжение", "rarity": "Обычная", "weight": 1,
-     "description": "Защита дыхания.", "effect": "Преимущество на спасброски от газов/ядов в воздухе.", "uses": None,
-     "effect_dice_formula": None},
-    {"name": "Противогаз", "item_type": "general", "category": "Снаряжение", "rarity": "Обычная", "weight": 2,
-     "description": "Полная защита дыхания и лица.", "effect": "Иммунитет к газам, запас воздуха.", "uses": None,
-     "effect_dice_formula": None},
-    {"name": "ЭDM-граната", "item_type": "general", "category": "Снаряжение", "rarity": "Редкая", "weight": 1,
-     "description": "Электромагнитная граната.",
-     "effect": "Действие: импульс 5-10м. Спасбросок Техники/Выносливости для техники или Отключение 1к4 раунда. Снимает энергощиты.",
-     "uses": 1, "effect_dice_formula": None},
-    {"name": "Веревка (15м)", "item_type": "general", "category": "Снаряжение", "rarity": "Обычная", "weight": 3,
-     "description": "Прочная веревка.", "effect": "Для лазания, связывания и т.д.", "uses": None,
-     "effect_dice_formula": None},
-    {"name": "Набор для выживания", "item_type": "general", "category": "Снаряжение", "rarity": "Необычная",
-     "weight": 5, "description": "Труд, огниво, фильтр, инструменты.",
-     "effect": "Преимущество на проверки Адаптации (выживание).", "uses": None, "effect_dice_formula": None},
-    {"name": "Бинокль", "item_type": "general", "category": "Снаряжение", "rarity": "Обычная", "weight": 1,
-     "description": "Оптический прибор.", "effect": "Детальное наблюдение удаленных объектов.", "uses": None,
-     "effect_dice_formula": None},
-    {"name": "Наручники", "item_type": "general", "category": "Снаряжение", "rarity": "Обычная", "weight": 1,
-     "description": "Металлические/пластиковые.", "effect": "Сковывание (требует проверки Ловкости/Силы).",
-     "uses": None, "effect_dice_formula": None},
-    {"name": "Святая вода (Ампула)", "item_type": "general", "category": "Снаряжение", "rarity": "Необычная",
-     "weight": 0.2, "description": "Освященная жидкость.", "effect": "Метательное. 2к6 урона Светом.", "uses": 1,
-     "effect_dice_formula": "2к6"},  # Указали тип урона в effect
-    {"name": "Кислота (Ампула)", "item_type": "general", "category": "Снаряжение", "rarity": "Необычная", "weight": 0.2,
-     "description": "Едкая жидкость.", "effect": "Метательное. 2к6 урона Кислотой.", "uses": 1,
-     "effect_dice_formula": "2к6"},  # Указали тип урона в effect
+    {
+        "name": "Мультитул", "item_type": "general", "category": "Инструменты", "rarity": "Обычная", "weight": 1,
+        "description": "Набор отверток, ключей, пассатижей.", "effect": "Преимущество на Технику (ремонт).",
+        "uses": None, "effect_dice_formula": None,
+        "skill_check_bonuses": {"Техника": 2} # <-- Бонус +2 к Технике
+    },
+    {
+        "name": "Набор для взлома (Мех.)", "item_type": "general", "category": "Инструменты", "rarity": "Необычная", "weight": 1,
+        "description": "Отмычки, щупы.", "effect": "Позволяет вскрывать мех. замки (Ловкость).",
+        "uses": None, "effect_dice_formula": None,
+        "skill_check_bonuses": {"Ловкость": "advantage"} # <-- Преимущество к Ловкости (для взлома)
+    },
+    {
+        "name": "Набор для взлома (Эл.)", "item_type": "general", "category": "Инструменты", "rarity": "Необычная", "weight": 1,
+        "description": "Кабели, скребки данных.", "effect": "Позволяет взламывать эл. замки/системы (Техника).",
+        "uses": None, "effect_dice_formula": None,
+        "skill_check_bonuses": {"Техника": "advantage"} # <-- Преимущество к Технике (для взлома)
+    },
+    {
+        "name": "Лом", "item_type": "general", "category": "Инструменты", "rarity": "Обычная", "weight": 5,
+        "description": "Тяжелый металлический рычаг.", "effect": "Преимущество на Силу (взлом). Можно использовать как Дубинку.",
+        "uses": None, "effect_dice_formula": None,
+        "skill_check_bonuses": {"Сила": "advantage"} # <-- Преимущество к Силе (для взлома)
+    },
+    {
+        "name": "Аптечка", "item_type": "general", "category": "Медицина", "rarity": "Обычная", "weight": 3,
+        "description": "Бинты, антисептики.", "effect": "Позволяет стабилизировать (Первая Помощь) или лечить.",
+        "uses": 3, "effect_dice_formula": "1к8+Мод.Мед",
+        "skill_check_bonuses": None # <-- Нет бонуса к навыкам
+    },
+    {
+        "name": "Медпак", "item_type": "general", "category": "Медицина", "rarity": "Обычная", "weight": 3,
+        "description": "Улучшенная аптечка.", "effect": "Позволяет стабилизировать или лечить.",
+        "uses": 5, "effect_dice_formula": "1к8+Мод.Мед",
+        "skill_check_bonuses": None
+    },
+    {
+        "name": "Стимулятор (Стим)", "item_type": "general", "category": "Медицина", "rarity": "Необычная", "weight": 0.1,
+        "description": "Инъектор с бодрящим веществом.", "effect": "Бонусное Действие: +2к4 временных ПЗ ИЛИ снять 1 ур. Истощения.",
+        "uses": 1, "effect_dice_formula": "2к4",
+        "skill_check_bonuses": None
+    },
+    {
+        "name": "Антидот / Противоядие", "item_type": "general", "category": "Медицина", "rarity": "Необычная", "weight": 0.1,
+        "description": "Универсальное противоядие.", "effect": "Действие: Снимает эффект Отравления.",
+        "uses": 1, "effect_dice_formula": None,
+        "skill_check_bonuses": None
+    },
+    {
+        "name": "Фонарик", "item_type": "general", "category": "Снаряжение", "rarity": "Обычная", "weight": 1,
+        "description": "Источник света.", "effect": "Освещает конус 10м/тускло +10м.",
+        "uses": None, "effect_dice_formula": None,
+        "skill_check_bonuses": None
+    },
+    {
+        "name": "Химсвет", "item_type": "general", "category": "Снаряжение", "rarity": "Обычная", "weight": 0.2,
+        "description": "Химический источник света.", "effect": "Сломать: свет 5-10м на 1 час.",
+        "uses": 1, "effect_dice_formula": None,
+        "skill_check_bonuses": None
+    },
+    {
+        "name": "Сканер", "item_type": "general", "category": "Снаряжение", "rarity": "Необычная", "weight": 2,
+        "description": "Ручной сканер.", "effect": "Действие: анализ окружения (Техника/Внимание).",
+        "uses": None, "effect_dice_formula": None,
+        "skill_check_bonuses": {"Внимание": 1, "Техника": 1} # <-- ПРИМЕР: Небольшой бонус к сканированию
+    },
+    {
+        "name": "Ауспик", "item_type": "general", "category": "Снаряжение", "rarity": "Редкая", "weight": 2,
+        "description": "Продвинутый сканер.", "effect": "Действие: детальный анализ окружения (Техника/Внимание).",
+        "uses": None, "effect_dice_formula": None,
+        "skill_check_bonuses": {"Внимание": 2, "Техника": 2} # <-- ПРИМЕР: Бонус побольше
+    },
+    {
+        "name": "Датапад / Планшет", "item_type": "general", "category": "Снаряжение", "rarity": "Обычная", "weight": 1,
+        "description": "Портативный компьютер.", "effect": "Хранение информации, интерфейс (Техника для взлома).",
+        "uses": None, "effect_dice_formula": None,
+        "skill_check_bonuses": None # Сам по себе бонус не дает, нужен Набор для взлома (Эл.)
+    },
+    {
+        "name": "Комм-линк", "item_type": "general", "category": "Снаряжение", "rarity": "Обычная", "weight": 0.5,
+        "description": "Устройство связи.", "effect": "Радиосвязь (короткие дистанции).",
+        "uses": None, "effect_dice_formula": None,
+        "skill_check_bonuses": None
+    },
+    {
+        "name": "Вокс-кастер", "item_type": "general", "category": "Снаряжение", "rarity": "Необычная", "weight": 3,
+        "description": "Мощное устройство связи.", "effect": "Радиосвязь (большие дистанции), шифрование.",
+        "uses": None, "effect_dice_formula": None,
+        "skill_check_bonuses": None
+    },
+    {
+        "name": "Респиратор", "item_type": "general", "category": "Снаряжение", "rarity": "Обычная", "weight": 1,
+        "description": "Защита дыхания.", "effect": "Преимущество на спасброски от газов/ядов в воздухе.",
+        "uses": None, "effect_dice_formula": None,
+        "skill_check_bonuses": None # Влияет на спасброски, не проверки навыков
+    },
+    {
+        "name": "Противогаз", "item_type": "general", "category": "Снаряжение", "rarity": "Обычная", "weight": 2,
+        "description": "Полная защита дыхания и лица.", "effect": "Иммунитет к газам, запас воздуха.",
+        "uses": None, "effect_dice_formula": None,
+        "skill_check_bonuses": None
+    },
+    {
+        "name": "ЭDM-граната", "item_type": "general", "category": "Снаряжение", "rarity": "Редкая", "weight": 1,
+        "description": "Электромагнитная граната.", "effect": "Действие: импульс 5-10м...",
+        "uses": 1, "effect_dice_formula": None,
+        "skill_check_bonuses": None
+    },
+    {
+        "name": "Веревка (15м)", "item_type": "general", "category": "Снаряжение", "rarity": "Обычная", "weight": 3,
+        "description": "Прочная веревка.", "effect": "Для лазания, связывания и т.д.",
+        "uses": None, "effect_dice_formula": None,
+        "skill_check_bonuses": None # Бонус может быть ситуативным от GM
+    },
+    {
+        "name": "Набор для выживания", "item_type": "general", "category": "Снаряжение", "rarity": "Необычная", "weight": 5,
+        "description": "Труд, огниво, фильтр, инструменты.", "effect": "Преимущество на проверки Адаптации (выживание).",
+        "uses": None, "effect_dice_formula": None,
+        "skill_check_bonuses": {"Адаптация": "advantage"} # <-- Преимущество к Адаптации
+    },
+    {
+        "name": "Бинокль", "item_type": "general", "category": "Снаряжение", "rarity": "Обычная", "weight": 1,
+        "description": "Оптический прибор.", "effect": "Детальное наблюдение удаленных объектов.",
+        "uses": None, "effect_dice_formula": None,
+        "skill_check_bonuses": {"Внимание": "advantage"} # <-- Преимущество к Внимательности (наблюдение)
+    },
+    {
+        "name": "Наручники", "item_type": "general", "category": "Снаряжение", "rarity": "Обычная", "weight": 1,
+        "description": "Металлические/пластиковые.", "effect": "Сковывание (требует проверки Ловкости/Силы).",
+        "uses": None, "effect_dice_formula": None,
+        "skill_check_bonuses": None
+    },
+    {
+        "name": "Святая вода (Ампула)", "item_type": "general", "category": "Снаряжение", "rarity": "Необычная", "weight": 0.2,
+        "description": "Освященная жидкость.", "effect": "Метательное. 2к6 урона Светом.",
+        "uses": 1, "effect_dice_formula": "2к6",
+        "skill_check_bonuses": None
+    },
+    {
+        "name": "Кислота (Ампула)", "item_type": "general", "category": "Снаряжение", "rarity": "Необычная", "weight": 0.2,
+        "description": "Едкая жидкость.", "effect": "Метательное. 2к6 урона Кислотой.",
+        "uses": 1, "effect_dice_formula": "2к6",
+        "skill_check_bonuses": None
+    },
 ]
 # СПЕЦ. БОЕПРИПАСЫ (добавьте ammo_type для всех)
 ammo_data = [
@@ -1571,7 +1640,7 @@ def seed_data():
                 data_copy["name"] = name
                 if not db.query(Item.id).filter(Item.name == name).first():
                     item_defaults = {"category": "Простое", "rarity": "Обычная", "weight": 1}
-                    general_defaults = {"uses": None, "effect": None, "effect_dice_formula": None}
+                    general_defaults = {"uses": None, "effect": None, "effect_dice_formula": None, "skill_check_bonuses": None}
                     data_with_defaults = {**item_defaults, **general_defaults, **data_copy}
                     general_fields_cleaned = {k: v for k, v in data_with_defaults.items() if hasattr(GeneralItem, k)}
                     try:

@@ -5,8 +5,8 @@ import * as apiService from '../../../api/apiService'; // Убедитесь, ч
 
 // --- Вспомогательные Функции и Иконки ---
 
+// Функция для получения цвета редкости
 const getRarityColor = (rarity) => {
-    // ... (код функции без изменений)
     switch (rarity?.toLowerCase()) {
         case 'необычная': return theme.colors.success || '#66BB6A';
         case 'редкая': return '#2196F3'; // Синий
@@ -18,8 +18,7 @@ const getRarityColor = (rarity) => {
     }
 };
 
-
-// Иконки для тегов
+// Иконки для тегов деталей
 const WeightIcon = () => ( <svg style={styles.detailTagIcon} viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C7.03 3 3 7.03 3 12s4.03 9 9 9 9-4.03 9-9-4.03-9-9-9zm0 16c-3.86 0-7-3.14-7-7s3.14-7 7-7 7 3.14 7 7-3.14 7-7 7zm-1-8h2v3h-2zm0-4h2v2h-2z"/></svg> );
 const RangeIcon = () => ( <svg style={styles.detailTagIcon} viewBox="0 0 24 24" fill="currentColor"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/></svg> );
 const StrengthReqIcon = () => ( <svg style={styles.detailTagIcon} viewBox="0 0 24 24" fill="currentColor"><path d="M19.5 12.5c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5zM12 19c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm-7.5-7C3.12 12 2 13.12 2 14.5S3.12 17 4.5 17s2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5zM12 1C8.13 1 5 4.13 5 8c0 1.44.48 2.77 1.29 3.88L12 20l5.71-8.12C18.52 10.77 19 9.44 19 8c0-3.87-3.13-7-7-7z"/></svg> );
@@ -27,6 +26,7 @@ const StealthDisIcon = () => ( <svg style={styles.detailTagIcon} viewBox="0 0 24
 const HandIcon = () => ( <svg style={styles.detailTagIcon} viewBox="0 0 24 24" fill="currentColor"><path d="M10.5 15.5c.28 0 .5.22.5.5s-.22.5-.5.5H6.83l.88.88c.2.2.2.51 0 .71-.2.2-.51.2-.71 0l-1.75-1.75c-.2-.2-.2-.51 0-.71l1.75-1.75c.2-.2.51-.2.71 0 .2.2.2.51 0 .71l-.88.88h3.67zm3-9c.28 0 .5.22.5.5s-.22.5-.5.5h-3.67l.88.88c.2.2.2.51 0 .71-.2.2-.51.2-.71 0L8.21 9.35c-.2-.2-.2-.51 0-.71l1.75-1.75c.2-.2.51-.2.71 0 .2.2.2.51 0 .71l-.88.88h3.67zm6.5.5c0-3.31-2.69-6-6-6s-6 2.69-6 6v10c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7zm-2 10H8V7c0-2.21 1.79-4 4-4s4 1.79 4 4v10z"/></svg> );
 const UsesIcon = () => ( <svg style={styles.detailTagIcon} viewBox="0 0 24 24" fill="currentColor"><path d="M17 4h-3V2h-4v2H7c-1.1 0-2 .9-2 2v15c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 17H7V6h10v15z"/><path d="M9 11h6v2H9zm0 4h6v2H9z"/></svg> );
 const StackIcon = () => ( <svg style={styles.detailTagIcon} viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zm0-8h14V7H7v2z"/></svg> );
+const SkillBonusIcon = () => ( <svg style={styles.detailTagIcon} viewBox="0 0 24 24" fill="currentColor"><path d="M16.23 18 20.71 12l-4.48-6H3v12h13.23zm-1.71-2H5V8h9.52l3 4-3 4zM11 11h2v2h-2v-2zm4 0h2v2h-2v-2zm-8 0h2v2H7v-2z"/></svg> ); // Иконка "звездочки"
 
 // Иконки для основных статов
 const DamageIcon = () => ( <svg style={styles.mainDetailIcon} viewBox="0 0 24 24" fill="currentColor"><path d="M19.78 2.22a.75.75 0 0 0-1.06 0l-2.22 2.22-1.41-1.41a.75.75 0 0 0-1.06 1.06l1.41 1.41-1.94 1.94-1.41-1.41a.75.75 0 0 0-1.06 1.06l1.41 1.41-1.94 1.94-1.41-1.41a.75.75 0 0 0-1.06 1.06l1.41 1.41L4 15.06V19a1 1 0 0 0 1 1h3.94l10.84-10.84L19.78 3.28a.75.75 0 0 0 0-1.06zM8.5 18H6v-2.5l7.37-7.37 2.5 2.5L8.5 18z"/></svg> );
@@ -47,6 +47,27 @@ const EquippedStatusIcon = () => (
     </svg>
 );
 
+// --- Вспомогательная Функция Форматирования Бонусов Навыков ---
+// (Используем skillTranslations из внешнего скоупа)
+const formatSkillBonuses = (bonuses) => {
+    if (!bonuses || typeof bonuses !== 'object' || Object.keys(bonuses).length === 0) {
+        return null;
+    }
+    const tags = [];
+    for (const [skillOrAttr, value] of Object.entries(bonuses)) {
+        // Пытаемся найти перевод для ключа
+        const skillName = skillTranslations[skillOrAttr] || skillOrAttr;
+        if (value === 'advantage') {
+            tags.push(`Преим. ${skillName}`);
+        } else if (value === 'disadvantage') {
+             tags.push(`Помеха ${skillName}`);
+        } else if (typeof value === 'number' && value !== 0) {
+            tags.push(`${value > 0 ? '+' : ''}${value} ${skillName}`);
+        }
+    }
+    return tags.length > 0 ? tags : null;
+};
+// --- КОНЕЦ ---
 
 
 // --- Основной Компонент ---
@@ -56,12 +77,11 @@ const ItemCard = ({
     onEquip,
     onDrop,
     onUnequip,
-    handleApiAction
+    handleApiAction // Принимаем обработчик API
 }) => {
 
-    // !! ИСПРАВЛЕНИЕ: Вызываем хуки ДО раннего возврата !!
+    // Хуки вызываются ДО раннего возврата
     const equippedSlot = useMemo(() => {
-        // Добавим проверку на существование invItem и character прямо здесь
         if (!invItem || !character) return null;
         const inventoryItemId = invItem.id;
         if (character.equipped_armor?.id === inventoryItemId) return 'armor';
@@ -71,7 +91,8 @@ const ItemCard = ({
         return null;
     }, [character, invItem]);
 
-    // !! КОНЕЦ ИСПРАВЛЕНИЯ !!
+    // Форматируем бонусы к навыкам
+    const skillBonusTags = useMemo(() => formatSkillBonuses(invItem?.item?.skill_check_bonuses), [invItem?.item?.skill_check_bonuses]);
 
     // Ранний выход, если нет данных
     if (!invItem || !invItem.item) return null;
@@ -92,19 +113,14 @@ const ItemCard = ({
         ...(isEquipped ? styles.itemCardEquipped : {}),
     };
 
-    // Обработчики действий (без изменений в логике)
+    // Обработчики действий
      const handleEquipToggleClick = (e) => {
         e.stopPropagation();
-        if (isEquipped) {
-            if (onUnequip && equippedSlot) onUnequip(equippedSlot);
-        } else if (isEquippable) {
-            if (onEquip) {
-                let targetSlot = item.item_type;
-                if (item.item_type === 'weapon') {
-                    targetSlot = !character?.equipped_weapon1 ? 'weapon1' : (!character?.equipped_weapon2 ? 'weapon2' : 'weapon1');
-                }
-                onEquip(inventoryItemId, targetSlot);
-            }
+        if (isEquipped) { if (onUnequip && equippedSlot) onUnequip(equippedSlot); }
+        else if (isEquippable && onEquip) {
+             let targetSlot = item.item_type;
+             if (item.item_type === 'weapon') { targetSlot = !character?.equipped_weapon1 ? 'weapon1' : (!character?.equipped_weapon2 ? 'weapon2' : 'weapon1'); }
+             onEquip(inventoryItemId, targetSlot);
         }
     };
     const handleDropClick = (e) => {
@@ -112,18 +128,12 @@ const ItemCard = ({
         if(onDrop) {
              let quantityToDrop = 1;
              if (quantity > 1) {
-                 const input = prompt(`Сколько "${item.name}" выбросить? (Максимум ${quantity})`, '1');
-                 const num = parseInt(input, 10);
+                 const input = prompt(`Сколько "${item.name}" выбросить? (Макс ${quantity})`, '1');
                  if (input === null) return;
-                 if (!isNaN(num) && num > 0 && num <= quantity) {
-                     quantityToDrop = num;
-                 } else if (!isNaN(num) && num > quantity) {
-                    alert(`Нельзя выбросить больше, чем есть (${quantity}). Будет выброшено ${quantity}.`);
-                    quantityToDrop = quantity;
-                 } else {
-                    alert("Некорректное количество. Будет выброшен 1 предмет.");
-                    quantityToDrop = 1;
-                 }
+                 const num = parseInt(input, 10);
+                 if (!isNaN(num) && num > 0 && num <= quantity) { quantityToDrop = num; }
+                 else if (!isNaN(num) && num > quantity) { alert(`Максимум ${quantity}. Будет выброшено ${quantity}.`); quantityToDrop = quantity; }
+                 else { alert("Некорректно. Будет выброшен 1."); quantityToDrop = 1; }
              }
              onDrop(inventoryItemId, quantityToDrop);
         }
@@ -131,37 +141,29 @@ const ItemCard = ({
     const handleActivateClick = (e) => {
         e.stopPropagation();
         if (!handleApiAction || !isActivatable) return;
-        const activationData = {
-            activation_type: 'item',
-            target_id: inventoryItemId,
-        };
+        const activationData = { activation_type: 'item', target_id: inventoryItemId };
         handleApiAction(
             apiService.activateAction(character.id, activationData),
             `Предмет '${item.name}' использован`,
-            `Ошибка использования предмета '${item.name}'`
+            `Ошибка использования '${item.name}'`
         );
     };
 
-    // --- Данные для тегов и деталей (без изменений) ---
+    // Данные для тегов
     const strengthRequirement = item?.strength_requirement ?? 0;
     const stealthDisadvantage = item?.stealth_disadvantage ?? false;
     const baseItemWeight = item?.weight;
     const weaponAmmo = item.item_type === 'weapon' ? item.required_ammo_type : null;
-    const weaponRange = item.item_type === 'weapon' && item.range_normal !== null
-        ? `${item.range_normal}/${item.range_max ?? item.range_normal}м`
-        : null;
+    const weaponRange = item.item_type === 'weapon' && item.range_normal !== null ? `${item.range_normal}/${item.range_max ?? item.range_normal}м` : null;
     const isTwoHanded = item.item_type === 'weapon' ? item.is_two_handed : null;
-    const maxUses = item.item_type === 'general' && item.uses !== null && item.uses !== undefined ? item.uses : null;
-    const isStackable = item.item_type === 'ammo' || (item.item_type === 'general' && maxUses === null);
+    const showUsesTag = item.item_type === 'general' && item.uses !== null && item.uses !== undefined;
+    const isStackable = item.item_type === 'ammo' || (item.item_type === 'general' && !showUsesTag);
     const showQuantityTag = isStackable && quantity > 1;
-    const showUsesTag = item.item_type === 'general' && maxUses !== null;
-    const displayWeight = (baseItemWeight !== null && baseItemWeight !== undefined)
-        ? (isStackable ? (baseItemWeight * quantity) : baseItemWeight)
-        : null;
+    const displayWeight = (baseItemWeight !== null && baseItemWeight !== undefined) ? (isStackable ? (baseItemWeight * quantity) : baseItemWeight) : null;
     const formattedWeight = displayWeight !== null ? displayWeight.toFixed(1) : null;
-    const usesTagValue = (item.item_type === 'general' && maxUses !== null) ? quantity : null; // Показываем ТЕКУЩЕЕ количество зарядов
+    const usesTagValue = showUsesTag ? quantity : null;
     const usesTagTitle = "Осталось зарядов/использований";
-    const hasTags = weaponAmmo || weaponRange || isTwoHanded !== null || formattedWeight !== null || strengthRequirement > 0 || stealthDisadvantage || showUsesTag || showQuantityTag;
+    const hasTags = weaponAmmo || weaponRange || isTwoHanded !== null || formattedWeight !== null || strengthRequirement > 0 || stealthDisadvantage || showUsesTag || showQuantityTag || (skillBonusTags && skillBonusTags.length > 0);
 
 
     return (
@@ -176,112 +178,57 @@ const ItemCard = ({
 
             {/* Центральная часть: Статы и Теги */}
             <div style={styles.centerSection}>
-                <div>
-                    <span style={styles.itemName}>
-                        {item.name}
-                            <EquippedStatusIcon />
-                    </span>
-                </div>
+                <div><span style={styles.itemName}>{item.name}</span></div>
                 {/* Основные детали */}
                 <div style={styles.mainDetailContainer}>
-                    {item.item_type === 'weapon' && item.damage && (
-                        <div style={styles.mainDetailWrapper}><DamageIcon/> <span style={styles.mainDetailText}> <span
-                            style={styles.mainValue}>{item.damage}</span> ({item.damage_type}) </span></div>)}
-                    {item.item_type === 'armor' && typeof item.ac_bonus === 'number' && (
-                        <div style={styles.mainDetailWrapper}><ACIcon/> <span style={styles.mainDetailText}> AC <span
-                            style={styles.mainValue}>{item.ac_bonus}</span> {item.max_dex_bonus !== null ? `[Лвк+${item.max_dex_bonus}]` : ''} </span>
-                        </div>)}
-                    {item.item_type === 'shield' && typeof item.ac_bonus === 'number' && (
-                        <div style={styles.mainDetailWrapper}><ACIcon/> <span style={styles.mainDetailText}> AC <span
-                            style={styles.mainValue}>+{item.ac_bonus}</span> </span></div>)}
-                    {item.item_type === 'general' && item.effect && !item.effect_dice_formula && (
-                        <div style={styles.mainDetailWrapper}><EffectIcon/> <span style={styles.mainDetailText}
-                                                                                  title={item.effect}> {item.effect.length > 40 ? item.effect.substring(0, 37) + '...' : item.effect} </span>
-                        </div>)}
-                    {item.item_type === 'ammo' && item.ammo_type && (
-                        <div style={styles.mainDetailWrapper}><span style={styles.mainDetailText}> Тип: <span
-                            style={styles.mainValue}>{item.ammo_type}</span> </span></div>)}
-                    {item.effect_dice_formula && (<div style={styles.mainDetailWrapper}><FormulaIcon/> <span
-                        style={styles.mainDetailText}> Формула: <span
-                        style={styles.mainValue}>{item.effect_dice_formula}</span> </span></div>)}
+                    {item.item_type === 'weapon' && item.damage && (<div style={styles.mainDetailWrapper}><DamageIcon/> <span style={styles.mainDetailText}> <span style={styles.mainValue}>{item.damage}</span> ({item.damage_type}) </span></div>)}
+                    {item.item_type === 'armor' && typeof item.ac_bonus === 'number' && (<div style={styles.mainDetailWrapper}><ACIcon/> <span style={styles.mainDetailText}> AC <span style={styles.mainValue}>{item.ac_bonus}</span> {item.max_dex_bonus !== null ? `[Лвк+${item.max_dex_bonus}]` : ''} </span></div>)}
+                    {item.item_type === 'shield' && typeof item.ac_bonus === 'number' && (<div style={styles.mainDetailWrapper}><ACIcon/> <span style={styles.mainDetailText}> AC <span style={styles.mainValue}>+{item.ac_bonus}</span> </span></div>)}
+                    {item.item_type === 'general' && item.effect && !item.effect_dice_formula && (<div style={styles.mainDetailWrapper}><EffectIcon/> <span style={styles.mainDetailText} title={item.effect}> {item.effect.length > 40 ? item.effect.substring(0, 37) + '...' : item.effect} </span></div>)}
+                    {item.item_type === 'ammo' && item.ammo_type && (<div style={styles.mainDetailWrapper}><span style={styles.mainDetailText}> Тип: <span style={styles.mainValue}>{item.ammo_type}</span> </span></div>)}
+                    {item.effect_dice_formula && (<div style={styles.mainDetailWrapper}><FormulaIcon/> <span style={styles.mainDetailText}> Формула: <span style={styles.mainValue}>{item.effect_dice_formula}</span> </span></div>)}
                 </div>
 
                 {/* Теги */}
                 {hasTags && (
                     <div style={styles.tagsContainer}>
-                        {weaponAmmo && (<span style={styles.detailTag}
-                                              title={`Патроны: ${weaponAmmo}`}> {weaponAmmo.substring(0, 10)}{weaponAmmo.length > 10 ? '...' : ''} </span>)}
-                        {weaponRange && (
-                            <span style={styles.detailTag} title="Дальность"> <RangeIcon/> {weaponRange} </span>)}
-                        {isTwoHanded !== null && (<span style={styles.detailTag}
-                                                        title={isTwoHanded ? "Двуручное" : "Одноручное"}> <HandIcon/> {isTwoHanded ? "2H" : "1H"} </span>)}
-                        {showUsesTag && usesTagValue !== null && (
-                            <span style={styles.detailTag} title={usesTagTitle}> <UsesIcon/> {usesTagValue} </span>)}
-                        {showQuantityTag && (
-                            <span style={styles.detailTag} title="Количество"> <StackIcon/> x{quantity} </span>)}
-                        {formattedWeight !== null && (<span style={styles.detailTag}
-                                                            title="Общий вес"> <WeightIcon/> {formattedWeight}кг </span>)}
-                        {strengthRequirement > 0 && (<span style={{...styles.detailTag, ...styles.requirementTag}}
-                                                           title={`Сила: ${strengthRequirement}`}> <StrengthReqIcon/> {strengthRequirement} </span>)}
-                        {stealthDisadvantage === true && (<span style={{...styles.detailTag, ...styles.requirementTag}}
-                                                                title="Помеха Скрытности"> <StealthDisIcon/> Помеха </span>)}
+                        {weaponAmmo && (<span style={styles.detailTag} title={`Патроны: ${weaponAmmo}`}> {weaponAmmo.substring(0, 10)}{weaponAmmo.length > 10 ? '...' : ''} </span>)}
+                        {weaponRange && (<span style={styles.detailTag} title="Дальность"> <RangeIcon/> {weaponRange} </span>)}
+                        {isTwoHanded !== null && (<span style={styles.detailTag} title={isTwoHanded ? "Двуручное" : "Одноручное"}> <HandIcon/> {isTwoHanded ? "2H" : "1H"} </span>)}
+                        {showUsesTag && usesTagValue !== null && (<span style={styles.detailTag} title={usesTagTitle}> <UsesIcon/> {usesTagValue} </span>)}
+                        {showQuantityTag && (<span style={styles.detailTag} title="Количество"> <StackIcon/> x{quantity} </span>)}
+                        {formattedWeight !== null && (<span style={styles.detailTag} title="Общий вес"> <WeightIcon/> {formattedWeight}кг </span>)}
+                        {strengthRequirement > 0 && (<span style={{...styles.detailTag, ...styles.requirementTag}} title={`Сила: ${strengthRequirement}`}> <StrengthReqIcon/> {strengthRequirement} </span>)}
+                        {stealthDisadvantage === true && (<span style={{...styles.detailTag, ...styles.requirementTag}} title="Помеха Скрытности"> <StealthDisIcon/> Помеха </span>)}
+
+                        {/* --- Отображение тегов бонусов к навыкам --- */}
+                        {skillBonusTags && skillBonusTags.map((tagText, index) => (
+                            <span key={`skill-bonus-${index}`} style={{...styles.detailTag, ...styles.skillBonusTag}} title="Бонус к навыку">
+                                <SkillBonusIcon /> {tagText}
+                            </span>
+                        ))}
+                        {/* --- КОНЕЦ --- */}
                     </div>
                 )}
             </div>
 
             {/* Правая часть: Кнопки действий */}
             <div style={styles.actionsContainer}>
-                 {isActivatable && handleApiAction && (
-                    <button onClick={handleActivateClick} style={styles.actionButton} className="action-button use-button" title="Использовать">
-                        <UseIcon />
-                    </button>
-                 )}
-                 {isEquippable && (onEquip || onUnequip) && (
-                    <button onClick={handleEquipToggleClick} style={styles.actionButton} className={`action-button ${isEquipped ? 'unequip-button' : 'equip-button'}`} title={isEquipped ? 'Снять' : 'Экипировать'}>
-                        {isEquipped ? <UnequipIcon /> : <EquipIcon />}
-                    </button>
-                 )}
-                 {onDrop && (
-                     <button onClick={handleDropClick} style={styles.actionButton} className="action-button drop-button" title="Выбросить">
-                         <DropIcon />
-                     </button>
-                 )}
+                 {isActivatable && handleApiAction && ( <button onClick={handleActivateClick} style={styles.actionButton} className="action-button use-button" title="Использовать"> <UseIcon /> </button> )}
+                 {isEquippable && (onEquip || onUnequip) && ( <button onClick={handleEquipToggleClick} style={styles.actionButton} className={`action-button ${isEquipped ? 'unequip-button' : 'equip-button'}`} title={isEquipped ? 'Снять' : 'Экипировать'}> {isEquipped ? <UnequipIcon /> : <EquipIcon />} </button> )}
+                 {onDrop && ( <button onClick={handleDropClick} style={styles.actionButton} className="action-button drop-button" title="Выбросить"> <DropIcon /> </button> )}
             </div>
 
             {/* CSS для hover эффектов кнопок */}
             <style>{`
-                /* ... CSS из предыдущего ответа для hover кнопок ... */
-                .item-card .actions-container {
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: center;
-                    gap: 5px;
-                    position: absolute;
-                    top: 5px;
-                    right: 5px;
-                    bottom: 5px;
-                    padding-left: 5px;
-                }
-                .item-card .action-button {
-                    opacity: 0;
-                    transform: scale(0.8);
-                    transition: opacity 0.15s ease-out, transform 0.15s ease-out;
-                    pointer-events: none;
-                    flex-shrink: 0;
-                }
-                .item-card:hover .action-button {
-                    opacity: 0.7;
-                    transform: scale(1);
-                    pointer-events: auto;
-                }
-                .item-card .action-button:hover {
-                    opacity: 1;
-                    transform: scale(1.05);
-                    &.equip-button { background-color: ${theme.colors.success || '#66BB6A'}; color: #fff; }
-                    &.unequip-button { background-color: ${theme.colors.warning || '#FFA726'}; color: #000; }
-                    &.use-button { background-color: ${theme.colors.secondary}; color: ${theme.colors.background}; }
-                    &.drop-button { background-color: ${theme.colors.error}; color: #fff; }
-                }
+                .item-card .actions-container { display: flex; flex-direction: column; justify-content: center; gap: 5px; position: absolute; top: 5px; right: 5px; bottom: 5px; padding-left: 5px; }
+                .item-card .action-button { opacity: 0; transform: scale(0.8); transition: opacity 0.15s ease-out, transform 0.15s ease-out; pointer-events: none; flex-shrink: 0; }
+                .item-card:hover .action-button { opacity: 0.7; transform: scale(1); pointer-events: auto; }
+                .item-card .action-button:hover { opacity: 1; transform: scale(1.05); }
+                .item-card .action-button.equip-button:hover { background-color: ${theme.colors.success || '#66BB6A'}; color: #fff; }
+                .item-card .action-button.unequip-button:hover { background-color: ${theme.colors.warning || '#FFA726'}; color: #000; }
+                .item-card .action-button.use-button:hover { background-color: ${theme.colors.secondary}; color: ${theme.colors.background}; }
+                .item-card .action-button.drop-button:hover { background-color: ${theme.colors.error}; color: #fff; }
             `}</style>
         </div>
     );
@@ -289,186 +236,39 @@ const ItemCard = ({
 
 // --- Стили ---
 const styles = {
-    itemCardBase: {
-        backgroundColor: theme.colors.surface + 'cc',
-        borderRadius: '8px',
-        padding: '10px',
-        boxShadow: theme.effects.shadowSmall,
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        transition: 'all 0.2s ease-out',
-        border: `1px solid ${theme.colors.surfaceVariant}`,
-        borderLeft: '4px solid grey',
-        position: 'relative',
-        overflow: 'visible',
-        minHeight: '70px',
-    },
-    itemCardEquipped: {
-        borderColor: theme.colors.secondary,
-        borderWidth: '1px',
-        borderLeftWidth: '4px',
-        boxShadow: `0 0 8px ${theme.colors.secondary}33`,
-    },
-    equippedIndicator: {
-        position: 'flex',
-        top: '4px',
-        // left: '-1px', // Слегка налезает на рамку
-        width: '18px',
-        height: '18px',
-        backgroundColor: theme.colors.secondary + 'dd',
-        borderRadius: '50%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        // zIndex: 2,
-        border: `1px solid ${theme.colors.surface}`,
-    },
-    equippedIcon: {
-        width: '10px',
-        height: '10px',
-        fill: theme.colors.background,
-    },
-    leftSection: {
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '4px',
-        flexShrink: 0,
-        width: '55px',
-        textAlign: 'center',
-    },
-    typeIconContainer: {
-        width: '34px',
-        height: '34px',
-        borderRadius: '6px',
-        backgroundColor: theme.colors.surface,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        border: `1px solid ${theme.colors.surfaceVariant}`,
-    },
-    typeIcon: {
-        width: '20px',
-        height: '20px',
-        fill: theme.colors.textSecondary,
-    },
-    itemName: {
-        fontWeight: '600',
-        color: theme.colors.text,
-        fontSize: '0.9rem',
-        lineHeight: 1.2,
-        width: '100%',
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        marginTop: '2px',
-    },
-    centerSection: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '5px',
-        flexGrow: 1,
-        overflow: 'hidden',
-        minWidth: 0,
-        paddingRight: '35px', // Добавляем отступ справа, чтобы кнопки не накладывались
-    },
-    mainDetailContainer: {
-       display: 'flex',
-       alignItems: 'center',
-       gap: '6px',
-       minHeight: '20px',
-       whiteSpace: 'nowrap',
-       overflow: 'hidden',
-       textOverflow: 'ellipsis',
-    },
-    mainDetailIcon: {
-        width: '14px',
-        height: '14px',
-        fill: theme.colors.textSecondary,
-        flexShrink: 0,
-        opacity: 0.8,
-    },
-    mainDetailText: {
-        fontSize: '0.85rem',
-        color: theme.colors.text,
-        margin: 0,
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-    },
-    mainValue: {
-        fontWeight: 'bold',
-        color: theme.colors.primary,
-        marginLeft: '4px',
-    },
-    tagsContainer: {
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: '4px 5px',
-        alignItems: 'center',
-        maxHeight: '22px',
-        overflow: 'hidden',
-    },
-    detailTag: {
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '3px',
-        fontSize: '0.7rem',
-        background: 'rgba(255,255,255,0.06)',
-        color: theme.colors.textSecondary,
-        padding: '2px 7px',
-        borderRadius: '10px',
-        border: '1px solid rgba(255,255,255,0.08)',
-        whiteSpace: 'nowrap',
-        flexShrink: 0,
-    },
-    detailTagIcon: {
-        width: '10px',
-        height: '10px',
-        fill: 'currentColor',
-        flexShrink: 0,
-        opacity: 0.7,
-    },
-    requirementTag: {
-        color: theme.colors.warning,
-        borderColor: `${theme.colors.warning}44`,
-        background: `${theme.colors.warning}11`,
-    },
-    actionsContainer: {
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '4px',
-        flexShrink: 0,
-        width: '30px', // Ширина контейнера под кнопки
-        position: 'absolute', // Абсолютное позиционирование
-        top: '0',
-        right: '5px', // Отступ справа
-        bottom: '0',
-    },
-    actionButton: {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '28px',
-        height: '28px',
-        padding: '0',
-        borderRadius: '50%',
-        border: '1px solid transparent',
-        background: theme.colors.surface + 'bb',
-        color: theme.colors.textSecondary,
-        cursor: 'pointer',
-        // transition управляется через CSS
-        // opacity и transform управляются через CSS
-    },
-    actionIcon: {
-        width: '15px',
-        height: '15px',
-        fill: 'currentColor',
-    },
+    itemCardBase: { backgroundColor: theme.colors.surface + 'cc', borderRadius: '8px', padding: '10px', boxShadow: theme.effects.shadowSmall, display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.2s ease-out', border: `1px solid ${theme.colors.surfaceVariant}`, borderLeft: '4px solid grey', position: 'relative', overflow: 'visible', minHeight: '70px' },
+    itemCardEquipped: { borderColor: theme.colors.secondary, borderWidth: '1px', borderLeftWidth: '4px', boxShadow: `0 0 8px ${theme.colors.secondary}33` },
+    equippedIndicator: { position: 'absolute', top: '4px', left: '-10px', width: '18px', height: '18px', backgroundColor: theme.colors.secondary + 'dd', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2, border: `1px solid ${theme.colors.surface}` },
+    equippedIcon: { width: '10px', height: '10px', fill: theme.colors.background },
+    itemName: { fontWeight: '600', color: theme.colors.text, fontSize: '0.9rem', lineHeight: 1.2, width: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '2px' },
+    centerSection: { display: 'flex', flexDirection: 'column', gap: '5px', flexGrow: 1, overflow: 'hidden', minWidth: 0, paddingRight: '35px' },
+    mainDetailContainer: { display: 'flex', alignItems: 'center', gap: '6px', minHeight: '20px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+    mainDetailIcon: { width: '14px', height: '14px', fill: theme.colors.textSecondary, flexShrink: 0, opacity: 0.8 },
+    mainDetailText: { fontSize: '0.85rem', color: theme.colors.text, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+    mainValue: { fontWeight: 'bold', color: theme.colors.primary, marginLeft: '4px' },
+    tagsContainer: { display: 'flex', flexWrap: 'wrap', gap: '4px 6px', alignItems: 'center', marginTop: '5px', maxHeight: '44px', overflow: 'hidden' },
+    detailTag: { display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', background: 'rgba(255,255,255,0.08)', color: theme.colors.textSecondary, padding: '3px 8px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', whiteSpace: 'nowrap', flexShrink: 0, lineHeight: 1.3 },
+    detailTagIcon: { width: '11px', height: '11px', fill: 'currentColor', flexShrink: 0, opacity: 0.7, verticalAlign: 'middle' },
+    requirementTag: { color: theme.colors.warning, borderColor: `${theme.colors.warning}44`, background: `${theme.colors.warning}11` },
+    // --- НОВЫЙ СТИЛЬ для тега бонуса к навыку ---
+    skillBonusTag: { color: theme.colors.success || '#81C784', borderColor: `${theme.colors.success || '#81C784'}44`, background: `${theme.colors.success || '#81C784'}1A` },
+    // --- КОНЕЦ ---
+    actionsContainer: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px', flexShrink: 0, width: '30px', position: 'absolute', top: '0', right: '5px', bottom: '0' },
+    actionButton: { display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', padding: '0', borderRadius: '50%', border: '1px solid transparent', background: theme.colors.surface + 'bb', color: theme.colors.textSecondary, cursor: 'pointer' },
+    actionIcon: { width: '15px', height: '15px', fill: 'currentColor' },
 };
+
+// Добавляем skillTranslations в глобальный скоуп или передаем как пропс, если нужно
+// Здесь предполагаем, что он доступен глобально или импортирован
+const skillTranslations = {
+    skill_strength: 'Сила', skill_dexterity: 'Ловкость', skill_endurance: 'Выносливость',
+    skill_reaction: 'Реакция', skill_technique: 'Техника', skill_adaptation: 'Адаптация',
+    skill_logic: 'Логика', skill_attention: 'Внимание', skill_erudition: 'Эрудиция',
+    skill_culture: 'Культура', skill_science: 'Наука', skill_medicine: 'Медицина',
+    skill_suggestion: 'Внушение', skill_insight: 'Проницательность', skill_authority: 'Авторитет',
+    skill_self_control: 'Самообладание', skill_religion: 'Религия', skill_flow: 'Поток'
+    // Добавь другие, если есть (например, Атлетика, Акробатика)
+};
+
 
 export default ItemCard;
