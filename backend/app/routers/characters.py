@@ -1,5 +1,5 @@
 # backend/app/routers/characters.py
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body, Path
 from sqlalchemy.orm import Session, selectinload # Добавлен selectinload
 from typing import List, Any
 
@@ -9,8 +9,17 @@ from .. import models, schemas
 from ..crud import character as character_crud
 from ..crud import item as item_crud
 from ..crud import action as action_crud
+from ..crud import character_slots as slots_crud
+from ..crud import character_turn as turn_crud
 from ..db.database import get_db
 from ..core.auth import get_current_user
+from ..schemas import ( # Импортируем нужные схемы явно
+    CharacterBriefOut, CharacterCreate, CharacterDetailedOut, CharacterUpdateSkills,
+    LevelUpInfo, UpdateCharacterStats, CharacterNotes, HealRequest, ShortRestRequest,
+    CharacterInventoryItemOut, AddItemToInventory, EquipItem, StatusEffectUpdate,
+    ActionResultOut, CustomItemCreate, CustomItemOut, SkillCheckRequest, SkillCheckResultOut,
+    AssignAbilitySlotRequest # <-- НОВАЯ СХЕМА
+)
 
 try:
     from ..crud import custom_item as custom_item_crud
@@ -434,3 +443,61 @@ async def perform_character_skill_check(
         else: raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=result.message)
 
     return result
+
+
+@router.put(
+    "/{character_id}/active_abilities/{slot_number}",
+    response_model=schemas.CharacterDetailedOut, # Возвращаем обновленного персонажа
+    tags=["Abilities & Slots"],
+    summary="Назначить или очистить способность в активном слоте"
+)
+async def set_character_ability_slot(
+    character_id: int = Path(..., title="ID персонажа"),
+    slot_number: int = Path(..., title="Номер слота", ge=1, le=5),
+    assignment_data: schemas.AssignAbilitySlotRequest = Body(...), # Принимаем ID способности в теле
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Назначает способность (по ID) в указанный активный слот (1-5) персонажа.
+    Если в теле запроса передать `ability_id: null` или не передать его, слот будет очищен.
+    """
+    # Вызываем CRUD функцию, передавая ability_id из тела запроса
+    updated_char = slots_crud.assign_ability_to_slot(
+        db=db,
+        character_id=character_id,
+        user_id=current_user.id,
+        slot_number=slot_number,
+        ability_id=assignment_data.ability_id # Передаем ID или None
+    )
+    # Возвращаем полные обновленные данные (требует доработки get_character_details_for_output)
+    character_details = character_crud.get_character_details_for_output(db, character_id, current_user.id)
+    if character_details is None:
+        # Это маловероятно, но на всякий случай
+        raise HTTPException(status_code=404, detail="Не удалось получить обновленные данные персонажа после изменения слота")
+    return character_details
+
+@router.post(
+    "/{character_id}/end_turn",
+    response_model=schemas.CharacterDetailedOut, # Возвращаем обновленного персонажа
+    tags=["Actions"],
+    summary="Завершить ход персонажа (уменьшить кулдауны)"
+)
+async def end_character_turn_endpoint(
+    character_id: int = Path(..., title="ID персонажа"),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Завершает ход персонажа, уменьшая на 1 все активные кулдауны способностей в слотах.
+    """
+    updated_char = turn_crud.end_character_turn(
+        db=db,
+        character_id=character_id,
+        user_id=current_user.id
+    )
+    # Возвращаем полные обновленные данные (требует доработки get_character_details_for_output)
+    character_details = character_crud.get_character_details_for_output(db, character_id, current_user.id)
+    if character_details is None:
+        raise HTTPException(status_code=404, detail="Не удалось получить обновленные данные персонажа после завершения хода")
+    return character_details

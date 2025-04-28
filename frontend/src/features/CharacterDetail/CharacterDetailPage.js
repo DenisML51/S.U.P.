@@ -15,6 +15,7 @@ import CharacterEquipmentTab from './tabs/CharacterEquipmentTab';
 import CharacterInventoryTab from './tabs/CharacterInventoryTab';
 import CharacterAbilitiesTab from './tabs/CharacterAbilitiesTab';
 import CharacterBranchesTab from './tabs/CharacterBranchesTab';
+import CharacterActionTab from "./tabs/CharacterActionTab";
 import CharacterNotesTab from './tabs/CharacterNotesTab';
 
 // Импорт модальных окон
@@ -104,6 +105,12 @@ const CharacterDetailPage = () => {
     // Функция рендера контента активной вкладки
     const renderTabContent = () => {
          switch (activeTab) {
+             case 'actions':
+                 return <CharacterActionTab
+                            character={character}
+                            handleApiAction={handleApiAction}
+                            onAbilityClick={handleAbilityCardClick} // Передаем для открытия деталей
+                        />;
              case 'skills':
                  return <CharacterSkillsTab character={character} />;
              case 'equipment':
@@ -226,17 +233,33 @@ const CharacterDetailPage = () => {
                     <div style={styles.rightColumn}>
                         {/* Кнопки вкладок */}
                         <div style={styles.tabButtons}>
-                            <button onClick={() => setActiveTab('skills')} style={activeTab === 'skills' ? styles.tabButtonActive : styles.tabButton}>Навыки</button>
-                            <button onClick={() => setActiveTab('equipment')} style={activeTab === 'equipment' ? styles.tabButtonActive : styles.tabButton}>Экипировка</button>
-                            <button onClick={() => setActiveTab('inventory')} style={activeTab === 'inventory' ? styles.tabButtonActive : styles.tabButton}>Инвентарь</button>
-                            <button onClick={() => setActiveTab('abilities')} style={activeTab === 'abilities' ? styles.tabButtonActive : styles.tabButton}>Способности</button>
-                            <button onClick={() => setActiveTab('branches')} style={activeTab === 'branches' ? styles.tabButtonActive : styles.tabButton}>Ветки</button>
-                            <button onClick={() => setActiveTab('notes')} style={activeTab === 'notes' ? styles.tabButtonActive : styles.tabButton}>Заметки</button>
+                            <button onClick={() => setActiveTab('actions')}
+                                    style={activeTab === 'actions' ? styles.tabButtonActive : styles.tabButton}>Действия
+                            </button>
+
+                            <button onClick={() => setActiveTab('skills')}
+                                    style={activeTab === 'skills' ? styles.tabButtonActive : styles.tabButton}>Навыки
+                            </button>
+                            <button onClick={() => setActiveTab('equipment')}
+                                    style={activeTab === 'equipment' ? styles.tabButtonActive : styles.tabButton}>Экипировка
+                            </button>
+                            <button onClick={() => setActiveTab('inventory')}
+                                    style={activeTab === 'inventory' ? styles.tabButtonActive : styles.tabButton}>Инвентарь
+                            </button>
+                            <button onClick={() => setActiveTab('abilities')}
+                                    style={activeTab === 'abilities' ? styles.tabButtonActive : styles.tabButton}>Способности
+                            </button>
+                            <button onClick={() => setActiveTab('branches')}
+                                    style={activeTab === 'branches' ? styles.tabButtonActive : styles.tabButton}>Ветки
+                            </button>
+                            <button onClick={() => setActiveTab('notes')}
+                                    style={activeTab === 'notes' ? styles.tabButtonActive : styles.tabButton}>Заметки
+                            </button>
                         </div>
 
                         {/* Контейнер для контента вкладок */}
                         <div style={styles.tabContentContainer}>
-                             {/* Отображение ошибок API действий (можно сделать более контекстным) */}
+                            {/* Отображение ошибок API действий (можно сделать более контекстным) */}
                              {typeof actionError === 'string' && actionError && (
                                  <p style={{...styles.apiActionErrorStyle, marginBottom: '15px'}}>{actionError}</p>
                              )}

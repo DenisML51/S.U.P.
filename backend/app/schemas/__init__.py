@@ -12,7 +12,7 @@ from .custom_item import CustomItemBase, CustomItemCreate, CustomItemOut
 from .character import (
     CharacterBase, InitialSkillDistribution, CharacterCreate, CharacterBriefOut,
     CharacterSkillModifiers, CharacterDerivedStats, CharacterClassBranchLevels,
-    CharacterNotes, CharacterDetailedOut, CharacterUpdateSkills, LevelUpInfo, HealRequest, ShortRestRequest, StatusEffectOut,
+    CharacterNotes, CharacterDetailedOut, CharacterUpdateSkills, LevelUpInfo, HealRequest, ShortRestRequest, StatusEffectOut, AssignAbilitySlotRequest, ActiveAbilitySlotOut,
     UpdateCharacterStats, VALID_BRANCH_KEYS # Экспортируем константу
 )
 from .skill_check import SkillCheckRequest, SkillCheckResultOut

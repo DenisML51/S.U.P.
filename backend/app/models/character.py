@@ -13,6 +13,7 @@ from .association_tables import character_abilities, character_status_effects
 from .user import User
 from .item import Item # Нужен для связи с CharacterInventoryItem
 from .custom_item import CharacterCustomItem
+from .ability import Ability # Добавим импорт Ability
 # Не импортируем Ability, StatusEffect напрямую
 
 # Таблица опыта (удобно хранить рядом с моделью персонажа)
@@ -69,6 +70,28 @@ class Character(Base):
     skill_self_control: Mapped[int] = mapped_column(Integer, default=1)
     skill_religion: Mapped[int] = mapped_column(Integer, default=1)
     skill_flow: Mapped[int] = mapped_column(Integer, default=1)
+
+    # === НОВОЕ: Слоты Активных Способностей ===
+    active_ability_slot_1_id: Mapped[Optional[int]] = mapped_column(ForeignKey('abilities.id', use_alter=True), nullable=True)
+    active_ability_slot_2_id: Mapped[Optional[int]] = mapped_column(ForeignKey('abilities.id', use_alter=True), nullable=True)
+    active_ability_slot_3_id: Mapped[Optional[int]] = mapped_column(ForeignKey('abilities.id', use_alter=True), nullable=True)
+    active_ability_slot_4_id: Mapped[Optional[int]] = mapped_column(ForeignKey('abilities.id', use_alter=True), nullable=True)
+    active_ability_slot_5_id: Mapped[Optional[int]] = mapped_column(ForeignKey('abilities.id', use_alter=True), nullable=True)
+
+    active_ability_slot_1_cooldown: Mapped[int] = mapped_column(Integer, default=0, server_default='0', nullable=False)
+    active_ability_slot_2_cooldown: Mapped[int] = mapped_column(Integer, default=0, server_default='0', nullable=False)
+    active_ability_slot_3_cooldown: Mapped[int] = mapped_column(Integer, default=0, server_default='0', nullable=False)
+    active_ability_slot_4_cooldown: Mapped[int] = mapped_column(Integer, default=0, server_default='0', nullable=False)
+    active_ability_slot_5_cooldown: Mapped[int] = mapped_column(Integer, default=0, server_default='0', nullable=False)
+
+    # Связи для загрузки способностей в слотах
+    # Используем lazy="joined", чтобы они грузились вместе с персонажем при детальном запросе
+    # use_alter=True в ForeignKey нужен, т.к. Ability определяется позже Character (или наоборот)
+    active_ability_1: Mapped[Optional["Ability"]] = relationship(foreign_keys=[active_ability_slot_1_id], lazy="joined", post_update=True)
+    active_ability_2: Mapped[Optional["Ability"]] = relationship(foreign_keys=[active_ability_slot_2_id], lazy="joined", post_update=True)
+    active_ability_3: Mapped[Optional["Ability"]] = relationship(foreign_keys=[active_ability_slot_3_id], lazy="joined", post_update=True)
+    active_ability_4: Mapped[Optional["Ability"]] = relationship(foreign_keys=[active_ability_slot_4_id], lazy="joined", post_update=True)
+    active_ability_5: Mapped[Optional["Ability"]] = relationship(foreign_keys=[active_ability_slot_5_id], lazy="joined", post_update=True)
 
     # --- Модификаторы (рассчитываются на лету) ---
     def _get_modifier(self, skill_value: int) -> int:

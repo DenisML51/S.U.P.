@@ -23,6 +23,14 @@ VALID_BRANCH_KEYS = {'medic', 'mutant', 'sharpshooter', 'scout', 'technician', '
 class CharacterBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
 
+
+class ActiveAbilitySlotOut(BaseModel):
+    ability: Optional[AbilityOut] = None
+    cooldown_remaining: int = 0
+
+    class Config:
+        from_attributes = True # Для работы с ORM
+
 # Схема для начального распределения навыков (при создании)
 class InitialSkillDistribution(BaseModel):
     # Используем Field для валидации диапазона 1-8
@@ -228,6 +236,13 @@ class CharacterDetailedOut(
     available_abilities: List[AbilityOut] = []
     active_status_effects: List[StatusEffectOut] = []
 
+
+    active_slot_1: Optional[ActiveAbilitySlotOut] = None
+    active_slot_2: Optional[ActiveAbilitySlotOut] = None
+    active_slot_3: Optional[ActiveAbilitySlotOut] = None
+    active_slot_4: Optional[ActiveAbilitySlotOut] = None
+    active_slot_5: Optional[ActiveAbilitySlotOut] = None
+
     custom_items: List[CustomItemOut] = []
 
     model_config = ConfigDict(from_attributes=True)
@@ -335,3 +350,9 @@ class HealRequest(BaseModel):
 
 class ShortRestRequest(BaseModel):
     dice_to_spend: int = Field(..., ge=1, description="Количество Очков Стойкости (ОС), которое тратится на лечение.")
+
+
+
+class AssignAbilitySlotRequest(BaseModel):
+    ability_id: Optional[int] = Field(None, description="ID способности для установки в слот. Передать null или не передавать поле для очистки слота.")
+

@@ -404,3 +404,37 @@ def determine_roll_mode(
 
     logger.debug(f"Determine Roll Mode Resuasdflt: Target='{roll_target}', AbilityMod='{ability_modifies}', TempAdv={has_temporary_advantage}, StatusAdv={status_advantage}, StatusDisadv={status_disadvantage} => FinalMode='{final_mode}'")
     return final_mode
+
+
+
+def parse_cooldown_duration(cooldown_str: Optional[str]) -> Optional[int]:
+    """
+    Парсит строку кулдауна способности и возвращает количество ходов, если применимо.
+
+    Args:
+        cooldown_str: Строка из поля Ability.cooldown (напр., "3 хода", "1 ход", "Нет").
+
+    Returns:
+        Количество ходов (int) или None, если кулдаун не измеряется в ходах.
+    """
+    if not cooldown_str:
+        return None
+
+    cooldown_str_lower = cooldown_str.lower().strip()
+
+    # Проверяем нечисловые кулдауны
+    if cooldown_str_lower in ["нет", "пассивно", "короткий отдых", "длительный отдых", "один раз в день"]:
+        return None
+
+    # Ищем число и слово "ход"
+    match = re.match(r"(\d+)\s+(ход|хода|ходов)", cooldown_str_lower)
+    if match:
+        try:
+            duration = int(match.group(1))
+            return duration if duration > 0 else None # Возвращаем только положительное число
+        except ValueError:
+            logger.warning(f"Could not parse cooldown number from: {cooldown_str}")
+            return None
+
+    logger.warning(f"Unknown cooldown format: {cooldown_str}")
+    return None

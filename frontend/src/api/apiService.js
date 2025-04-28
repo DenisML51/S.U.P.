@@ -165,6 +165,25 @@ export const performSkillCheck = (characterId, skillName) => {
     return axios.post(`${API_URL}/characters/${characterId}/skill_check`, payload, { headers: getAuthHeaders() });
 };
 
+export const setCharacterAbilitySlot = (characterId, slotNumber, abilityId) => {
+    console.log(`API Call: setCharacterAbilitySlot - CharID: ${characterId}, Slot: ${slotNumber}, AbilityID: ${abilityId}`);
+    const payload = { ability_id: abilityId }; // abilityId может быть null для очистки
+    return axios.put(
+        `${API_URL}/characters/${characterId}/active_abilities/${slotNumber}`,
+        payload,
+        { headers: getAuthHeaders() }
+    );
+};
+
+export const endCharacterTurn = (characterId) => {
+    console.log(`API Call: endCharacterTurn for CharID: ${characterId}`);
+    return axios.post(
+        `${API_URL}/characters/${characterId}/end_turn`,
+        {}, // Тело запроса пустое
+        { headers: getAuthHeaders() }
+    );
+};
+
 // --- Reference Data ---
 export const getAllWeapons = () => axios.get(`${API_URL}/data/weapons`);
 export const getAllArmor = () => axios.get(`${API_URL}/data/armor`);

@@ -15,7 +15,7 @@ from ..models.status_effect import StatusEffect
 from .utils import _parse_and_roll
 from ..schemas.character import (
     CharacterCreate, CharacterBriefOut, CharacterDetailedOut, CharacterUpdateSkills,
-    LevelUpInfo, UpdateCharacterStats, CharacterNotes, CharacterSkillModifiers, ShortRestRequest
+    LevelUpInfo, UpdateCharacterStats, CharacterNotes, CharacterSkillModifiers, ShortRestRequest, ActiveAbilitySlotOut, AssignAbilitySlotRequest
 )
 from ..schemas.item import CharacterInventoryItemOut, WeaponOut, ArmorOut, ShieldOut, GeneralItemOut, AmmoOut, ItemBase
 from ..schemas.ability import AbilityOut
@@ -107,6 +107,29 @@ def get_character_details_for_output(db: Session, character_id: int, user_id: in
         if isinstance(prop, ColumnProperty) and prop.key in CharacterDetailedOut.model_fields:
             character_data[prop.key] = getattr(db_char, prop.key)
 
+
+    active_slots_data = {}
+    for i in range(1, 6):
+        slot_ability_attr = f"active_ability_{i}"
+        slot_cooldown_attr = f"active_ability_slot_{i}_cooldown"
+
+        slot_ability_obj = getattr(db_char, slot_ability_attr, None)
+        slot_cooldown_val = getattr(db_char, slot_cooldown_attr, 0)
+
+        ability_schema = None
+        if slot_ability_obj:
+            try:
+                # Используем существующую схему AbilityOut
+                ability_schema = AbilityOut.from_orm(slot_ability_obj)
+            except Exception as e:
+                 logger.error(f"Error creating AbilityOut schema for slot {i}: {e}")
+
+        # Собираем данные для схемы ActiveAbilitySlotOut
+        active_slots_data[f"active_slot_{i}"] = ActiveAbilitySlotOut(
+            ability=ability_schema,
+            cooldown_remaining=slot_cooldown_val
+        )
+
     # Добавляем расчетные и связанные данные
     character_data.update({
         "skill_modifiers": {
@@ -128,6 +151,7 @@ def get_character_details_for_output(db: Session, character_id: int, user_id: in
         "base_ac": db_char.base_ac, # гибридное свойство
         # Уровни веток уже скопированы циклом выше, т.к. они ColumnProperty
         # Заметки тоже скопированы циклом выше
+        **active_slots_data
     })
 
     # --- Вспомогательная функция для преобразования инвентаря ---
