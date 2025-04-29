@@ -2,85 +2,86 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import * as apiService from '../../api/apiService';
-import CreateCharacterModal from './CreateCharacterModal'; // Импорт модалки
-import CreatePartyForm from '../Lobby/CreatePartyForm'; // Импорт форм лобби
-import JoinPartyForm from '../Lobby/JoinPartyForm';     // Импорт форм лобби
+import CreateCharacterModal from './CreateCharacterModal';
+import CreatePartyForm from '../Lobby/CreatePartyForm';
+import JoinPartyForm from '../Lobby/JoinPartyForm';
 import { theme } from '../../styles/theme';
-// --- ИЗМЕНЕНИЕ: Импортируем useAuth ---
 import { useAuth } from '../../hooks/useAuth';
-// --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
 const CharactersPage = () => {
-  // --- ИЗМЕНЕНИЕ: Используем useAuth для получения пользователя и logout ---
-  const { user, logout, isLoading: authLoading } = useAuth(); // Получаем пользователя и функцию logout
-  // Убираем локальное состояние userData, если оно больше не нужно кроме имени
-  // const [userData, setUserData] = useState({ username: "" });
-  // --- КОНЕЦ ИЗМЕНЕНИЯ ---
-
+  const { user, logout, isLoading: authLoading } = useAuth();
   const [characters, setCharacters] = useState([]);
-  const [isLoadingData, setIsLoadingData] = useState(true); // Переименовали isLoading во избежание конфликта
+  const [isLoadingData, setIsLoadingData] = useState(true);
   const [error, setError] = useState(null);
   const [showCreateParty, setShowCreateParty] = useState(false);
   const [showJoinParty, setShowJoinParty] = useState(false);
   const [showCreateCharacter, setShowCreateCharacter] = useState(false);
   const navigate = useNavigate();
 
-  const fetchCharacterData = useCallback(async () => { // Переименовали fetchInitialData
-    // Не нужно запрашивать пользователя здесь, он уже есть из useAuth
+  const fetchCharacterData = useCallback(async () => {
     setIsLoadingData(true);
     setError(null);
     try {
       console.log("CharactersPage: Fetching characters...");
       const charsRes = await apiService.getMyCharacters();
-      setCharacters(charsRes.data || []); // Убедимся, что это массив
+      setCharacters(charsRes.data || []);
       console.log("CharactersPage: Characters loaded:", charsRes.data);
     } catch (err) {
       console.error("Failed to fetch characters", err);
-       let errorMessage = "Ошибка загрузки персонажей.";
-       if (err.response?.data?.detail) { errorMessage = String(err.response.data.detail); }
-       else if (err.message) { errorMessage = err.message; }
-       setError(errorMessage);
-
-      // Ошибка 401 должна обрабатываться в apiService или useAuth для автоматического logout
-      // if (err.response && err.response.status === 401) { ... }
+      let errorMessage = "Ошибка загрузки персонажей.";
+      if (err.response?.data?.detail) { errorMessage = String(err.response.data.detail); }
+      else if (err.message) { errorMessage = err.message; }
+      setError(errorMessage);
     } finally {
       setIsLoadingData(false);
     }
-  }, []); // Убрали navigate из зависимостей
+  }, []);
 
   useEffect(() => {
     // Данные пользователя загружаются в useAuth
-    // Загружаем только список персонажей
-    fetchCharacterData();
-  }, [fetchCharacterData]); // Зависимость от fetchCharacterData
+    // Загружаем только список персонажей, если пользователь аутентифицирован
+    if (user) {
+        fetchCharacterData();
+    } else {
+        setIsLoadingData(false); // Если пользователя нет, не грузим
+    }
+  }, [fetchCharacterData, user]); // Добавили user в зависимости
 
   const handleCreatePartySuccess = (party) => {
     setShowCreateParty(false);
+    // При создании партии игрок (мастер) должен выбрать персонажа
+    // Пока что переходим без ID персонажа, это нужно будет доработать
+    // Возможно, показывать выбор персонажа после создания лобби?
+    // Или передавать ID первого персонажа по умолчанию?
+    // Пока оставляем так, мастер подключится без charId в state,
+    // но его character_id будет null в players_update, что допустимо.
     navigate("/lobby", { state: { party } });
   };
 
-  const handleJoinPartySuccess = (party) => {
+  // --- ИЗМЕНЕНИЕ: Принимаем characterId и передаем его ---
+  const handleJoinPartySuccess = (party, characterId) => {
     setShowJoinParty(false);
-    navigate("/lobby", { state: { party } });
+    console.log(`Navigating to lobby with party: ${party?.lobby_key}, characterId: ${characterId}`); // Лог
+    if (!characterId) {
+         console.error("Character ID is missing when joining party!");
+         setError("Ошибка: Не удалось определить персонажа для входа в лобби.");
+         return;
+    }
+    navigate("/lobby", { state: { party, characterId } }); // Передаем characterId
   };
+  // --- КОНЕЦ ИЗМЕНЕНИЯ ---
+
 
   const handleCharacterCreated = () => {
       setShowCreateCharacter(false);
       fetchCharacterData(); // Обновляем список персонажей после создания
   };
 
-  // --- ИЗМЕНЕНИЕ: Используем logout из useAuth ---
   const handleLogout = () => {
-    logout(); // Вызываем функцию logout из контекста
-    // Редирект теперь должен произойти автоматически в App.js из-за изменения isAuthenticated
-    // navigate("/login"); // Эту строку можно убрать, если App.js настроен правильно
-    // Или оставить для немедленного перехода, если App.js не успевает среагировать
-    navigate("/login", { replace: true }); // Используем replace для надежности
+    logout();
+    navigate("/login", { replace: true });
   };
-  // --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
-  // --- Рендеринг ---
-  // Используем isLoadingData для данных персонажей и authLoading для статуса аутентификации
   if (authLoading || isLoadingData) {
       return <div style={styles.loading}>Загрузка...</div>;
   }
@@ -91,13 +92,11 @@ const CharactersPage = () => {
         <header style={styles.header}>
           <h1 style={styles.mainTitle}>Панель персонажей</h1>
           <div style={styles.userInfo}>
-            {/* Используем имя пользователя из useAuth */}
             <span>Пользователь: {user?.username || '...'}</span>
             <button onClick={handleLogout} style={styles.logoutButton}>Выйти</button>
           </div>
         </header>
 
-        {/* Отображение ошибки загрузки */}
         {error && <div style={styles.errorBanner}>{error}</div>}
 
         <div style={styles.actionButtons}>
@@ -106,7 +105,6 @@ const CharactersPage = () => {
         </div>
 
         <div style={styles.characterGrid}>
-          {/* Кнопка создания персонажа */}
           <div
             onClick={() => setShowCreateCharacter(true)}
             style={styles.createCharacterCard}
@@ -117,7 +115,6 @@ const CharactersPage = () => {
             <span style={styles.createCharacterText}>Создать персонажа</span>
           </div>
 
-          {/* Карточки персонажей */}
           {characters.map(char => (
             <Link key={char.id} to={`/character/${char.id}`} style={styles.link}>
               <div style={styles.characterCard}
@@ -143,7 +140,7 @@ const CharactersPage = () => {
   );
 };
 
-// Стили (оставляем ваши стили)
+// Стили (без изменений)
 const styles = {
     pageContainer: { minHeight: '100vh', background: theme.colors.background, color: theme.colors.text, padding: '40px 20px' },
     contentWrapper: { maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '30px' },

@@ -1,7 +1,7 @@
 # backend/app/routers/characters.py
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body, Path
 from sqlalchemy.orm import Session, selectinload # Добавлен selectinload
-from typing import List, Any
+from typing import List, Any, Optional
 
 # Относительные импорты
 from .. import models, schemas
@@ -12,7 +12,7 @@ from ..crud import action as action_crud
 from ..crud import character_slots as slots_crud
 from ..crud import character_turn as turn_crud
 from ..db.database import get_db
-from ..core.auth import get_current_user
+from ..core.auth import get_current_user, logger
 from ..schemas import ( # Импортируем нужные схемы явно
     CharacterBriefOut, CharacterCreate, CharacterDetailedOut, CharacterUpdateSkills,
     LevelUpInfo, UpdateCharacterStats, CharacterNotes, HealRequest, ShortRestRequest,
@@ -20,6 +20,7 @@ from ..schemas import ( # Импортируем нужные схемы явн�
     ActionResultOut, CustomItemCreate, CustomItemOut, SkillCheckRequest, SkillCheckResultOut,
     AssignAbilitySlotRequest # <-- НОВАЯ СХЕМА
 )
+from ..websockets import manager
 
 try:
     from ..crud import custom_item as custom_item_crud
@@ -340,14 +341,15 @@ async def take_long_rest(
 
 @router.post("/{character_id}/activate", response_model=schemas.ActionResultOut, tags=["Actions"], summary="Активировать способность или использовать предмет")
 async def activate_character_action_endpoint(
-    character_id: int,
-    activation_data: schemas.ActivationRequest,
+    character_id: int = Path(..., title="ID персонажа"),
+    activation_data: schemas.ActivationRequest = Body(...),
+    lobby_key: Optional[str] = Query(None, description="Ключ лобби (для отправки обновления через WebSocket)"), # <-- НОВЫЙ ПАРАМЕТР
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Эндпоинт для выполнения действий персонажа: использование предмета или активация способности.
-    Возвращает результат действия.
+    Возвращает результат действия. Если указан lobby_key, отправляет обновление персонажа через WS.
     """
     result = action_crud.activate_action( # Используем функцию из crud/action.py
         db=db,
@@ -355,17 +357,26 @@ async def activate_character_action_endpoint(
         user_id=current_user.id,
         activation_data=activation_data
     )
-    if result is None or not result.success:
-        # Если CRUD вернул ошибку внутри ActionResultOut или None
-        error_message = result.message if result else "Неизвестная ошибка активации."
-        print(f"Activation failed for character {character_id}: {error_message}") # Лог ошибки
-        # Можно вернуть 400 или 500 в зависимости от типа ошибки в result.message
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_message
-        )
-    print(f"Activation successful for character {character_id}: {result.message}") # Лог успеха
-    return result
+    # action_crud.activate_action теперь выбрасывает HTTPException при ошибках
+
+    # --- НОВОЕ: Отправка обновления через WebSocket, если нужно ---
+    if result and result.success and result.character_update_needed and lobby_key:
+        logger.info(f"Action successful, broadcasting update to lobby '{lobby_key}'...")
+        # Получаем актуальные данные персонажа ПОСЛЕ действия
+        updated_character_details = character_crud.get_character_details_for_output(db, character_id, current_user.id)
+        if updated_character_details:
+            try:
+                # Используем model_dump() для Pydantic v2+
+                await manager.broadcast_character_update(lobby_key, updated_character_details.model_dump(mode='json'))
+                logger.info(f"Broadcast successful for char {character_id} in lobby {lobby_key}.")
+            except Exception as e:
+                logger.error(f"Failed to broadcast character update after action for char {character_id} in lobby {lobby_key}: {e}", exc_info=True)
+                # Не прерываем HTTP ответ из-за ошибки сокета
+        else:
+             logger.error(f"Could not get updated character details for broadcast after action. CharID: {character_id}")
+    # --- КОНЕЦ НОВОГО ---
+
+    return result # Возвращаем результат самого действия
 
 
 @router.post(
@@ -486,6 +497,7 @@ async def set_character_ability_slot(
 async def end_character_turn_endpoint(
     character_id: int = Path(..., title="ID персонажа"),
     current_user: models.User = Depends(get_current_user),
+    lobby_key: Optional[str] = Query(None, description="Ключ лобби (если действие происходит в лобби)"),
     db: Session = Depends(get_db)
 ):
     """
@@ -500,4 +512,12 @@ async def end_character_turn_endpoint(
     character_details = character_crud.get_character_details_for_output(db, character_id, current_user.id)
     if character_details is None:
         raise HTTPException(status_code=404, detail="Не удалось получить обновленные данные персонажа после завершения хода")
+
+    if lobby_key:
+        try:
+            await manager.broadcast_character_update(lobby_key, character_details.model_dump(mode='json'))
+        except Exception as e:
+            logger.error(f"Failed to broadcast character update for char {character_id} in lobby {lobby_key}: {e}", exc_info=True)
+            # Не прерываем основной ответ из-за ошибки сокета
+    # --- КОНЕЦ НОВОГО ---
     return character_details

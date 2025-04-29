@@ -1,254 +1,202 @@
-// frontend/src/features/Lobby/Lobby.js
+// src/features/Lobby/Lobby.js
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { theme } from '../../styles/theme'; // Импорт темы
-import PlayerCard from './components/PlayerCard'; // Импорт карточки игрока
-import Chat from './Chat'; // Импорт чата
-import * as apiService from '../../api/apiService'; // Импорт API сервиса
+import { theme } from '../../styles/theme';
+import PlayerCard from './components/PlayerCard';
+import Chat from './Chat'; // Убедимся, что Chat импортирован правильно
+import * as apiService from '../../api/apiService';
+import ExpandedCharacterSheet from './components/ExpandedCharacterSheet';
+import { useApiActionHandler } from '../../hooks/useApiActionHandler'; // Импортируем хук
 
 // Компонент-обертка для секций
 const Section = ({ title, children }) => (
     <section style={{ ...styles.section, background: theme.effects.glass, backdropFilter: theme.effects.blur }}>
         <h2 style={styles.sectionTitle}>{title}</h2>
-        <div style={styles.sectionContent}>
-            {children}
-        </div>
+        {children}
     </section>
 );
 
 const Lobby = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    // Получаем данные партии из state, переданного при навигации
-    // Добавляем проверку на null/undefined перед доступом к свойствам
-    const party = location.state?.party;
+    const partyData = location.state?.party;
+    const initialCharacterId = location.state?.characterId; // Может быть undefined для мастера
     const token = localStorage.getItem("token");
 
-    // Состояния компонента
-    const [lobbyMaster, setLobbyMaster] = useState(null); // Информация о мастере
-    const [otherPlayers, setOtherPlayers] = useState([]); // Массив остальных игроков
-    const socketRef = useRef(null); // Ref для хранения экземпляра WebSocket
-    const [isConnectedStatus, setIsConnectedStatus] = useState(false); // State для статуса подключения (для UI)
-    const [currentUser, setCurrentUser] = useState(null); // Имя текущего пользователя для чата
-    const [lobbyError, setLobbyError] = useState(''); // Состояние для отображения ошибок лобби
+    // Состояния
+    const [lobbyMaster, setLobbyMaster] = useState(null); // { username, character_id }
+    const [otherPlayers, setOtherPlayers] = useState([]); // Array of { username, character_id } or null
+    const socketRef = useRef(null); // Ref для хранения *текущего* активного сокета
+    const [isConnectedStatus, setIsConnectedStatus] = useState(false);
+    const [currentUser, setCurrentUser] = useState(null); // { username, id }
+    const [isUserLoading, setIsUserLoading] = useState(true); // Флаг загрузки пользователя
+    const [lobbyError, setLobbyError] = useState('');
+    const [participantDetails, setParticipantDetails] = useState({}); // { characterId: CharacterDetailedOut }
+    const [expandedCharacterId, setExpandedCharacterId] = useState(null);
 
-    // --- Получение имени пользователя ---
+    // Используем useApiActionHandler БЕЗ колбэка обновления данных
+    const { handleApiAction: handleLobbyAction, actionError: lobbyActionError } = useApiActionHandler(null);
+
+    // Получение данных текущего пользователя
     useEffect(() => {
         let isMounted = true;
+        setIsUserLoading(true);
         const fetchUser = async () => {
             if (token) {
                try {
                    const res = await apiService.getCurrentUser();
-                   if (isMounted) setCurrentUser(res.data.username);
+                   if (isMounted) setCurrentUser({username: res.data.username, id: res.data.id});
                    console.log("Lobby: Current user fetched:", res.data.username);
                } catch (error) {
-                    console.error("Lobby: Failed to fetch current user:", error);
-                    if (isMounted) {
-                        setLobbyError("Ошибка получения данных пользователя.");
-                        if (error.response && error.response.status === 401) {
-                            localStorage.removeItem("token");
-                            navigate("/login");
-                        }
-                    }
+                    console.error("Lobby: Failed fetch user:", error);
+                    if (isMounted) { setLobbyError("Ошибка данных пользователя."); if (error.response?.status === 401) { localStorage.removeItem("token"); navigate("/login"); } }
+               } finally {
+                    if (isMounted) setIsUserLoading(false);
                }
-            } else {
-                 // Если нет токена, сразу редирект
-                 if (isMounted) {
-                     console.log("Lobby: No token found, redirecting to login.");
-                     navigate("/login");
-                 }
-            }
+            } else { if (isMounted) { setIsUserLoading(false); navigate("/login"); } }
         };
         fetchUser();
-        return () => { isMounted = false; }; // Очистка
+        return () => { isMounted = false; };
     }, [token, navigate]);
 
-    // --- Инициализация состояний лобби при получении данных партии ---
+    // Инициализация лобби (зависит от partyData)
     useEffect(() => {
-        // Проверяем наличие всех необходимых данных party
-        if (party && party.creator_username && typeof party.max_players === 'number') {
-            console.log("Lobby: Initializing state with party data:", party);
-            setLobbyMaster({ username: party.creator_username });
-            // Инициализируем массив нужной длины (max_players - 1) сразу
-            setOtherPlayers(Array(Math.max(0, party.max_players - 1)).fill(null));
-            setIsConnectedStatus(false); // Сбрасываем статус при инициализации
-            setLobbyError(''); // Сбрасываем ошибку
-        } else if (!location.state?.party) { // Проверяем именно location.state.party
-             // Перенаправляем, только если данных действительно нет
-             console.warn("Lobby: No party data found in location state, redirecting...");
+        if (partyData?.creator_username && typeof partyData?.max_players === 'number') {
+            console.log("Lobby: Initializing state with party data:", partyData);
+            setLobbyMaster({ username: partyData.creator_username, character_id: null });
+            setOtherPlayers(Array(Math.max(0, partyData.max_players - 1)).fill(null));
+            setIsConnectedStatus(false); setLobbyError(''); setParticipantDetails({}); setExpandedCharacterId(null);
+        } else if (!location.state?.party && !isUserLoading) {
+             console.warn("Lobby: No party data found after user load, redirecting...");
              navigate("/");
         }
-    }, [party, navigate, location.state]); // Добавили location.state
+    }, [partyData, navigate, location.state, isUserLoading]);
 
-    // --- Обработчик обновления списка игроков ---
-    // Используем useCallback, но зависимости включают party?.max_players
+    // Обработчики сообщений WebSocket
     const handlePlayersUpdate = useCallback((data) => {
-        console.log(">>> handlePlayersUpdate received:", data);
-        const max_players_current = party?.max_players;
-        if (max_players_current === undefined || max_players_current === null) {
-            console.error("  Cannot process player update: party.max_players is not available!");
-            return;
-        }
-        let masterUpdated = false;
-        let playersUpdated = false;
-
-        if (data.master) {
-            setLobbyMaster(prevMaster => {
-                if (JSON.stringify(prevMaster) !== JSON.stringify(data.master)) {
-                    console.log("  >>> Updating master state:", data.master);
-                    masterUpdated = true;
-                    return {...data.master};
-                }
-                console.log("  >>> Master state unchanged.");
-                return prevMaster;
-            });
-        } else { console.warn("  >>> No 'master' key found."); }
-
+        console.log("[WS Handler] handlePlayersUpdate received:", data);
+        const max_players_current = partyData?.max_players;
+        if (max_players_current === undefined || max_players_current === null) return;
+        if (data.master) setLobbyMaster(prev => ({ ...prev, ...data.master }));
         if (data.players && Array.isArray(data.players)) {
             const targetSlots = Math.max(0, max_players_current - 1);
-            const finalPlayers = Array(targetSlots).fill(null);
-            for (let i = 0; i < Math.min(data.players.length, targetSlots); i++) {
-                 if (data.players[i]) finalPlayers[i] = {...data.players[i]};
-            }
-            setOtherPlayers(prevPlayers => {
-                if (JSON.stringify(prevPlayers) !== JSON.stringify(finalPlayers)) {
-                    console.log(`  >>> Updating otherPlayers state (target: ${targetSlots}):`, finalPlayers);
-                    playersUpdated = true;
-                    return finalPlayers;
-                }
-                 console.log("  >>> OtherPlayers state unchanged.");
-                return prevPlayers;
-            });
-        } else { console.warn("  >>> No 'players' array found."); }
+            const finalPlayers = Array.from({ length: targetSlots }, (_, i) => data.players[i] ? { ...data.players[i] } : null );
+            setOtherPlayers(finalPlayers);
+        }
+    }, [partyData?.max_players]);
 
-         if (!masterUpdated && !playersUpdated) {
-             console.log("  >>> handlePlayersUpdate: No actual state changes detected.");
-         }
-    }, [party?.max_players]); // Зависимость от max_players
+    const handleCharacterUpdate = useCallback((characterData) => {
+        if (!characterData?.id) return;
+        console.log(`[WS Handler] handleCharacterUpdate received for CharID: ${characterData.id}`);
+        setParticipantDetails(prevDetails => ({ ...prevDetails, [characterData.id]: characterData }));
+    }, []);
 
-    // --- Установка и управление WebSocket соединением ---
+    // --- Установка и управление WebSocket ---
     useEffect(() => {
-        // Выходим, если нет токена или данных партии
-        if (!token || !party?.lobby_key || !party?.creator_username || typeof party?.max_players !== 'number') {
-            console.log("Lobby WS Effect: Skipping connection (missing token/party data).");
-            if (socketRef.current) { // Закрываем старый сокет, если он был
-                 if (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING) {
-                     socketRef.current.close(1000, "Missing data for connection");
-                 }
-                 socketRef.current = null;
-                 setIsConnectedStatus(false);
-            }
+        if (isUserLoading) { console.log("Lobby WS Effect: Waiting for user data..."); return; }
+
+        const lobbyKey = partyData?.lobby_key;
+        const masterUsername = partyData?.creator_username;
+        const maxPlayers = partyData?.max_players;
+        const charId = initialCharacterId;
+        const currentUsername = currentUser?.username;
+        const isMasterConnecting = currentUsername === masterUsername;
+
+        const canConnect = token && lobbyKey && masterUsername && typeof maxPlayers === 'number' && currentUsername && (isMasterConnecting || charId !== undefined);
+
+        console.log("Lobby WS Effect: Checking connection readiness:", { canConnect, isMasterConnecting, token: !!token, lobbyKey, masterUsername, maxPlayers, charId, currentUsername });
+
+        if (!canConnect) {
+            console.log("Lobby WS Effect: Skipping connection (missing required data).");
+            if (socketRef.current && socketRef.current.readyState !== WebSocket.CLOSED) { socketRef.current.close(1000, "Missing data"); socketRef.current = null; setIsConnectedStatus(false); }
+            if (currentUser && !partyData) { navigate("/"); }
             return;
         }
 
-        // Закрываем предыдущий сокет, если он есть (на случай смены party)
-        if (socketRef.current && socketRef.current.readyState !== WebSocket.CLOSED) {
-            console.log("Lobby WS Effect: Closing previous socket before creating new one.");
-            socketRef.current.close(1000, "Reinitializing connection");
-            // Не ставим в null здесь, onclose сделает это
-        }
-
-        // Создаем новый WebSocket
-        const wsUrl = `ws://localhost:8000/ws?token=${encodeURIComponent(token)}&lobbyKey=${encodeURIComponent(party.lobby_key)}&masterUsername=${encodeURIComponent(party.creator_username)}&maxPlayers=${encodeURIComponent(party.max_players)}`;
+        const characterIdParam = isMasterConnecting ? '' : `&characterId=${encodeURIComponent(charId)}`;
+        const wsUrl = `ws://localhost:8000/ws?token=${encodeURIComponent(token)}&lobbyKey=${encodeURIComponent(lobbyKey)}&masterUsername=${encodeURIComponent(masterUsername)}&maxPlayers=${encodeURIComponent(maxPlayers)}${characterIdParam}`;
         console.log("Lobby WS Effect: Attempting to connect to:", wsUrl);
-        let ws = null;
-        try {
-            ws = new WebSocket(wsUrl);
-            socketRef.current = ws; // Присваиваем рефу
-            setIsConnectedStatus(false); // Начальный статус
-            console.log("Lobby WS Effect: WebSocket instance created and stored in ref.");
-        } catch (error) {
-             console.error("Lobby WS Effect: WebSocket constructor failed:", error);
-             setLobbyError(`Ошибка создания WebSocket: ${error.message}`);
-             socketRef.current = null;
-             setIsConnectedStatus(false);
-             return;
+
+        if (socketRef.current && socketRef.current.url === wsUrl && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
+            console.log("Lobby WS Effect: Already connected or connecting.");
+            setIsConnectedStatus(socketRef.current.readyState === WebSocket.OPEN);
+            return;
+        }
+        if (socketRef.current && socketRef.current.url !== wsUrl && socketRef.current.readyState !== WebSocket.CLOSED) {
+            console.log("Lobby WS Effect: Closing previous socket (URL changed).");
+            socketRef.current.close(1000, "Reinitializing");
+            socketRef.current = null;
         }
 
-        // Устанавливаем обработчики
-        ws.onopen = () => {
-            console.log("<<< WebSocket OPEN >>> - ReadyState:", ws.readyState);
-            if (socketRef.current === ws) { // Проверяем актуальность сокета
-                console.log("  Setting connection status to TRUE");
-                setIsConnectedStatus(true);
-                setLobbyError('');
-            } else { console.log("  onopen received for an OLD socket instance."); ws.close(); }
-        };
+        let ws = null;
+        try { ws = new WebSocket(wsUrl); socketRef.current = ws; setIsConnectedStatus(false); }
+        catch (error) { console.error("Lobby WS Effect: WebSocket constructor failed:", error); setLobbyError(`Ошибка WebSocket: ${error.message}`); socketRef.current = null; setIsConnectedStatus(false); return; }
+        let currentWs = ws;
 
+        ws.onopen = () => { if (socketRef.current === currentWs) { console.log("<<< WebSocket OPEN >>>"); setIsConnectedStatus(true); setLobbyError(''); } else { currentWs.close(1000, "Stale onopen"); }};
         ws.onmessage = (event) => {
-             if (socketRef.current !== ws) { console.log("<<< WebSocket MESSAGE >>> received for OLD socket, ignoring:", event.data); return; }
-            console.log("<<< WebSocket MESSAGE >>>:", event.data);
+             if (socketRef.current !== currentWs) return;
+            // console.log("<<< WebSocket MESSAGE >>>:", event.data);
             try {
                 const data = JSON.parse(event.data);
-                if (data.type === "players_update") {
-                    handlePlayersUpdate(data); // Вызываем обработчик
-                }
-            } catch (e) { console.log("  (Non-JSON message received, likely chat)"); }
+                if (data.type === "players_update") handlePlayersUpdate(data);
+                else if (data.type === "character_update") handleCharacterUpdate(data.character);
+            } catch (e) { /* Chat handles non-JSON */ }
         };
+        ws.onerror = (error) => { if (socketRef.current === currentWs) { console.error("<<< WebSocket ERROR >>>:", error); setIsConnectedStatus(false); setLobbyError("Ошибка WebSocket соединения."); socketRef.current = null; }};
+        ws.onclose = (event) => { if (socketRef.current === currentWs) { console.log("<<< WebSocket CLOSE >>> Code:", event.code); setIsConnectedStatus(false); socketRef.current = null; if (!event.wasClean && event.code !== 1000 && event.code !== 1001) { setLobbyError(`Соединение разорвано (Код: ${event.code}).`); } }};
 
-        ws.onerror = (error) => {
-            console.error("<<< WebSocket ERROR >>>:", error);
-             if (socketRef.current === ws) {
-                console.log("  Setting connection status to FALSE due to error");
-                setIsConnectedStatus(false);
-                setLobbyError("Произошла ошибка WebSocket соединения.");
-            } else { console.log("  onerror received for an OLD socket instance."); }
-        };
-
-        ws.onclose = (event) => {
-            console.log("<<< WebSocket CLOSE >>> - Code:", event.code, "Reason:", event.reason, "Clean:", event.wasClean);
-             if (socketRef.current === ws) {
-                console.log("  Setting connection status to FALSE and clearing socketRef");
-                setIsConnectedStatus(false);
-                socketRef.current = null; // Очищаем реф
-                if (!event.wasClean && event.code !== 1000 && event.code !== 1001) { // Код 1001 - уход со страницы
-                     setLobbyError(`Соединение с лобби разорвано (Код: ${event.code}).`);
-                }
-            } else { console.log("  onclose received for an OLD socket instance."); }
-        };
-
-        // Функция очистки
         return () => {
-            console.log("<<< Lobby Cleanup >>> - Effect dependencies changed or component unmounted.");
-            const socketToClose = ws; // Используем сокет из замыкания эффекта
-            if (socketToClose && socketToClose.readyState !== WebSocket.CLOSED) {
-                console.log(`  Closing WebSocket instance (readyState: ${socketToClose.readyState})`);
-                socketToClose.close(1000, "Component cleanup");
-            }
-            // Очищаем реф, если он все еще указывает на этот сокет
-            if (socketRef.current === socketToClose) {
-                console.log("  Clearing socketRef in cleanup.");
-                socketRef.current = null;
-                setIsConnectedStatus(false);
-            }
-             console.log("  Cleanup finished.");
+            console.log("<<< Lobby Cleanup >>>");
+            if (currentWs && currentWs.readyState !== WebSocket.CLOSED) { currentWs.close(1000, "Component cleanup / Re-running effect"); }
+            if (socketRef.current === currentWs) { socketRef.current = null; }
         };
-        // Перезапускаем эффект при изменении ключевых данных
-    }, [token, party?.lobby_key, party?.creator_username, party?.max_players, navigate, handlePlayersUpdate]); // Включаем handlePlayersUpdate
+    }, [ token, partyData?.lobby_key, partyData?.creator_username, partyData?.max_players, initialCharacterId, isUserLoading, currentUser, navigate, handlePlayersUpdate, handleCharacterUpdate ]);
 
+    // Выход из лобби
+    const handleExit = () => { if (socketRef.current?.readyState === WebSocket.OPEN) { socketRef.current.close(1000, "User exited"); } navigate("/"); };
 
-    // --- Обработчик выхода из лобби ---
-    const handleExit = () => {
-        console.log("Exiting lobby...");
-        if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-            socketRef.current.close(1000, "User exited lobby");
+    // Развернуть/свернуть лист
+    const toggleCharacterSheet = useCallback((charIdToToggle) => {
+        const myUserId = currentUser?.id;
+        // Используем participantDetails для получения owner_id, если он есть
+        const charOwnerId = participantDetails[charIdToToggle]?.owner_id;
+        const isMyCharacter = myUserId === charOwnerId;
+        const iAmMaster = currentUser?.username === lobbyMaster?.username;
+
+        console.log(`Toggle Sheet: charId=${charIdToToggle}, myUserId=${myUserId}, ownerId=${charOwnerId}, isMy=${isMyCharacter}, isMaster=${iAmMaster}`);
+
+        // Разрешаем, если это мой персонаж ИЛИ я мастер И персонаж существует в деталях
+        if (charIdToToggle && participantDetails[charIdToToggle] && (isMyCharacter || iAmMaster)) {
+             setExpandedCharacterId(prevId => (prevId === charIdToToggle ? null : charIdToToggle));
+        } else if (charIdToToggle) {
+             console.warn("Cannot expand sheet: Not owner or master, or details not loaded yet.");
+             // Можно показать уведомление пользователю
         }
-        navigate("/");
-    };
+    }, [currentUser?.id, currentUser?.username, lobbyMaster?.username, participantDetails]);
+
+    // Обработчик для API действий, вызываемых из ExpandedCharacterSheet
+     const handleSheetApiAction = useCallback(async (actionPromise, successMsg, errorPrefix) => {
+        // Добавляем lobby_key к вызовам API, если это необходимо для бэкенда
+        // (Сейчас предполагаем, что эндпоинты activate и end_turn принимают lobby_key)
+        // Пример: Модификация промиса (если actionPromise это функция)
+        // const modifiedActionPromise = () => actionPromise(partyData?.lobby_key);
+        // await handleLobbyAction(modifiedActionPromise(), successMsg, errorPrefix, { skipRefresh: true });
+
+        // Пока просто вызываем переданный обработчик без авто-рефреша
+        await handleLobbyAction(actionPromise, successMsg, errorPrefix, { skipRefresh: true });
+
+    }, [handleLobbyAction, partyData?.lobby_key]); // Зависит от обработчика и ключа лобби
+
 
     // --- Рендеринг ---
-    if (!party || !currentUser) {
-        // Показываем ошибку, если она есть во время загрузки
-        return <div style={styles.loading}>{lobbyError || 'Загрузка данных лобби и пользователя...'}</div>;
-    }
+    if (isUserLoading || !partyData || !currentUser) { return <div style={styles.loading}>{lobbyError || 'Загрузка данных...'}</div>; }
 
-    // Используем isConnectedStatus для индикатора
     const isConnected = isConnectedStatus;
-    // Пересчитываем количество игроков перед каждым рендером
     const playerCount = (lobbyMaster ? 1 : 0) + otherPlayers.filter(p => p != null).length;
+    const expandedCharacterData = expandedCharacterId ? participantDetails[expandedCharacterId] : null;
 
-    // Лог перед рендером
-    console.log(`--- Lobby RENDER --- isConnected=${isConnected}, playerCount=${playerCount}, Master=${JSON.stringify(lobbyMaster)}, Players=${JSON.stringify(otherPlayers)}`);
+    console.log(`--- Lobby RENDER --- isConnected=${isConnected}, playerCount=${playerCount}, Master=${JSON.stringify(lobbyMaster)}, Players=${JSON.stringify(otherPlayers)}, Details=${Object.keys(participantDetails)}, Expanded=${expandedCharacterId}`);
 
     return (
         <div style={styles.pageContainer}>
@@ -256,61 +204,83 @@ const Lobby = () => {
                 <header style={styles.header}>
                      <h1 style={styles.mainTitle}>Лобби</h1>
                      <div style={styles.headerInfo}>
-                         <div style={styles.lobbyKeyBadge}>
-                             Ключ: <strong>{party.lobby_key}</strong> ({playerCount}/{party.max_players})
-                         </div>
+                         <div style={styles.lobbyKeyBadge}> Ключ: <strong>{partyData.lobby_key}</strong> ({playerCount}/{partyData.max_players}) </div>
                          <div style={{ ...styles.statusIndicator, color: isConnected ? theme.colors.secondary : theme.colors.error }}>
-                             <div style={{ ...styles.statusDot, background: isConnected ? theme.colors.secondary : theme.colors.error }} />
-                             {isConnected ? 'Подключено' : 'Отключено'}
+                             <div style={{ ...styles.statusDot, background: isConnected ? theme.colors.secondary : theme.colors.error }} /> {isConnected ? 'Подключено' : 'Отключено'}
                          </div>
                          <button onClick={handleExit} style={styles.exitButton}>Выйти</button>
                      </div>
                 </header>
-
-                 {/* Отображение ошибки лобби (если не во время загрузки) */}
+                {/* Отображение ошибок */}
                 {lobbyError && <p style={styles.errorBanner}>{lobbyError}</p>}
+                {lobbyActionError && <p style={styles.errorBanner}>{lobbyActionError}</p>}
 
-                <div style={styles.mainContentLayout}>
+                <div style={{...styles.mainContentLayout, '@media (maxWidth: 992px)': { gridTemplateColumns: '1fr' } }}>
+                    {/* Секция Участники */}
                     <Section title="Участники">
                         <div style={styles.participantsGrid}>
-                            {lobbyMaster && <PlayerCard player={lobbyMaster} isMaster={true} />}
+                            {lobbyMaster && (
+                                <PlayerCard
+                                    playerInfo={lobbyMaster}
+                                    characterData={lobbyMaster.character_id ? participantDetails[lobbyMaster.character_id] : null}
+                                    isMaster={true} isExpanded={expandedCharacterId === lobbyMaster.character_id}
+                                    onToggleExpand={toggleCharacterSheet} isMyCard={currentUser?.username === lobbyMaster.username}
+                                />
+                            )}
                             {otherPlayers.map((player, index) => (
                                 <PlayerCard
-                                    key={player?.username ?? `player-slot-${index}`}
-                                    player={player}
-                                    isMaster={false}
+                                    key={player?.username ?? `slot-${index}`}
+                                    playerInfo={player}
+                                    characterData={player?.character_id ? participantDetails[player.character_id] : null}
+                                    isMaster={false} isExpanded={expandedCharacterId === player?.character_id}
+                                    onToggleExpand={toggleCharacterSheet} isMyCard={currentUser?.username === player?.username}
                                 />
                             ))}
                         </div>
                     </Section>
-                    <Section title="Чат">
-                         {/* Передаем текущий сокет из рефа */}
-                         <Chat socket={socketRef.current} username={currentUser} />
-                    </Section>
+
+                    {/* Секция Чат или Развернутый Лист */}
+                    <div style={styles.rightPanel}>
+                        {expandedCharacterData ? (
+                            <Section title={`Персонаж: ${expandedCharacterData.name}`}>
+                                <ExpandedCharacterSheet
+                                    character={expandedCharacterData}
+                                    onClose={() => setExpandedCharacterId(null)}
+                                    // Передаем обработчик и ключ лобби
+                                    handleApiAction={handleSheetApiAction}
+                                    lobbyKey={partyData?.lobby_key}
+                                />
+                            </Section>
+                        ) : (
+                            <Section title="Чат">
+                                <Chat socket={socketRef.current} username={currentUser?.username} />
+                            </Section>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
     );
 };
 
-// Стили styles (остаются без изменений)
+// Стили
 const styles = {
-    pageContainer: { minHeight: '100vh', background: theme.colors.background, color: theme.colors.text, padding: '40px 20px', boxSizing: 'border-box' },
-     contentWrapper: { maxWidth: "1200px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "30px" },
-     header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', background: theme.effects.glass, backdropFilter: theme.effects.blur, borderRadius: '16px', boxShadow: theme.effects.shadow },
-     mainTitle: { margin: 0, fontSize: '1.8rem', color: theme.colors.primary },
-     headerInfo: { display: "flex", alignItems: "center", gap: "16px" },
-     lobbyKeyBadge: { margin: 0, fontSize: "1rem", background: 'rgba(0,0,0,0.3)', padding: '6px 12px', borderRadius: '8px', border: `1px solid ${theme.colors.surface}` },
-     statusIndicator: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' },
-     statusDot: { width: '10px', height: '10px', borderRadius: '50%'/*, animation: 'pulse 1.5s infinite'*/ },
-     exitButton: { padding: '8px 16px', background: theme.colors.error, color: theme.colors.text, border: 'none', borderRadius: '8px', cursor: 'pointer', transition: theme.transitions.default, ':hover': { opacity: 0.9 } },
-     errorBanner: { background: `${theme.colors.error}44`, color: theme.colors.error, padding: '10px 15px', borderRadius: '8px', border: `1px solid ${theme.colors.error}`, textAlign: 'center', marginBottom: '0px' },
-     mainContentLayout: { display: 'grid', gridTemplateColumns: '1fr', gap: '30px', '@media (min-width: 992px)': { gridTemplateColumns: '300px 1fr' } },
-     section: { borderRadius: '16px', padding: '20px', boxShadow: theme.effects.shadow, display: 'flex', flexDirection: 'column' },
-     sectionTitle: { margin: '0 0 15px 0', color: theme.colors.secondary, borderBottom: `1px solid ${theme.colors.secondary}`, paddingBottom: '10px', fontSize: '1.2rem' },
-     sectionContent: { flexGrow: 1 },
-     participantsGrid: { display: 'flex', flexDirection: 'column', gap: '10px' },
-     loading: { textAlign: 'center', padding: '50px', fontSize: '1.5rem', color: theme.colors.text },
+    pageContainer: { minHeight: '100vh', background: theme.colors.background, color: theme.colors.text, padding: '30px 20px', boxSizing: 'border-box' },
+    contentWrapper: { maxWidth: "1400px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "25px" },
+    header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', background: theme.effects.glass, backdropFilter: theme.effects.blur, borderRadius: '16px', boxShadow: theme.effects.shadow },
+    mainTitle: { margin: 0, fontSize: '1.6rem', color: theme.colors.primary },
+    headerInfo: { display: "flex", alignItems: "center", gap: "16px", flexWrap: 'wrap' }, // Added flexWrap
+    lobbyKeyBadge: { margin: 0, fontSize: "0.9rem", background: 'rgba(0,0,0,0.3)', padding: '6px 12px', borderRadius: '8px', border: `1px solid ${theme.colors.surface}` },
+    statusIndicator: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' },
+    statusDot: { width: '10px', height: '10px', borderRadius: '50%' },
+    exitButton: { padding: '8px 16px', background: theme.colors.error, color: theme.colors.text, border: 'none', borderRadius: '8px', cursor: 'pointer', transition: theme.transitions.default, ':hover': { opacity: 0.9 } },
+    errorBanner: { background: `${theme.colors.error}44`, color: theme.colors.error, padding: '10px 15px', borderRadius: '8px', border: `1px solid ${theme.colors.error}`, textAlign: 'center', marginBottom: '0px', marginTop: '10px' }, // Added marginTop
+    mainContentLayout: { display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '25px', minHeight: 'calc(100vh - 180px)' }, // Removed @media here, apply globally or via CSS module
+    rightPanel: { display: 'flex', flexDirection: 'column', minWidth: 0, },
+    section: { borderRadius: '16px', padding: '20px', boxShadow: theme.effects.shadow, display: 'flex', flexDirection: 'column', flexGrow: 1, overflow: 'hidden' }, // Added overflow hidden
+    sectionTitle: { margin: '0 0 15px 0', color: theme.colors.secondary, borderBottom: `1px solid ${theme.colors.secondary}88`, paddingBottom: '10px', fontSize: '1.2rem', flexShrink: 0 },
+    participantsGrid: { display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto', paddingRight: '5px', flexGrow: 1 }, // Added flexGrow
+    loading: { textAlign: 'center', padding: '50px', fontSize: '1.5rem', color: theme.colors.text },
 };
 
 export default Lobby;
