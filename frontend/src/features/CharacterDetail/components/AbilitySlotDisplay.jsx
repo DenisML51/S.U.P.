@@ -157,9 +157,9 @@ const AbilitySlotDisplay = ({
 
 // --- Стили ---
 const styles = {
-     slotContainer: { position: 'relative', width: '80px', height: '80px', display: 'inline-block', }, // Увеличили размер
+     slotContainer: { position: 'relative', width: '70px', height: '70px', display: 'inline-block', }, // Увеличили размер
     slotBase: {
-        width: '100%', height: '100%', borderRadius: '50%',
+        width: '80%', height: '80%', borderRadius: '50%',
         border: `3px solid ${theme.colors.surfaceVariant}`, // Толще рамка
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         position: 'relative', cursor: 'pointer', transition: 'all 0.2s ease-in-out',

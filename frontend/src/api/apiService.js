@@ -1,17 +1,13 @@
 // frontend/src/apiService.js
 import axios from 'axios';
 
-// Предполагаем, что API_URL уже определен правильно
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000"; // Используем переменную окружения или дефолт
+// Используем переменную окружения или дефолтное значение для URL API
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
+// Функция для получения заголовков аутентификации
 const getAuthHeaders = () => {
     const token = localStorage.getItem("token");
-    // Логирование оставлено для отладки, можно убрать в продакшене
-    if (token) {
-        // console.log("getAuthHeaders: Adding Authorization header.");
-    } else {
-        console.warn("getAuthHeaders: Token not found in localStorage.");
-    }
+    // console.log("getAuthHeaders Token:", token ? 'Found' : 'Not Found'); // Debugging
     return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
@@ -64,6 +60,7 @@ export const updateCharacterStats = (characterId, statsUpdate, checkResult = nul
     const payload = { ...statsUpdate };
     if (checkResult) { payload.check_result = checkResult; }
     console.log(`API Call: updateCharacterStats for ID ${characterId}:`, payload);
+    // Примечание: Этот эндпоинт тоже может потребовать lobbyKey, если изменения статов должны быть видны в лобби
     return axios.put(`${API_URL}/characters/${characterId}/stats`, payload, { headers: getAuthHeaders() });
 };
 
@@ -74,69 +71,75 @@ export const updateCharacterNotes = (characterId, notesUpdate) => {
 
 export const healCharacter = (characterId, healData) => {
     console.log(`API Call: healCharacter for ID: ${characterId}`, healData);
+    // Примечание: Этот эндпоинт тоже может потребовать lobbyKey
     return axios.post(`${API_URL}/characters/${characterId}/heal`, healData, { headers: getAuthHeaders() });
 };
 
-export const performShortRest = (characterId, diceCount) => {
-    console.log(`API Call: performShortRest for ID: ${characterId}, Dice: ${diceCount}`);
-    return axios.post(`${API_URL}/characters/${characterId}/short_rest`, { dice_to_spend: diceCount }, { headers: getAuthHeaders() });
-};
-
-export const performLongRest = (characterId) => {
-    console.log(`API Call: performLongRest for ID: ${characterId}`);
-    return axios.post(`${API_URL}/characters/${characterId}/long_rest`, {}, { headers: getAuthHeaders() });
-};
 
 // --- Inventory & Equipment ---
-export const addItemToInventory = (characterId, itemId, quantity = 1) => {
-    console.log(`API Call: addItemToInventory for char ID: ${characterId}, item ID: ${itemId}`);
-    return axios.post(`${API_URL}/characters/${characterId}/inventory`, { item_id: itemId, quantity }, { headers: getAuthHeaders() });
+export const addItemToInventory = (characterId, itemId, quantity = 1, lobbyKey = null) => { // <-- Add lobbyKey
+    console.log(`API Call: addItemToInventory char ${characterId}, item ${itemId}, qty ${quantity}, lobby: ${lobbyKey}`);
+    const params = new URLSearchParams();
+    if (lobbyKey) params.append('lobby_key', lobbyKey);
+    const url = `${API_URL}/characters/${characterId}/inventory${lobbyKey ? '?' + params.toString() : ''}`;
+    return axios.post(url, { item_id: itemId, quantity }, { headers: getAuthHeaders() });
 };
 
-export const removeItemFromInventory = (characterId, inventoryItemId, quantity = 1) => {
-    console.log(`API Call: removeItemFromInventory for inv ID: ${inventoryItemId}, quantity: ${quantity}`);
-    // Передаем quantity как query параметр
-    return axios.delete(`${API_URL}/characters/${characterId}/inventory/${inventoryItemId}?quantity=${quantity}`, { headers: getAuthHeaders() });
+export const removeItemFromInventory = (characterId, inventoryItemId, quantity = 1, lobbyKey = null) => { // <-- Add lobbyKey
+    console.log(`API Call: removeItemFromInventory inv ID: ${inventoryItemId}, quantity: ${quantity}, lobby: ${lobbyKey}`);
+    const params = new URLSearchParams({ quantity: String(quantity) }); // Quantity должен быть строкой
+    if (lobbyKey) params.append('lobby_key', lobbyKey);
+    return axios.delete(`${API_URL}/characters/${characterId}/inventory/${inventoryItemId}?${params.toString()}`, { headers: getAuthHeaders() });
 };
 
-export const equipItem = (characterId, inventoryItemId, slot) => {
-    console.log(`API Call: equipItem inv ID: ${inventoryItemId} to slot: ${slot}`);
-    return axios.put(`${API_URL}/characters/${characterId}/equipment`, { inventory_item_id: inventoryItemId, slot }, { headers: getAuthHeaders() });
+export const equipItem = (characterId, inventoryItemId, slot, lobbyKey = null) => { // <-- Add lobbyKey
+    console.log(`API Call: equipItem inv ID: ${inventoryItemId} to slot: ${slot}, lobby: ${lobbyKey}`);
+    const params = new URLSearchParams();
+    if (lobbyKey) params.append('lobby_key', lobbyKey);
+    const url = `${API_URL}/characters/${characterId}/equipment${lobbyKey ? '?' + params.toString() : ''}`;
+    return axios.put(url, { inventory_item_id: inventoryItemId, slot }, { headers: getAuthHeaders() });
 };
 
-export const unequipItem = (characterId, slot) => {
-    console.log(`API Call: unequipItem from slot: ${slot}`);
-    return axios.delete(`${API_URL}/characters/${characterId}/equipment/${slot}`, { headers: getAuthHeaders() });
+export const unequipItem = (characterId, slot, lobbyKey = null) => { // <-- Add lobbyKey
+    console.log(`API Call: unequipItem from slot: ${slot}, lobby: ${lobbyKey}`);
+    const params = new URLSearchParams();
+    if (lobbyKey) params.append('lobby_key', lobbyKey);
+    const url = `${API_URL}/characters/${characterId}/equipment/${slot}${lobbyKey ? '?' + params.toString() : ''}`;
+    return axios.delete(url, { headers: getAuthHeaders() });
 };
 
-// --- Custom Items --- << НОВЫЕ ФУНКЦИИ >>
-export const addCustomItemToInventory = (characterId, name, description, quantity = 1) => {
-    console.log(`API Call: addCustomItemToInventory for char ID: ${characterId}`);
-    // Убедимся, что description передается как null, если оно пустое, или как строка, если нет
-    const payload = {
-        name: name.trim(),
-        description: description?.trim() || null, // Передаем null, если пусто
-        quantity: quantity >= 1 ? quantity : 1
-    };
-    return axios.post(`${API_URL}/characters/${characterId}/custom_items`, payload, { headers: getAuthHeaders() });
+// --- Custom Items ---
+export const addCustomItemToInventory = (characterId, name, description, quantity = 1, lobbyKey = null) => { // <-- Add lobbyKey
+    console.log(`API Call: addCustomItem char ${characterId}, name ${name}, lobby: ${lobbyKey}`);
+    const payload = { name: name.trim(), description: description?.trim() || null, quantity: quantity >= 1 ? quantity : 1 };
+    const params = new URLSearchParams();
+    if (lobbyKey) params.append('lobby_key', lobbyKey);
+    const url = `${API_URL}/characters/${characterId}/custom_items${lobbyKey ? '?' + params.toString() : ''}`;
+    return axios.post(url, payload, { headers: getAuthHeaders() });
 };
 
-export const removeCustomItemFromInventory = (characterId, customItemId, quantity = 1) => {
-    console.log(`API Call: removeCustomItemFromInventory for custom item ID: ${customItemId}, quantity: ${quantity}`);
-    // Передаем quantity как query параметр
-    return axios.delete(`${API_URL}/characters/${characterId}/custom_items/${customItemId}?quantity=${quantity}`, { headers: getAuthHeaders() });
+export const removeCustomItemFromInventory = (characterId, customItemId, quantity = 1, lobbyKey = null) => { // <-- Add lobbyKey
+    console.log(`API Call: removeCustomItem ID: ${customItemId}, quantity: ${quantity}, lobby: ${lobbyKey}`);
+    const params = new URLSearchParams({ quantity: String(quantity) });
+    if (lobbyKey) params.append('lobby_key', lobbyKey);
+    return axios.delete(`${API_URL}/characters/${characterId}/custom_items/${customItemId}?${params.toString()}`, { headers: getAuthHeaders() });
 };
-// --- << КОНЕЦ НОВЫХ ФУНКЦИЙ >> ---
 
 // --- Status Effects ---
-export const applyStatusEffect = (characterId, statusEffectId) => {
-    console.log(`API Call: applyStatusEffect ID: ${statusEffectId} to char ID: ${characterId}`);
-    return axios.post(`${API_URL}/characters/${characterId}/status_effects`, { status_effect_id: statusEffectId }, { headers: getAuthHeaders() });
+export const applyStatusEffect = (characterId, statusEffectId, lobbyKey = null) => { // <-- Add lobbyKey
+    console.log(`API Call: applyStatusEffect ID: ${statusEffectId} to char ID: ${characterId}, lobby: ${lobbyKey}`);
+    const params = new URLSearchParams();
+    if (lobbyKey) params.append('lobby_key', lobbyKey);
+    const url = `${API_URL}/characters/${characterId}/status_effects${lobbyKey ? '?' + params.toString() : ''}`;
+    return axios.post(url, { status_effect_id: statusEffectId }, { headers: getAuthHeaders() });
 };
 
-export const removeStatusEffect = (characterId, statusEffectId) => {
-    console.log(`API Call: removeStatusEffect ID: ${statusEffectId} from char ID: ${characterId}`);
-    return axios.delete(`${API_URL}/characters/${characterId}/status_effects/${statusEffectId}`, { headers: getAuthHeaders() });
+export const removeStatusEffect = (characterId, statusEffectId, lobbyKey = null) => { // <-- Add lobbyKey
+    console.log(`API Call: removeStatusEffect ID: ${statusEffectId} from char ID: ${characterId}, lobby: ${lobbyKey}`);
+    const params = new URLSearchParams();
+    if (lobbyKey) params.append('lobby_key', lobbyKey);
+    const url = `${API_URL}/characters/${characterId}/status_effects/${statusEffectId}${lobbyKey ? '?' + params.toString() : ''}`;
+    return axios.delete(url, { headers: getAuthHeaders() });
 };
 
 // --- Parties ---
@@ -151,38 +154,57 @@ export const joinParty = (lobbyKey) => {
 };
 
 // --- Actions ---
-export const activateAction = (characterId, activationData) => {
-    console.log(`API Call: activateAction for char ID: ${characterId}`, activationData);
-    // activationData должен иметь вид:
-    // { activation_type: 'item' | 'ability', target_id: number, target_entities?: number[] }
-    return axios.post(`${API_URL}/characters/${characterId}/activate`, activationData, { headers: getAuthHeaders() });
+export const activateAction = (characterId, activationData, lobbyKey = null) => { // <-- Add lobbyKey
+    console.log(`API Call: activateAction for char ID: ${characterId}, lobby: ${lobbyKey}`, activationData);
+    const params = new URLSearchParams();
+    if (lobbyKey) params.append('lobby_key', lobbyKey);
+    const url = `${API_URL}/characters/${characterId}/activate${lobbyKey ? '?' + params.toString() : ''}`;
+    return axios.post(url, activationData, { headers: getAuthHeaders() });
 };
 
-// --- НОВАЯ ФУНКЦИЯ: Проверка Навыка ---
 export const performSkillCheck = (characterId, skillName) => {
     console.log(`API Call: performSkillCheck for char ID: ${characterId}, skill: ${skillName}`);
     const payload = { skill_name: skillName };
+    // Проверки навыков обычно не требуют lobbyKey, т.к. не меняют состояние других
     return axios.post(`${API_URL}/characters/${characterId}/skill_check`, payload, { headers: getAuthHeaders() });
 };
 
-export const setCharacterAbilitySlot = (characterId, slotNumber, abilityId) => {
-    console.log(`API Call: setCharacterAbilitySlot - CharID: ${characterId}, Slot: ${slotNumber}, AbilityID: ${abilityId}`);
-    const payload = { ability_id: abilityId }; // abilityId может быть null для очистки
-    return axios.put(
-        `${API_URL}/characters/${characterId}/active_abilities/${slotNumber}`,
-        payload,
-        { headers: getAuthHeaders() }
-    );
+// --- Rest ---
+export const performShortRest = (characterId, diceCount, lobbyKey = null) => { // <-- Add lobbyKey
+    console.log(`API Call: performShortRest for ID: ${characterId}, Dice: ${diceCount}, lobby: ${lobbyKey}`);
+    const params = new URLSearchParams();
+    if (lobbyKey) params.append('lobby_key', lobbyKey);
+    const url = `${API_URL}/characters/${characterId}/short_rest${lobbyKey ? '?' + params.toString() : ''}`;
+    return axios.post(url, { dice_to_spend: diceCount }, { headers: getAuthHeaders() });
 };
 
-export const endCharacterTurn = (characterId) => {
-    console.log(`API Call: endCharacterTurn for CharID: ${characterId}`);
-    return axios.post(
-        `${API_URL}/characters/${characterId}/end_turn`,
-        {}, // Тело запроса пустое
-        { headers: getAuthHeaders() }
-    );
+export const performLongRest = (characterId, lobbyKey = null) => { // <-- Add lobbyKey
+    console.log(`API Call: performLongRest for ID: ${characterId}, lobby: ${lobbyKey}`);
+    const params = new URLSearchParams();
+    if (lobbyKey) params.append('lobby_key', lobbyKey);
+    const url = `${API_URL}/characters/${characterId}/long_rest${lobbyKey ? '?' + params.toString() : ''}`;
+    return axios.post(url, {}, { headers: getAuthHeaders() });
 };
+
+// --- Ability Slots ---
+export const setCharacterAbilitySlot = (characterId, slotNumber, abilityId, lobbyKey = null) => { // <-- Add lobbyKey
+    console.log(`API Call: setCharacterAbilitySlot char ${characterId}, Slot: ${slotNumber}, Ability: ${abilityId}, lobby: ${lobbyKey}`);
+    const payload = { ability_id: abilityId };
+    const params = new URLSearchParams();
+    if (lobbyKey) params.append('lobby_key', lobbyKey);
+    const url = `${API_URL}/characters/${characterId}/active_abilities/${slotNumber}${lobbyKey ? '?' + params.toString() : ''}`;
+    return axios.put(url, payload, { headers: getAuthHeaders() });
+};
+
+// --- Turn Management ---
+export const endCharacterTurn = (characterId, lobbyKey = null) => { // <-- Add lobbyKey
+    console.log(`API Call: endCharacterTurn for CharID: ${characterId}, lobby: ${lobbyKey}`);
+    const params = new URLSearchParams();
+    if (lobbyKey) params.append('lobby_key', lobbyKey);
+    const url = `${API_URL}/characters/${characterId}/end_turn${lobbyKey ? '?' + params.toString() : ''}`;
+    return axios.post(url, {}, { headers: getAuthHeaders() });
+};
+
 
 // --- Reference Data ---
 export const getAllWeapons = () => axios.get(`${API_URL}/data/weapons`);
@@ -192,3 +214,4 @@ export const getAllGeneralItems = () => axios.get(`${API_URL}/data/general_items
 export const getAllAmmo = () => axios.get(`${API_URL}/data/ammo`);
 export const getAllAbilities = () => axios.get(`${API_URL}/data/abilities`);
 export const getAllStatusEffects = () => axios.get(`${API_URL}/data/status_effects`);
+

@@ -1,5 +1,5 @@
 // src/features/Lobby/components/ExpandedCharacterSheet.js
-import React, { useState, useCallback } from 'react'; // Убедимся, что useCallback импортирован
+import React, { useState, useCallback } from 'react';
 import { theme } from '../../../styles/theme';
 
 // Импорт компонентов со страницы деталей
@@ -22,57 +22,56 @@ const CloseIcon = () => (
 const ExpandedCharacterSheet = ({
     character,
     onClose,
-    handleApiAction, // Принимаем обработчик из Lobby.js
-    lobbyKey // Принимаем lobbyKey
+    handleApiAction, // Принимаем обработчик-обертку из Lobby.js
+    // lobbyKey больше не нужен как проп
  }) => {
     const [activeSheetTab, setActiveSheetTab] = useState('status');
 
-    // --- ИСПРАВЛЕНИЕ: Переносим useCallback на верхний уровень ---
-    // Обработчик для API действий внутри листа
-    const handleSheetApiAction = useCallback(async (actionPromise, successMessage, errorMessagePrefix) => {
-        if (handleApiAction) {
-            await handleApiAction(actionPromise, successMessage, errorMessagePrefix, { skipRefresh: true });
-        } else { console.warn("handleApiAction is not provided"); }
-    }, [handleApiAction]);
-
-    // Обработчики для InventoryTab
+    // --- ИСПРАВЛЕНИЕ: Используем переданный handleApiAction напрямую ---
+    // Обработчики для InventoryTab - вызывают handleApiAction напрямую с новой сигнатурой
     const handleEquipItem = useCallback((inventoryItemId, slot) => {
-        if (!character?.id) return; // Добавим проверку ID
-        handleSheetApiAction(
-             apiService.equipItem(character.id, inventoryItemId, slot),
+        if (!character?.id || !handleApiAction) return;
+        // Передаем функцию API и массив аргументов
+        handleApiAction(
+             apiService.equipItem,
+             [character.id, inventoryItemId, slot],
              `Предмет экипирован`, `Ошибка экипировки`
          );
-    }, [character?.id, handleSheetApiAction]);
+    }, [character?.id, handleApiAction]);
 
     const handleUnequipItem = useCallback((slot) => {
-        if (!character?.id) return; // Добавим проверку ID
-         handleSheetApiAction(
-             apiService.unequipItem(character.id, slot),
+        if (!character?.id || !handleApiAction) return;
+         // Передаем функцию API и массив аргументов
+         handleApiAction(
+             apiService.unequipItem,
+             [character.id, slot],
              `Предмет снят`, `Ошибка снятия`
          );
-    }, [character?.id, handleSheetApiAction]);
+    }, [character?.id, handleApiAction]);
 
      const handleDropItem = useCallback((inventoryItemId, quantity = 1) => {
-        if (!character?.id) return; // Добавим проверку ID
-         handleSheetApiAction(
-             apiService.removeItemFromInventory(character.id, inventoryItemId, quantity),
+        if (!character?.id || !handleApiAction) return;
+         // Передаем функцию API и массив аргументов
+         handleApiAction(
+             apiService.removeItemFromInventory,
+             [character.id, inventoryItemId, quantity],
              `Предмет удален (x${quantity})`, `Ошибка удаления предмета`
          );
-    }, [character?.id, handleSheetApiAction]);
+    }, [character?.id, handleApiAction]);
     // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
 
-    // Ранний выход, если нет данных персонажа
     if (!character) return null;
-
 
     // Функция рендеринга контента вкладки
     const renderSheetTabContent = () => {
         switch (activeSheetTab) {
             case 'status':
-                return ( <CharacterStatusSection character={character} handleApiAction={handleSheetApiAction} onLevelUpClick={null} refreshCharacterData={null} /> );
+                // Передаем handleApiAction напрямую
+                return ( <CharacterStatusSection character={character} handleApiAction={handleApiAction} onLevelUpClick={null} refreshCharacterData={null} /> );
             case 'actions':
-                 return ( <CharacterActionTab character={character} handleApiAction={handleSheetApiAction} onAbilityClick={null} /> );
+                 // Передаем handleApiAction напрямую
+                 return ( <CharacterActionTab character={character} handleApiAction={handleApiAction} onAbilityClick={null} /> );
             case 'skills':
                  // Передаем refresh=null, т.к. обновления через WS
                  return <CharacterSkillsTab character={character} refreshCharacterData={null} />;
@@ -87,7 +86,7 @@ const ExpandedCharacterSheet = ({
                             handleUnequip={handleUnequipItem}
                             handleDropItem={handleDropItem}
                             onAddItemClick={null} // Добавление из справочника не нужно здесь
-                            handleApiAction={handleSheetApiAction} // Для кастомных
+                            handleApiAction={handleApiAction} // Для кастомных предметов
                         />;
             case 'notes':
                  // Редактирование отключено
