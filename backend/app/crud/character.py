@@ -91,134 +91,82 @@ def get_character_details(db: Session, character_id: int, user_id: int) -> Optio
 def get_character_details_for_output(db: Session, character_id: int, user_id: int) -> Optional[CharacterDetailedOut]:
     """Получает данные персонажа и формирует Pydantic схему CharacterDetailedOut для вывода."""
     db_char = get_character_details(db, character_id, user_id)
-    if not db_char:
-        return None
+    if not db_char: return None
 
     total_ac = _calculate_total_ac(db_char)
-    passive_attention = 10 + db_char.attention_mod # Используем гибридное свойство
+    passive_attention = 10 + db_char.attention_mod
     next_level = db_char.level + 1
     xp_needed = _get_xp_for_level(next_level)
 
-    # --- Формирование словаря для Pydantic модели ---
     character_data = {}
     char_mapper = sqlainspect(Character)
-    # Копируем основные поля из модели Character
+
+    # Копируем основные поля
     for prop in char_mapper.iterate_properties:
         if isinstance(prop, ColumnProperty) and prop.key in CharacterDetailedOut.model_fields:
-            character_data[prop.key] = getattr(db_char, prop.key)
+            # Копируем флаги действий
+            if prop.key in ['has_used_main_action', 'has_used_bonus_action', 'has_used_reaction']:
+                character_data[prop.key] = getattr(db_char, prop.key, False)
+            else:
+                character_data[prop.key] = getattr(db_char, prop.key)
 
-
+    # Формируем данные для слотов
     active_slots_data = {}
     for i in range(1, 6):
         slot_ability_attr = f"active_ability_{i}"
         slot_cooldown_attr = f"active_ability_slot_{i}_cooldown"
-
         slot_ability_obj = getattr(db_char, slot_ability_attr, None)
         slot_cooldown_val = getattr(db_char, slot_cooldown_attr, 0)
-
         ability_schema = None
         if slot_ability_obj:
-            try:
-                # Используем существующую схему AbilityOut
-                ability_schema = AbilityOut.from_orm(slot_ability_obj)
-            except Exception as e:
-                 logger.error(f"Error creating AbilityOut schema for slot {i}: {e}")
-
-        # Собираем данные для схемы ActiveAbilitySlotOut
+            try: ability_schema = AbilityOut.from_orm(slot_ability_obj)
+            except Exception as e: logger.error(f"Error creating AbilityOut schema for slot {i}: {e}")
         active_slots_data[f"active_slot_{i}"] = ActiveAbilitySlotOut(
-            ability=ability_schema,
-            cooldown_remaining=slot_cooldown_val
+            ability=ability_schema, cooldown_remaining=slot_cooldown_val
         )
 
-    # Добавляем расчетные и связанные данные
-    character_data.update({
-        "skill_modifiers": {
-            f: getattr(db_char, f) for f in CharacterSkillModifiers.model_fields.keys() if hasattr(db_char, f)
-        },
-        "total_ac": total_ac,
-        "passive_attention": passive_attention,
-        "xp_needed_for_next_level": xp_needed,
-        # Добавляем явно те поля, что есть в CharacterDetailedOut, но не являются прямыми ColumnProperty
-        # или для которых важны текущие значения из объекта db_char
-        "max_hp": db_char.max_hp,
-        "current_hp": db_char.current_hp,
-        "base_pu": db_char.base_pu,
-        "current_pu": db_char.current_pu,
-        "stamina_points": db_char.stamina_points,
-        "exhaustion_level": db_char.exhaustion_level,
-        "speed": db_char.speed,
-        "initiative_bonus": db_char.initiative_bonus, # гибридное свойство
-        "base_ac": db_char.base_ac, # гибридное свойство
-        # Уровни веток уже скопированы циклом выше, т.к. они ColumnProperty
-        # Заметки тоже скопированы циклом выше
-        **active_slots_data
-    })
-
-    # --- Вспомогательная функция для преобразования инвентаря ---
+    # Вспомогательная функция для инвентаря
     def get_inventory_item_schema(inv_item: Optional[CharacterInventoryItem]) -> Optional[CharacterInventoryItemOut]:
-        if not inv_item or not inv_item.item:
-            return None
-        item_data = inv_item.item
-        item_schema: Any = None # Используем Any для Union
+        if not inv_item or not inv_item.item: return None
+        item_data = inv_item.item; item_schema: Any = None
+        if isinstance(item_data, Weapon): item_schema = WeaponOut.from_orm(item_data)
+        elif isinstance(item_data, Armor): item_schema = ArmorOut.from_orm(item_data)
+        elif isinstance(item_data, Shield): item_schema = ShieldOut.from_orm(item_data)
+        elif isinstance(item_data, GeneralItem): item_schema = GeneralItemOut.from_orm(item_data)
+        elif isinstance(item_data, Ammo): item_schema = AmmoOut.from_orm(item_data)
+        else: item_schema = ItemBase.from_orm(item_data)
+        if item_schema is None: return None
+        return CharacterInventoryItemOut(id=inv_item.id, item=item_schema, quantity=inv_item.quantity)
 
-        # Преобразуем Item в соответствующую Pydantic схему Out, используя from_orm
-        # from_orm важен для автоматического подтягивания связанных данных (как granted_abilities у Weapon)
-        if isinstance(item_data, Weapon):
-            item_schema = WeaponOut.from_orm(item_data)
-        elif isinstance(item_data, Armor):
-            item_schema = ArmorOut.from_orm(item_data)
-        elif isinstance(item_data, Shield):
-            item_schema = ShieldOut.from_orm(item_data)
-        elif isinstance(item_data, GeneralItem):
-            item_schema = GeneralItemOut.from_orm(item_data)
-        elif isinstance(item_data, Ammo):
-            item_schema = AmmoOut.from_orm(item_data)
-        else:
-             # Fallback на базовую схему, если тип не определен или неизвестен
-            item_schema = ItemBase.from_orm(item_data)
-
-        if item_schema is None: return None # Если не удалось создать схему
-
-        return CharacterInventoryItemOut(
-            id=inv_item.id,
-            item=item_schema,
-            quantity=inv_item.quantity
-        )
-
-    # --- Преобразуем связанные данные ---
     inventory_list = [get_inventory_item_schema(inv_item) for inv_item in db_char.inventory if inv_item]
-    inventory_list = [item for item in inventory_list if item is not None] # Убираем возможные None
-
+    inventory_list = [item for item in inventory_list if item is not None]
     custom_items_list = [CustomItemOut.from_orm(ci) for ci in db_char.custom_items]
 
+    # Добавляем все данные в словарь
     character_data.update({
+        "skill_modifiers": {f: getattr(db_char, f) for f in CharacterSkillModifiers.model_fields.keys() if hasattr(db_char, f)},
+        "total_ac": total_ac, "passive_attention": passive_attention, "xp_needed_for_next_level": xp_needed,
+        "max_hp": db_char.max_hp, "current_hp": db_char.current_hp, "base_pu": db_char.base_pu,
+        "current_pu": db_char.current_pu, "stamina_points": db_char.stamina_points,
+        "exhaustion_level": db_char.exhaustion_level, "speed": db_char.speed,
+        "initiative_bonus": db_char.initiative_bonus, "base_ac": db_char.base_ac,
         "inventory": inventory_list,
         "equipped_armor": get_inventory_item_schema(db_char.equipped_armor),
         "equipped_shield": get_inventory_item_schema(db_char.equipped_shield),
         "equipped_weapon1": get_inventory_item_schema(db_char.equipped_weapon1),
         "equipped_weapon2": get_inventory_item_schema(db_char.equipped_weapon2),
-        "available_abilities": [AbilityOut.from_orm(ab) for ab in db_char.available_abilities],
-        "active_status_effects": [StatusEffectOut.from_orm(se) for se in db_char.active_status_effects],
-        "custom_items": custom_items_list
+        "available_abilities": [AbilityOut.from_orm(ab) for ab in db_char.available_abilities if ab],
+        "active_status_effects": [StatusEffectOut.from_orm(se) for se in db_char.active_status_effects if se],
+        "custom_items": custom_items_list,
+        **active_slots_data # Добавляем слоты
     })
 
-    # Создаем Pydantic модель из словаря
+    # Создаем и возвращаем Pydantic модель
     try:
-        # Проверка на наличие всех полей (опционально, Pydantic v2 должен handle extra='ignore')
-        required_fields = set(CharacterDetailedOut.model_fields.keys())
-        present_fields = set(character_data.keys())
-        if not required_fields.issubset(present_fields):
-            missing = required_fields - present_fields
-            print(f"Предупреждение: Отсутствуют поля для CharacterDetailedOut: {missing}")
-            # Можно добавить логику для установки значений по умолчанию или генерации ошибки
-
         result_schema = CharacterDetailedOut(**character_data)
         return result_schema
     except Exception as e:
-        print(f"Ошибка валидации Pydantic CharacterDetailedOut: {e}")
-        print(f"Данные перед валидацией (ключи): {list(character_data.keys())}")
-        # Можно вернуть None или пробросить ошибку дальше, чтобы API вернул 500
-        # raise HTTPException(status_code=500, detail=f"Ошибка формирования данных персонажа: {e}")
+        logger.error(f"Pydantic CharacterDetailedOut validation error: {e}", exc_info=True)
         return None
 
 

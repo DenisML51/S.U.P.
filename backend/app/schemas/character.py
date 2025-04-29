@@ -243,6 +243,10 @@ class CharacterDetailedOut(
     active_slot_4: Optional[ActiveAbilitySlotOut] = None
     active_slot_5: Optional[ActiveAbilitySlotOut] = None
 
+    has_used_main_action: bool = False
+    has_used_bonus_action: bool = False
+    has_used_reaction: bool = False
+
     custom_items: List[CustomItemOut] = []
 
     model_config = ConfigDict(from_attributes=True)
