@@ -9,7 +9,6 @@ services:
     volumes:
       - ./backend/app:/app/app  
 
-      - ./backend/test.db:/app/test.db
     ports:
       - "8000:8000"
     environment:
